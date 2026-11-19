@@ -439,6 +439,7 @@ function sellTower(tw){
   selTower=null;recompute();updateUI();
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
+const TAUNTS=['Đồ gà! 🐔','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo 🍬','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu 😝','Cảm ơn đã mở đường!'];
 function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:HP_MUL*Math.pow(LEVEL_HP,level-1)*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+2*n]];
@@ -593,6 +594,11 @@ function update(dt){
     if(tw.hp<=0)destroyTower(tw);
   }
   for(const tw of towers)if(tw.hurt>0)tw.hurt-=dt;
+  for(const e of enemies)if(e.done&&(!state.taunt||state.taunt.t<.9)){
+    let t;do{t=TAUNTS[Math.floor(Math.random()*TAUNTS.length)]}while(state.taunt&&t===state.taunt.txt&&TAUNTS.length>1);
+    state.taunt={txt:t,t:2.2,k:e.k};
+  }
+  if(state.taunt){state.taunt.t-=dt;if(state.taunt.t<=0)state.taunt=null}
   for(const e of enemies)if(e.done){state.lives--;e.hp=-1;e.leaked=true;state.flash=.45;burst(e.x,e.y,'#ff6b6b',12,2.5)}
   for(const tw of towers){
     const L=st(tw);
@@ -971,6 +977,20 @@ function draw(){
     g.fillStyle='#ffd166';g.fillText(t.txt,t.x*S,t.y*S);
   }
   g.globalAlpha=1;
+  if(state.taunt){
+    const tt=state.taunt,age=2.2-tt.t,pop=Math.min(1,age*6),sc=pop<1?.5+.5*pop+Math.sin(pop*3.14)*.15:1;
+    const bx=EX.x*S+S/2,by=EX.y*S-S*.55;
+    g.save();g.globalAlpha=Math.min(1,tt.t*2.5);g.translate(bx,by);g.scale(sc,sc);g.rotate(Math.sin(now*9)*.03);
+    g.font='bold 15px system-ui';const w=g.measureText(tt.txt).width+44,h=34;
+    const left=Math.max(-bx+6,Math.min(C*S-bx-w-6,-w/2));
+    g.fillStyle='rgba(0,0,0,.35)';rr(g,left+2,-h-14+3,w,h,16);g.fill();
+    g.fillStyle='#fff';rr(g,left,-h-14,w,h,16);g.fill();
+    g.beginPath();g.moveTo(-7,-15);g.lineTo(7,-15);g.lineTo(0,-2);g.closePath();g.fill();
+    g.strokeStyle='#d83a3a';g.lineWidth=2.5;rr(g,left,-h-14,w,h,16);g.stroke();
+    const ic=EIMG[tt.k];if(ic&&ic.complete)g.drawImage(ic,left+5,-h-14+5,24,24);
+    g.fillStyle='#b21f1f';g.textAlign='left';g.textBaseline='middle';g.fillText(tt.txt,left+33,-h/2-14);
+    g.restore();
+  }
   if(state.flash>0){
     const fg=g.createRadialGradient(C*S/2,R*S/2,Math.min(C,R)*S*.35,C*S/2,R*S/2,Math.max(C,R)*S*.6);
     fg.addColorStop(0,'rgba(255,0,0,0)');fg.addColorStop(1,'rgba(255,40,40,'+state.flash*1.2+')');
@@ -998,6 +1018,7 @@ function enemyIcon(k){
   return c.toDataURL();
 }
 const EICON={};for(const k in ETYPES)EICON[k]=enemyIcon(k);
+const EIMG={};for(const k in EICON){EIMG[k]=new Image();EIMG[k].src=EICON[k]}
 function nextHTML(){
   const n=state.wave+1;
   if(n>WAVES)return '<span class="nl"><b>Đợt cuối!</b> Hạ hết quái còn lại để qua màn '+level+'.</span>';
