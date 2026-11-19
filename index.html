@@ -81,6 +81,14 @@
   .pa.poor{opacity:.5}
   .card p{font-size:13px;color:var(--mut);margin:0 0 14px}
   /* start / help screen */
+  #levels{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
+  .lvgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .lv{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 0 7px;border-radius:14px}
+  .lv b{font-size:20px;font-weight:800;line-height:1}
+  .lv small{font-size:11px;color:var(--gold);letter-spacing:1px;line-height:1}
+  .lv.done{border-color:#6b8f4e}
+  .lv.cur{border-color:var(--acc);box-shadow:0 0 0 2px #8ee07a66,0 2px 0 #0006}
+  .lv:disabled{opacity:.4}
   #start{position:absolute;inset:0;z-index:10;background:#070b07ee;display:flex;align-items:center;justify-content:center;padding:20px;padding-top:calc(20px + env(safe-area-inset-top));padding-bottom:calc(20px + env(safe-area-inset-bottom))}
   .card{max-width:420px;width:100%;max-height:100%;overflow:auto;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:18px;padding:20px 18px;box-shadow:0 10px 40px #000a}
   .card h1{margin:0;font-size:24px;font-weight:800}
@@ -110,13 +118,22 @@
       <div class="ov" id="menu">
         <h2>Tạm dừng</h2>
         <button class="go" id="resume">▶ Tiếp tục</button>
+        <button id="menuLv">Chọn màn</button>
         <button id="howto">Cách chơi</button>
         <button class="warn" id="reset">↻ Chơi lại từ đầu</button>
       </div>
-      <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button></div>
+      <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button id="overLv">Chọn màn</button></div>
     </div>
   </div>
   <div class="dock" id="dock"><div class="tip" id="tip"></div></div>
+  <div id="levels">
+    <div class="card">
+      <h1>Chọn màn</h1>
+      <div class="sub" id="lvSub"></div>
+      <div class="lvgrid" id="lvGrid"></div>
+      <button id="lvHelp" style="width:100%;margin-top:12px">Cách chơi</button>
+    </div>
+  </div>
   <div id="start">
     <div class="card">
       <h1>Mê Cung Thủ Thành</h1>
@@ -126,7 +143,7 @@
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
-        <li>Mỗi màn có 15 đợt, đợt 10 và đợt 15 có trùm. Qua màn thì sang màn sau với bản đồ mới, quái trâu hơn. Các đợt lính tự kéo đến theo giờ, xây nhanh tay nhé. Thanh "Đợt sau" ở trên cho biết quái sắp tới: chạm vào từng loại để xem điểm mạnh, điểm yếu rồi xây tháp khắc chế.</li>
+        <li>Mỗi màn có 15 đợt, đợt 10 và đợt 15 có trùm. Có 10 màn, mỗi màn một bản đồ cố định, càng về sau quái càng trâu. Qua màn trước mới mở được màn sau. Các đợt lính tự kéo đến theo giờ, xây nhanh tay nhé. Thanh "Đợt sau" ở trên cho biết quái sắp tới: chạm vào từng loại để xem điểm mạnh, điểm yếu rồi xây tháp khắc chế.</li>
       </ul>
       <div class="legend">
         <span>⛰️</span><span><b>Núi đá</b>: không xây được, không ai đi qua.</span>
@@ -143,7 +160,7 @@
         <span>🌪️</span><span><b>Gió</b>: hất tung quái, chúng đứng khựng một lúc.</span>
       </div>
       <p>Mỗi tháp có 3 cấp, cấp 3 mở khả năng riêng. Chạm vào tháp có sẵn để nâng cấp hoặc bán. Nút ☰ để tạm dừng hoặc chơi lại. Quái tím và trùm có giáp: đòn yếu như Cung gần như không xuyên nổi.</p>
-      <button class="go" id="go">Bắt đầu</button>
+      <button class="go" id="go">Chơi</button>
       <div class="best" id="bestT"></div>
     </div>
   </div>
@@ -160,7 +177,7 @@ const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
 const isRes=(x,y)=>x===SP.x&&y===SP.y+1;
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
-const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.17,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=150,WAVES=15,LEVEL_HP=1.5,RAGE_ATK=2;
+const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.17,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=150,WAVES=15,LEVELS=10,LEVEL_STEP=.22,LEVEL_GOLD=15,RAGE_ATK=2;
 const TYPES={
   arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu',lv:[
     {cost:30,range:3.4,dmg:8,cd:.35},
@@ -204,8 +221,10 @@ const ETYPES={
 let grid,terr,waterCells,towers,enemies,shots,queue,state,distG,distS,parts,texts,fx;
 let started=false,paused=false,selType='arrow',selTower=null,hover=null,tchoice=null;
 let spawnT=0,last=0,msgT=0,best=0,now=0,eid=0,hoverErr=null,hoverKey='',frameN=0;
-try{best=+localStorage.getItem('mctt-level')||0}catch(e){}
-let level=1;
+let level=1,stars=Array(LEVELS+1).fill(0);
+try{const v=JSON.parse(localStorage.getItem('mctt-stars')||'[]');if(Array.isArray(v))v.forEach((x,i)=>{if(i<=LEVELS)stars[i]=+x||0})}catch(e){}
+const cleared=()=>stars.filter(x=>x>0).length;
+const unlocked=n=>n===1||stars[n-1]>0;
 
 /* ---------- helpers ---------- */
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
@@ -221,7 +240,7 @@ function buildGrid(){
 }
 function genMap(){
   for(let tries=0;tries<300;tries++){
-    const rnd=mulberry((Math.random()*1e9)|0);
+    const rnd=mulberry(level*100003+tries*7919+17);
     terr=Array.from({length:R},()=>Array(C).fill(GRASS));
     // lakes: ground units must walk around, swimmers cut straight through
     const lakes=[];
@@ -357,7 +376,7 @@ function buildTerrain(){
 function reset(){
   genMap();buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
-  state={gold:START_GOLD,lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
+  state={gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
   $('over').style.display='none';
   setPause(false);
   recompute();updateUI();
@@ -440,7 +459,7 @@ function sellTower(tw){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:HP_MUL*Math.pow(LEVEL_HP,level-1)*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+2*n]];
   if(n>=3)o.push(['runner',2+n]);
@@ -453,17 +472,17 @@ function waveComp(n){
 const FIRST={};for(let n=1;n<60;n++)for(const [k] of waveComp(n))if(!FIRST[k])FIRST[k]=n;
 function winLevel(){
   state.over=true;state.won=true;selTower=null;
-  if(level>best){best=level;try{localStorage.setItem('mctt-level',best)}catch(e){}}
-  showEnd(true);
+  const st=state.lives>=18?3:state.lives>=10?2:1;
+  if(st>stars[level]){stars[level]=st;try{localStorage.setItem('mctt-stars',JSON.stringify(stars))}catch(e){}}
+  showEnd(true,st);
 }
-function showEnd(won){
-  const stars=won?(state.lives>=18?3:state.lives>=10?2:1):0;
+function showEnd(won,st){
   $('overT').textContent=won?'Qua màn '+level+'!':'Thua rồi!';
-  $('overStars').textContent=won?'★'.repeat(stars)+'☆'.repeat(3-stars):'';
-  $('overS').textContent=won?'Còn '+state.lives+'/20 mạng · Màn cao nhất đã qua: '+best
-    :'Màn '+level+', trụ được tới đợt '+state.wave+'/'+WAVES+(best?' · Màn cao nhất đã qua: '+best:'');
-  $('nextLv').style.display=won?'':'none';
-  $('again').textContent=won?'Chơi lại màn '+level:'Chơi lại màn '+level+' (bản đồ mới)';
+  $('overStars').textContent=won?'★'.repeat(st)+'☆'.repeat(3-st):'';
+  $('overS').textContent=won?'Còn '+state.lives+'/20 mạng'+(level===LEVELS?' · Bạn đã phá đảo cả '+LEVELS+' màn!':'')
+    :'Màn '+level+', trụ được tới đợt '+state.wave+'/'+WAVES;
+  $('nextLv').style.display=won&&level<LEVELS?'':'none';
+  $('again').textContent='Chơi lại màn '+level;
   $('over').style.display='flex';updateUI();
 }
 function startWave(){
@@ -1136,12 +1155,32 @@ $('resume').onclick=()=>setPause(false);
 $('howto').onclick=()=>{$('go').textContent='Quay lại';$('start').style.display='flex'};
 $('go').onclick=()=>{
   $('start').style.display='none';
-  if(!started){started=true;setPause(false)}
+  if(!started||$('levels').style.display==='flex')showLevels();
 };
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over)setPause(true)});
 $('reset').onclick=reset;
 $('again').onclick=reset;
-$('nextLv').onclick=()=>{level++;reset();toast('Màn '+level+': quái trâu hơn!',2200)};
+function startLevel(n){
+  level=n;$('levels').style.display='none';$('start').style.display='none';
+  started=true;reset();toast('Màn '+n+(n>1?': quái trâu hơn!':''),2000);
+}
+function showLevels(){
+  const next=[...Array(LEVELS)].map((_,i)=>i+1).find(n=>unlocked(n)&&!stars[n])||1;
+  let h='';
+  for(let n=1;n<=LEVELS;n++){
+    const ok=unlocked(n),st=stars[n];
+    h+='<button class="lv'+(st?' done':'')+(n===next&&ok?' cur':'')+'" data-n="'+n+'"'+(ok?'':' disabled')+'><b>'+(ok?n:'🔒')+'</b><small>'+(ok?'★'.repeat(st)+'☆'.repeat(3-st):'')+'</small></button>';
+  }
+  $('lvGrid').innerHTML=h;
+  $('lvSub').textContent='Đã qua '+cleared()+'/'+LEVELS+' màn. Mỗi màn có bản đồ riêng, càng về sau quái càng trâu. Qua màn trước để mở màn sau.';
+  $('menu').style.display='none';$('over').style.display='none';
+  $('levels').style.display='flex';
+}
+$('lvGrid').addEventListener('click',e=>{const b=e.target.closest('.lv');if(b&&!b.disabled)startLevel(+b.dataset.n)});
+$('lvHelp').onclick=()=>{$('go').textContent='Quay lại';$('start').style.display='flex'};
+$('menuLv').onclick=showLevels;
+$('overLv').onclick=showLevels;
+$('nextLv').onclick=()=>startLevel(level+1);
 function cell(ev){
   const r=cv.getBoundingClientRect();
   return {x:Math.floor((ev.clientX-r.left)/r.width*C),y:Math.floor((ev.clientY-r.top)/r.height*R)};
@@ -1192,7 +1231,7 @@ function loop(ts){
   if(started&&!paused)update(dt);
   draw();requestAnimationFrame(loop);
 }
-$('bestT').textContent=best?'Màn cao nhất đã qua: '+best:'';
+$('bestT').textContent=cleared()?'Đã qua '+cleared()+'/'+LEVELS+' màn':'';
 reset();fit();requestAnimationFrame(loop);
 })();
 </script>
