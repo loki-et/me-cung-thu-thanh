@@ -84,6 +84,13 @@
   .mpbox{margin-top:14px;padding-top:12px;border-top:1px solid #ffffff14}
   .mph{font-size:13px;color:var(--mut);margin-bottom:8px;text-align:center}
   .mpbox .prow button{flex:1;font-weight:700}
+  #lobby{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
+  .rooms{display:flex;flex-direction:column;gap:6px;min-height:46px}
+  .room{display:flex;justify-content:space-between;align-items:center;width:100%;padding:11px 14px;font-weight:700}
+  .room span{color:var(--acc)}
+  .rooms .empty{font-size:13px;color:var(--mut);text-align:center;padding:12px 0}
+  .prow{display:flex;gap:6px}
+  .prow>button{flex:1}
   #mpwait{position:absolute;inset:0;z-index:11;background:#070b07f2;display:none;align-items:center;justify-content:center;padding:20px}
   #mpwait .card{text-align:center}
   .spin{width:34px;height:34px;border:4px solid #ffffff22;border-top-color:var(--acc);border-radius:50%;margin:6px auto 12px;animation:sp 1s linear infinite}
@@ -137,28 +144,36 @@
         <button id="howto">Cách chơi</button>
         <button class="warn" id="reset">↻ Chơi lại từ đầu</button>
       </div>
-      <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button id="overLv">Chọn màn</button></div>
+      <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button class="go" id="mpAgain" style="display:none">Chơi lại cùng bạn kia</button><button id="overLv">Chọn màn</button></div>
     </div>
   </div>
   <div id="sendbar"></div>
   <div class="dock" id="dock"><div class="tip" id="tip"></div></div>
   <div id="mpwait"><div class="card"><div class="spin"></div><div id="mpMsg" style="margin-bottom:14px"></div><button id="mpCancel" style="width:100%">Hủy</button></div></div>
+  <div id="lobby"><div class="card">
+    <h1>Chơi 2 người</h1>
+    <div class="sub">Tạo phòng rồi chờ bạn vào, hoặc chạm vào một phòng đang chờ để vào chơi.</div>
+    <div class="mph" style="text-align:left">Tạo phòng mới</div>
+    <div class="prow"><button class="go" id="mkCoop">🤝 Cùng thủ</button><button class="go" id="mkVs">⚔️ Đối kháng</button></div>
+    <div class="mph" style="text-align:left;margin-top:14px;display:flex;align-items:center;justify-content:space-between">Phòng đang chờ<button id="lbRefresh" style="padding:3px 10px;font-size:13px">↻ Làm mới</button></div>
+    <div id="roomList" class="rooms"></div>
+    <button id="lbBack" style="width:100%;margin-top:12px">Quay lại</button>
+  </div></div>
   <div id="levels">
     <div class="card">
       <h1>Chọn màn</h1>
       <div class="sub" id="lvSub"></div>
       <div class="lvgrid" id="lvGrid"></div>
-      <button id="lvHelp" style="width:100%;margin-top:12px">Cách chơi</button>
-      <div class="mpbox">
-        <div class="mph"><b style="color:var(--txt)">Chơi 2 người qua mạng</b><br>Cả hai cùng bấm một chế độ. Ai bấm trước sẽ tự mở phòng, người bấm sau tự vào phòng đó.</div>
-        <div class="prow"><button id="mpCoop">🤝 Cùng thủ</button><button id="mpVs">⚔️ Đối kháng</button></div>
-      </div>
+      <button id="lvHelp" style="width:100%;margin-top:12px">← Màn hình chính</button>
     </div>
   </div>
   <div id="start">
     <div class="card">
       <h1>Mê Cung Thủ Thành</h1>
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
+      <button class="go" id="go">👤 Chơi 1 mình</button>
+      <button class="go" id="go2" style="margin-top:8px">👥 Chơi 2 người</button>
+      <div class="best" id="bestT" style="margin:6px 0 14px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
@@ -181,8 +196,6 @@
         <span>🌪️</span><span><b>Gió</b>: hất tung quái, chúng đứng khựng một lúc.</span>
       </div>
       <p>Mỗi tháp có 3 cấp, cấp 3 mở khả năng riêng. Chạm vào tháp có sẵn để nâng cấp hoặc bán. Nút ☰ để tạm dừng hoặc chơi lại. Quái tím và trùm có giáp: đòn yếu như Cung gần như không xuyên nổi.</p>
-      <button class="go" id="go">Chơi</button>
-      <div class="best" id="bestT"></div>
     </div>
   </div>
 </div>
@@ -1198,11 +1211,19 @@ function setPause(v){
 }
 $('pause').onclick=()=>{if(started&&!state.over)setPause(mp?$('menu').style.display!=='flex':!paused)};
 $('resume').onclick=()=>setPause(false);
-$('howto').onclick=()=>{$('go').textContent='Quay lại';$('start').style.display='flex'};
+function showHelp(){$('go').textContent='Quay lại';$('go2').style.display='none';$('start').style.display='flex'}
+function showHome(){
+  if(mp)mpCleanup();closeLobby();
+  $('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
+  $('go').textContent='👤 Chơi 1 mình';$('go2').style.display='';$('start').style.display='flex';
+  started=false;
+}
+$('howto').onclick=showHelp;
 $('go').onclick=()=>{
   $('start').style.display='none';
-  if(!started||$('levels').style.display==='flex')showLevels();
+  if($('go2').style.display!=='none'||!started)showLevels();
 };
+$('go2').onclick=()=>{$('start').style.display='none';openLobby()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
 $('again').onclick=reset;
@@ -1213,58 +1234,83 @@ let mpTry=null;
 function loadPeer(){return window.Peer?Promise.resolve():new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='peerjs.min.js';sc.onload=ok;sc.onerror=()=>no(new Error('load'));document.head.appendChild(sc)})}
 function mpWait(m){$('mpMsg').textContent=m;$('mpwait').style.display='flex'}
 function mpStopSearch(){if(mpTry){mpTry.dead=true;for(const p of mpTry.peers)try{p.destroy()}catch(e){};clearInterval(mpTry.iv);mpTry=null}}
-function mpFail(m){mpStopSearch();$('mpwait').style.display='none';toast(m,3000)}
+function mpFail(m){mpStopSearch();$('mpwait').style.display='none';toast(m,3000);openLobby()}
 function newPeer(id){return new Promise(res=>{const p=id?new Peer(id,PEER_OPTS):new Peer(PEER_OPTS);let done=false;
   p.on('open',()=>{if(!done){done=true;res(p)}});p.on('error',e=>{if(!done){done=true;try{p.destroy()}catch(_){};res(null)}});setTimeout(()=>{if(!done){done=true;try{p.destroy()}catch(_){};res(null)}},9000)})}
-// try to join any waiting room (lower numbers only when `below` is given); resolves with an open connection or null
-function tryRooms(peer,mode,below){
-  return new Promise(res=>{
-    const ids=[];for(let k=1;k<=(below?below-1:ROOMS);k++)ids.push('mctt2-'+mode+'-'+k);
-    if(!ids.length)return res(null);
-    let left=ids.length,done=false;
-    const fin=c=>{if(done)return;if(c){done=true;res(c)}else if(--left<=0){done=true;res(null)}};
-    const onErr=e=>{if(e&&e.type==='peer-unavailable'){const id=String(e.message).split(' ').pop();if(waiting[id]){waiting[id]();delete waiting[id]}}};
-    peer.on('error',onErr);
-    const waiting={};
-    for(const id of ids){
-      const c=peer.connect(id,{reliable:true});let ok=false;
-      const to=setTimeout(()=>{if(!ok){try{c.close()}catch(_){};fin(null)}},5000);
-      waiting[id]=()=>{clearTimeout(to);fin(null)};
-      c.on('data',d=>{if(ok)return;if(d&&d.t==='welcome'){ok=true;clearTimeout(to);delete waiting[id];if(done){c.close();return}fin(c)}else if(d&&d.t==='full'){clearTimeout(to);delete waiting[id];c.close();fin(null)}});
-    }
-  });
+// Rooms live at fixed PeerJS ids RP+1..RP+ROOMS. The lobby probes them: a host answers {t:'info'}, so we can list open rooms.
+const RP='mctt3-room-';
+let lobby=null;
+const modeName=m=>m==='coop'?'🤝 Cùng thủ':'⚔️ Đối kháng';
+function lobbyMsg(m){$('roomList').innerHTML='<div class="empty">'+m+'</div>'}
+async function openLobby(){
+  $('levels').style.display='none';$('lobby').style.display='flex';
+  if(lobby&&lobby.peer&&!lobby.peer.destroyed){scanRooms();return}
+  lobbyMsg('Đang kết nối…');
+  try{await loadPeer()}catch(e){return lobbyMsg('Không tải được phần chơi online')}
+  const p=await newPeer();
+  if(!p)return lobbyMsg('Không kết nối được máy chủ, bấm Làm mới để thử lại');
+  if($('lobby').style.display!=='flex'){p.destroy();return}
+  lobby={peer:p,miss:new Map()};
+  p.on('error',e=>{if(e&&e.type==='peer-unavailable'){const id=String(e.message).split(' ').pop(),f=lobby&&lobby.miss.get(id);if(f)f()}});
+  lobby.timer=setInterval(()=>{if($('lobby').style.display==='flex')scanRooms()},6000);
+  scanRooms();
 }
-async function quickMatch(mode){
-  mpStopSearch();mpTry={dead:false,peers:[],mode};const my=mpTry;
-  mpWait('Đang tìm phòng '+(mode==='coop'?'Cùng thủ':'Đối kháng')+'…');
+function closeLobby(){if(lobby){clearInterval(lobby.timer);const p=lobby.peer;lobby=null;try{p.destroy()}catch(e){}}$('lobby').style.display='none'}
+function scanRooms(){
+  if(!lobby||lobby.scanning)return;lobby.scanning=true;
+  if(!$('roomList').querySelector('.room'))lobbyMsg('Đang tìm phòng…');
+  const found=[];let left=ROOMS;const L=lobby;
+  for(let k=1;k<=ROOMS;k++){
+    const id=RP+k;let fin=false,c=null,to=0;
+    const end=()=>{if(fin)return;fin=true;clearTimeout(to);L.miss.delete(id);try{c&&c.close()}catch(_){};if(--left===0){L.scanning=false;if(lobby===L)renderRooms(found)}};
+    L.miss.set(id,end);to=setTimeout(end,4500);
+    c=L.peer.connect(id,{reliable:true});
+    c.on('open',()=>c.send({t:'hello',join:false}));
+    c.on('data',d=>{if(d&&d.t==='info'){if(!d.full)found.push({id,k,mode:d.mode});end()}});
+  }
+}
+function renderRooms(list){
+  if(!list.length)return lobbyMsg('Chưa có phòng nào đang chờ. Hãy tạo phòng để bạn bè vào!');
+  list.sort((a,b)=>a.k-b.k);
+  $('roomList').innerHTML=list.map(r=>'<button class="room" data-id="'+r.id+'">'+modeName(r.mode)+' · Phòng '+r.k+'<span>Vào ▶</span></button>').join('');
+}
+$('roomList').addEventListener('click',e=>{const b=e.target.closest('.room');if(b)joinRoom(b.dataset.id)});
+function joinRoom(id){
+  if(!lobby)return;const L=lobby;mpWait('Đang vào phòng…');
+  const c=L.peer.connect(id,{reliable:true});let ok=false;
+  const fail=m=>{if(ok)return;ok=true;clearTimeout(to);try{c.close()}catch(_){};$('mpwait').style.display='none';toast(m,2500);scanRooms()};
+  const to=setTimeout(()=>fail('Phòng đã đóng, chọn phòng khác nhé'),7000);
+  L.miss.set(id,()=>fail('Phòng đã đóng, chọn phòng khác nhé'));
+  c.on('open',()=>c.send({t:'hello',join:true}));
+  c.on('data',d=>{if(ok||!d)return;
+    if(d.t==='welcome'){ok=true;clearTimeout(to);clearInterval(L.timer);lobby=null;$('lobby').style.display='none';joinAsGuest(L.peer,c,d.mode)}
+    else if(d.t==='full')fail('Phòng đã đủ người');});
+}
+async function createRoom(mode){
+  closeLobby();mpStopSearch();mpTry={dead:false,peers:[]};const my=mpTry;
+  mpWait('Đang tạo phòng…');
   try{await loadPeer()}catch(e){return mpFail('Không tải được phần chơi online')}
-  const g=await newPeer();if(my.dead){g&&g.destroy();return}
-  if(!g)return mpFail('Không kết nối được máy chủ, thử lại sau nhé');
-  my.peers.push(g);
-  const c=await tryRooms(g,mode);if(my.dead)return;
-  if(c){my.peers=my.peers.filter(p=>p!==g);mpStopSearch();return joinAsGuest(g,c,mode)}
-  try{g.destroy()}catch(_){}
-  // open a room: first free room number
   for(let k=1;k<=ROOMS&&!my.dead;k++){
-    const h=await newPeer('mctt2-'+mode+'-'+k);if(my.dead){h&&h.destroy();return}
+    const h=await newPeer(RP+k);if(my.dead){h&&h.destroy();return}
     if(!h)continue;
     my.peers.push(h);
-    mpWait('Đã mở phòng, đang chờ người chơi khác vào…');
+    mpWait('Đã tạo Phòng '+k+' ('+modeName(mode)+'). Đang chờ người khác vào…');
     h.on('connection',conn=>{
-      conn.on('open',()=>{
-        if(mp||my.dead){conn.send({t:'full'});setTimeout(()=>conn.close(),300);return}
-        conn.send({t:'welcome'});my.peers=my.peers.filter(p=>p!==h);mpStopSearch();
+      conn.on('data',d=>{
+        if(!d||d.t!=='hello')return;
+        const full=!!mp||my.dead;
+        if(!d.join){conn.send({t:'info',mode,full});setTimeout(()=>{try{conn.close()}catch(_){}},600);return}
+        if(full){conn.send({t:'full'});setTimeout(()=>{try{conn.close()}catch(_){}},300);return}
+        conn.send({t:'welcome',mode});my.peers=my.peers.filter(p=>p!==h);mpStopSearch();
         mp={mode,role:'host',peer:h,conn,opp:{},snapT:0,stT:0};mpWire();
-        mpSend({t:'start',mode,level:mode==='coop'?COOP_LEVEL:VS_LEVEL});mpBegin(mode==='coop'?COOP_LEVEL:VS_LEVEL);
+        mpStartMatch();
       });
     });
-    // two people searching at once may each open a room: keep checking lower rooms and join if one appears
-    my.iv=setInterval(async()=>{if(my.dead||mp||my.busy||k===1)return;my.busy=true;const c2=await tryRooms(h,mode,k);my.busy=false;
-      if(c2&&!mp&&!my.dead){my.peers=my.peers.filter(p=>p!==h);mpStopSearch();joinAsGuest(h,c2,mode)}},4000);
     return;
   }
-  if(!my.dead)mpFail('Không mở được phòng, thử lại sau nhé');
+  if(!my.dead)mpFail('Không tạo được phòng, thử lại sau nhé');
 }
+function mpStartMatch(){const lv=mp.mode==='coop'?COOP_LEVEL:VS_LEVEL;mpSend({t:'start',mode:mp.mode,level:lv});mpBegin(lv)}
 function joinAsGuest(peer,conn,mode){
   mp={mode,role:'guest',peer,conn,opp:{},stT:0};mpWire();mpWait('Đã vào phòng, chuẩn bị bắt đầu…');
 }
@@ -1272,10 +1318,11 @@ function mpSend(o){try{mp&&mp.conn&&mp.conn.open&&mp.conn.send(o)}catch(e){}}
 function mpWire(){
   const c=mp.conn;
   c.on('data',mpOnData);
-  c.on('close',()=>{if(mp&&mp.conn===c){const was=started&&!state.over;mpCleanup();if(was||$('mpwait').style.display==='flex'){$('mpwait').style.display='none';toast('Bạn kia đã rời phòng',3000);showLevels()}}});
+  c.on('close',()=>{if(mp&&mp.conn===c){const was=started&&!state.over;mpCleanup();if(was||$('mpwait').style.display==='flex'){$('mpwait').style.display='none';toast('Bạn kia đã rời phòng',3000);$('over').style.display='none';started=false;openLobby()}}});
   c.on('error',()=>{});
 }
 function mpBegin(lv){
+  mp.ready=mp.oppReady=false;mp.done=null;mp.opp={};$('mpAgain').style.display='none';$('mpAgain').disabled=false;
   level=lv;$('mpwait').style.display='none';$('levels').style.display='none';$('start').style.display='none';
   started=true;reset();
   $('menuLv').style.display='none';$('reset').style.display='none';$('mpLeave').style.display='';
@@ -1291,7 +1338,7 @@ function mpCleanup(){
   $('sendbar').style.display='none';$('opp').style.display='none';$('menu').style.display='none';
   fit();
 }
-function mpLeave(){mpCleanup();started=false;showLevels()}
+function mpLeave(){mpCleanup();started=false;$('over').style.display='none';openLobby()}
 function mpEnd(won){
   state.over=true;selTower=null;
   if(mp.mode==='vs'){
@@ -1310,12 +1357,14 @@ function mpVsCheck(){
 function mpShow(t,sub){
   $('overT').textContent=t;$('overStars').textContent='';$('overS').textContent=sub;
   $('nextLv').style.display='none';$('again').style.display='none';$('overLv').textContent='Rời phòng';
+  $('mpAgain').style.display=mp&&mp.conn?'':'none';$('mpAgain').disabled=!!(mp&&mp.ready);$('mpAgain').textContent=mp&&mp.ready?'Đang chờ bạn kia…':'Chơi lại cùng bạn kia';
   $('over').style.display='flex';updateUI();
 }
 function mpOnData(d){
   if(!d||!mp)return;
   switch(d.t){
     case 'start':if(mp.role==='guest')mpBegin(d.level);break;
+    case 'again':mp.oppReady=true;toast('Bạn kia muốn chơi lại!',2000);if(mp.ready&&mp.role==='host')mpStartMatch();break;
     case 'place':case 'up':case 'sell':{
       if(mp.role!=='host'||mp.mode!=='coop'||state.over)break;
       let e=null;
@@ -1413,15 +1462,19 @@ function guestStep(dt){
   state.flash=Math.max(0,state.flash-dt);
   updateUI();
 }
-$('mpCoop').onclick=()=>quickMatch('coop');
-$('mpVs').onclick=()=>quickMatch('vs');
-$('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.display='none'};
+$('mkCoop').onclick=()=>createRoom('coop');
+$('mkVs').onclick=()=>createRoom('vs');
+$('lbRefresh').onclick=()=>{if(lobby)scanRooms();else openLobby()};
+$('lbBack').onclick=showHome;
+$('mpAgain').onclick=()=>{if(!mp||mp.ready)return;mp.ready=true;mpSend({t:'again'});$('mpAgain').disabled=true;$('mpAgain').textContent='Đang chờ bạn kia…';if(mp.oppReady&&mp.role==='host')mpStartMatch()};
+$('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.display='none';openLobby()};
 $('mpLeave').onclick=mpLeave;
 function startLevel(n){
   level=n;$('levels').style.display='none';$('start').style.display='none';
   started=true;reset();toast('Màn '+n+(n>1?': quái trâu hơn!':''),2000);
 }
 function showLevels(){
+  $('mpAgain').style.display='none';$('lobby').style.display='none';
   $('again').style.display='';$('overLv').textContent='Chọn màn';
   const next=[...Array(LEVELS)].map((_,i)=>i+1).find(n=>unlocked(n)&&!stars[n])||1;
   let h='';
@@ -1435,7 +1488,7 @@ function showLevels(){
   $('levels').style.display='flex';
 }
 $('lvGrid').addEventListener('click',e=>{const b=e.target.closest('.lv');if(b&&!b.disabled)startLevel(+b.dataset.n)});
-$('lvHelp').onclick=()=>{$('go').textContent='Quay lại';$('start').style.display='flex'};
+$('lvHelp').onclick=showHome;
 $('menuLv').onclick=showLevels;
 $('overLv').onclick=()=>{if(mp){mpLeave();return}showLevels()};
 $('nextLv').onclick=()=>startLevel(level+1);
