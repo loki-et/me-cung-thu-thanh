@@ -83,7 +83,7 @@
   /* start / help screen */
   .mpbox{margin-top:14px;padding-top:12px;border-top:1px solid #ffffff14}
   .mph{font-size:13px;color:var(--mut);margin-bottom:8px;text-align:center}
-  .mpbox .prow button{font-weight:700}
+  .mpbox .prow button{flex:1;font-weight:700}
   #mpwait{position:absolute;inset:0;z-index:11;background:#070b07f2;display:none;align-items:center;justify-content:center;padding:20px}
   #mpwait .card{text-align:center}
   .spin{width:34px;height:34px;border:4px solid #ffffff22;border-top-color:var(--acc);border-radius:50%;margin:6px auto 12px;animation:sp 1s linear infinite}
@@ -150,7 +150,7 @@
       <div class="lvgrid" id="lvGrid"></div>
       <button id="lvHelp" style="width:100%;margin-top:12px">Cách chơi</button>
       <div class="mpbox">
-        <div class="mph">Chơi 2 người qua mạng: bấm là tự vào phòng đang chờ, không có thì tự mở phòng mới</div>
+        <div class="mph"><b style="color:var(--txt)">Chơi 2 người qua mạng</b><br>Cả hai cùng bấm một chế độ. Ai bấm trước sẽ tự mở phòng, người bấm sau tự vào phòng đó.</div>
         <div class="prow"><button id="mpCoop">🤝 Cùng thủ</button><button id="mpVs">⚔️ Đối kháng</button></div>
       </div>
     </div>
