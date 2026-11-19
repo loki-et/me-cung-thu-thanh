@@ -439,7 +439,7 @@ function sellTower(tw){
   selTower=null;recompute();updateUI();
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
-const TAUNTS=['Đồ gà! 🐔','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo 🍬','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu 😝','Cảm ơn đã mở đường!'];
+const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
 function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:HP_MUL*Math.pow(LEVEL_HP,level-1)*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+2*n]];
@@ -981,14 +981,11 @@ function draw(){
     const tt=state.taunt,age=2.2-tt.t,pop=Math.min(1,age*6),sc=pop<1?.5+.5*pop+Math.sin(pop*3.14)*.15:1;
     const bx=EX.x*S+S/2,by=EX.y*S-S*.55;
     g.save();g.globalAlpha=Math.min(1,tt.t*2.5);g.translate(bx,by);g.scale(sc,sc);g.rotate(Math.sin(now*9)*.03);
-    g.font='bold 15px system-ui';const w=g.measureText(tt.txt).width+44,h=34;
-    const left=Math.max(-bx+6,Math.min(C*S-bx-w-6,-w/2));
-    g.fillStyle='rgba(0,0,0,.35)';rr(g,left+2,-h-14+3,w,h,16);g.fill();
-    g.fillStyle='#fff';rr(g,left,-h-14,w,h,16);g.fill();
-    g.beginPath();g.moveTo(-7,-15);g.lineTo(7,-15);g.lineTo(0,-2);g.closePath();g.fill();
-    g.strokeStyle='#d83a3a';g.lineWidth=2.5;rr(g,left,-h-14,w,h,16);g.stroke();
-    const ic=EIMG[tt.k];if(ic&&ic.complete)g.drawImage(ic,left+5,-h-14+5,24,24);
-    g.fillStyle='#b21f1f';g.textAlign='left';g.textBaseline='middle';g.fillText(tt.txt,left+33,-h/2-14);
+    g.font='bold 12px system-ui';const w=g.measureText(tt.txt).width+16,h=22;
+    const left=Math.max(-bx+4,Math.min(C*S-bx-w-4,-w/2));
+    g.fillStyle='rgba(255,255,255,.95)';rr(g,left,-h-9,w,h,11);g.fill();
+    g.beginPath();g.moveTo(-5,-10);g.lineTo(5,-10);g.lineTo(0,-2);g.closePath();g.fill();
+    g.fillStyle='#b21f1f';g.textAlign='left';g.textBaseline='middle';g.fillText(tt.txt,left+8,-h/2-9);
     g.restore();
   }
   if(state.flash>0){
