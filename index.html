@@ -120,6 +120,9 @@
   .legend span:nth-child(odd){font-size:18px;text-align:center}
   .card .go{width:100%;font-size:17px;padding:12px}
   .card .best{color:var(--gold);font-size:13px;text-align:center;margin-top:8px}
+  #homeBody h1{text-align:center;font-size:28px;margin-top:6px}
+  #homeBody .sub{text-align:center;margin-bottom:18px}
+  #homeBody .go{width:100%;font-size:18px;padding:14px}
 </style>
 </head>
 <body>
@@ -169,11 +172,17 @@
   </div>
   <div id="start">
     <div class="card">
+      <div id="homeBody">
       <h1>Mê Cung Thủ Thành</h1>
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
       <button class="go" id="go">👤 Chơi 1 mình</button>
       <button class="go" id="go2" style="margin-top:8px">👥 Chơi 2 người</button>
-      <div class="best" id="bestT" style="margin:6px 0 14px"></div>
+      <button id="helpBtn" style="width:100%;margin-top:8px">📖 Cách chơi</button>
+      <div class="best" id="bestT" style="margin:10px 0 0"></div>
+      </div>
+      <div id="helpBody" style="display:none">
+      <h1>Cách chơi</h1>
+      <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
@@ -196,6 +205,8 @@
         <span>🌪️</span><span><b>Gió</b>: hất tung quái, chúng đứng khựng một lúc.</span>
       </div>
       <p>Mỗi tháp có 3 cấp, cấp 3 mở khả năng riêng. Chạm vào tháp có sẵn để nâng cấp hoặc bán. Nút ☰ để tạm dừng hoặc chơi lại. Quái tím và trùm có giáp: đòn yếu như Cung gần như không xuyên nổi.</p>
+      <button class="go" id="helpBack" style="width:100%">Quay lại</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1211,18 +1222,18 @@ function setPause(v){
 }
 $('pause').onclick=()=>{if(started&&!state.over)setPause(mp?$('menu').style.display!=='flex':!paused)};
 $('resume').onclick=()=>setPause(false);
-function showHelp(){$('go').textContent='Quay lại';$('go2').style.display='none';$('start').style.display='flex'}
+function showHelp(){$('homeBody').style.display='none';$('helpBody').style.display='';$('start').style.display='flex';$('start').querySelector('.card').scrollTop=0}
+function closeHelp(){$('helpBody').style.display='none';$('homeBody').style.display='';if(started){$('start').style.display='none'}}
 function showHome(){
   if(mp)mpCleanup();closeLobby();
   $('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
-  $('go').textContent='👤 Chơi 1 mình';$('go2').style.display='';$('start').style.display='flex';
+  $('helpBody').style.display='none';$('homeBody').style.display='';$('start').style.display='flex';
   started=false;
 }
 $('howto').onclick=showHelp;
-$('go').onclick=()=>{
-  $('start').style.display='none';
-  if($('go2').style.display!=='none'||!started)showLevels();
-};
+$('go').onclick=()=>{$('start').style.display='none';showLevels()};
+$('helpBtn').onclick=showHelp;
+$('helpBack').onclick=closeHelp;
 $('go2').onclick=()=>{$('start').style.display='none';openLobby()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
