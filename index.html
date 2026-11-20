@@ -1752,10 +1752,14 @@ cv.addEventListener('pointerleave',ev=>{if(ev.pointerType==='mouse'&&!drag)hover
 cv.addEventListener('pointerdown',ev=>{
   hideTip();hideEtip();
   if(!started||state.over||paused)return;
-  if(selTower){closePop();return}
   const c=cell(ev);
-  if(!inB(c))return;
+  if(!inB(c)){if(selTower)closePop();return}
   const tw=grid[c.y][c.x];
+  if(selTower){
+    // tapping another tower switches the panel straight away; tapping the same tower or empty ground closes it
+    if(tw&&!tw.wall&&tw!==selTower){openTower(tw);return}
+    closePop();return;
+  }
   if(tw&&tw.wall){if(tw.rock)toast('Núi đá, không xây được');return}
   if(tw){openTower(tw);return}
   drag={id:ev.pointerId,c};hover=c;hoverKey='';
