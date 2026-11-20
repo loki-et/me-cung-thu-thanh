@@ -43,6 +43,9 @@
   #overStars{font-size:34px;color:var(--gold);letter-spacing:4px;line-height:1}
   #overS{color:var(--mut);font-size:14px;max-width:280px}
   .ov button{min-width:200px}
+  .volrow{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mut);min-width:200px}
+  .volrow input{flex:1;accent-color:var(--acc)}
+  .volrow span{width:34px;text-align:right;color:var(--txt)}
   /* next wave strip */
   .nextw{position:relative;padding:0 10px 4px}
   .next{display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;padding-top:7px}
@@ -146,6 +149,8 @@
         <button class="warn" id="mpLeave" style="display:none">Rời phòng</button>
         <button id="howto">Cách chơi</button>
         <button id="snd">🔊 Âm thanh: Bật</button>
+        <label class="volrow">Âm lượng <input type="range" id="vol" min="0" max="100" step="5"><span id="volT"></span></label>
+        <button id="coinSnd">💰 Tiếng tiền: Bật</button>
         <button class="warn" id="reset">↻ Chơi lại từ đầu</button>
       </div>
       <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button class="go" id="mpAgain" style="display:none">Chơi lại cùng bạn kia</button><button id="overLv">Chọn màn</button></div>
@@ -279,20 +284,21 @@ const unlocked=n=>n===1||stars[n-1]>0;
 
 /* ---------- sound ---------- */
 const SFX=(()=>{
-  let ctx=null,muted=false;try{muted=localStorage.getItem('mctt-mute')==='1'}catch(e){}
-  const ac=()=>{if(!ctx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;ctx=new A()}if(ctx.state==='suspended')ctx.resume();return ctx};
+  let ctx=null,master=null,muted=false,vol=.7,coin=true;
+  try{muted=localStorage.getItem('mctt-mute')==='1';const v=localStorage.getItem('mctt-vol');if(v!=null)vol=+v;coin=localStorage.getItem('mctt-coin')!=='0'}catch(e){}
+  const ac=()=>{if(!ctx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;ctx=new A();master=ctx.createGain();master.gain.value=vol;master.connect(ctx.destination)}if(ctx.state==='suspended')ctx.resume();return ctx};
   const last={};
-  function tone(f,d,type,v,slide,delay){const c=ac();if(!c||muted)return;const t=c.currentTime+(delay||0);const o=c.createOscillator(),gn=c.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(slide&&slide!==1)o.frequency.exponentialRampToValueAtTime(Math.max(30,f*slide),t+d);gn.gain.setValueAtTime(v||.05,t);gn.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(gn);gn.connect(c.destination);o.start(t);o.stop(t+d+.03)}
-  function noise(d,v,hp,delay){const c=ac();if(!c||muted)return;const t=c.currentTime+(delay||0);const n=Math.max(1,c.sampleRate*d|0),b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);const src=c.createBufferSource();src.buffer=b;const f=c.createBiquadFilter();f.type='highpass';f.frequency.value=hp||800;const gn=c.createGain();gn.gain.value=v||.05;src.connect(f);f.connect(gn);gn.connect(c.destination);src.start(t)}
+  function tone(f,d,type,v,slide,delay){const c=ac();if(!c||muted)return;const t=c.currentTime+(delay||0);const o=c.createOscillator(),gn=c.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(slide&&slide!==1)o.frequency.exponentialRampToValueAtTime(Math.max(30,f*slide),t+d);gn.gain.setValueAtTime(v||.05,t);gn.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(gn);gn.connect(master);o.start(t);o.stop(t+d+.03)}
+  function noise(d,v,hp,delay){const c=ac();if(!c||muted)return;const t=c.currentTime+(delay||0);const n=Math.max(1,c.sampleRate*d|0),b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);const src=c.createBufferSource();src.buffer=b;const f=c.createBiquadFilter();f.type='highpass';f.frequency.value=hp||800;const gn=c.createGain();gn.gain.value=v||.05;src.connect(f);f.connect(gn);gn.connect(master);src.start(t)}
   const lim=(k,ms)=>{const n=performance.now();if(last[k]&&n-last[k]<ms)return false;last[k]=n;return true};
   const P={
-    arrow:()=>lim('arrow',80)&&(noise(.05,.025,2500),tone(900,.05,'triangle',.018,.6)),
-    cannon:()=>lim('cannon',120)&&(tone(120,.25,'sine',.12,.4),noise(.16,.05,300)),
-    frost:()=>lim('frost',100)&&tone(1500,.12,'sine',.025,1.4),
-    fire:()=>lim('fire',100)&&noise(.14,.035,700),
-    thunder:()=>lim('thunder',120)&&(noise(.18,.07,1500),tone(220,.16,'sawtooth',.025,.5)),
-    wind:()=>lim('wind',160)&&noise(.28,.035,400),
-    coin:()=>lim('coin',50)&&(tone(988,.07,'square',.03),tone(1319,.13,'square',.03,1,.06)),
+    arrow:()=>lim('arrow',90)&&(noise(.045,.012,2500),tone(900,.05,'triangle',.009,.6)),
+    cannon:()=>lim('cannon',130)&&(tone(120,.22,'sine',.06,.4),noise(.14,.025,300)),
+    frost:()=>lim('frost',110)&&tone(1500,.11,'sine',.012,1.4),
+    fire:()=>lim('fire',110)&&noise(.13,.018,700),
+    thunder:()=>lim('thunder',130)&&(noise(.16,.035,1500),tone(220,.15,'sawtooth',.012,.5)),
+    wind:()=>lim('wind',170)&&noise(.26,.018,400),
+    coin:()=>coin&&lim('coin',60)&&(tone(1568,.22,'sine',.05),tone(2349,.3,'sine',.035,1,.055),tone(3136,.18,'sine',.012,1,.055),noise(.02,.012,5000)),
     leak:()=>lim('leak',220)&&tone(320,.3,'sawtooth',.05,.5),
     build:()=>(tone(520,.06,'triangle',.06),tone(780,.08,'triangle',.06,1,.05)),
     up:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.09,'triangle',.05,1,i*.06)),
@@ -303,7 +309,7 @@ const SFX=(()=>{
     lose:()=>[392,330,262,196].forEach((f,i)=>tone(f,.28,'sawtooth',.035,1,i*.18)),
     click:()=>tone(700,.03,'triangle',.025)
   };
-  return {play:k=>{try{P[k]&&P[k]()}catch(e){}},isMuted:()=>muted,toggle(){muted=!muted;try{localStorage.setItem('mctt-mute',muted?'1':'0')}catch(e){};if(!muted)ac();return muted},unlock:()=>{try{ac()}catch(e){}}};
+  return {play:k=>{try{P[k]&&P[k]()}catch(e){}},isMuted:()=>muted,vol:()=>vol,setVol(v){vol=v;try{localStorage.setItem('mctt-vol',v)}catch(e){};if(master)master.gain.value=v},coinOn:()=>coin,toggleCoin(){coin=!coin;try{localStorage.setItem('mctt-coin',coin?'1':'0')}catch(e){};return coin},toggle(){muted=!muted;try{localStorage.setItem('mctt-mute',muted?'1':'0')}catch(e){};if(!muted)ac();return muted},unlock:()=>{try{ac()}catch(e){}}};
 })();
 addEventListener('pointerdown',()=>SFX.unlock(),{passive:true});
 
@@ -1318,6 +1324,11 @@ function showHome(){
 $('howto').onclick=showHelp;
 const sndLabel=()=>{$('snd').textContent=SFX.isMuted()?'🔇 Âm thanh: Tắt':'🔊 Âm thanh: Bật'};sndLabel();
 $('snd').onclick=()=>{SFX.toggle();sndLabel();SFX.play('click')};
+$('vol').value=Math.round(SFX.vol()*100);$('volT').textContent=$('vol').value+'%';
+$('vol').oninput=()=>{SFX.setVol($('vol').value/100);$('volT').textContent=$('vol').value+'%'};
+$('vol').onchange=()=>SFX.play('arrow');
+const coinLabel=()=>{$('coinSnd').textContent=SFX.coinOn()?'💰 Tiếng tiền: Bật':'💰 Tiếng tiền: Tắt'};coinLabel();
+$('coinSnd').onclick=()=>{SFX.toggleCoin();coinLabel();SFX.play('coin')};
 $('go').onclick=()=>{$('start').style.display='none';showLevels()};
 $('helpBtn').onclick=showHelp;
 $('helpBack').onclick=closeHelp;
