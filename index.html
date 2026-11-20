@@ -200,8 +200,7 @@
   <div class="dock" id="dock"><div class="tip" id="tip"></div></div>
   <div id="mpwait"><div class="card"><div class="spin"></div><div id="mpMsg" style="margin-bottom:14px"></div><button id="mpCancel" style="width:100%">Hủy</button></div></div>
   <div id="lobby"><div class="card">
-    <h1>Chơi 2 người</h1>
-    <div class="tabs"><button class="tab sel" data-m="coop">🤝 Hợp tác</button><button class="tab" data-m="vs">⚔️ Solo</button></div>
+    <h1 id="lbTitle">Hợp tác</h1>
     <div class="sub" id="lbDesc" style="margin:8px 0 10px"></div>
     <div class="mph" style="text-align:left;display:flex;align-items:center;justify-content:space-between"><span id="lbCount">Phòng đang chờ</span><button id="lbRefresh" style="padding:3px 10px;font-size:13px">↻ Làm mới</button></div>
     <div id="roomList" class="rooms"></div>
@@ -233,7 +232,8 @@
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
       <label class="namerow">👤<input id="pname" maxlength="14" placeholder="Nhập tên của bạn" autocomplete="nickname"></label>
       <button class="go" id="go">👤 Chơi 1 mình</button>
-      <button class="go" id="go2" style="margin-top:8px">👥 Chơi 2 người</button>
+      <button class="go" id="go2" style="margin-top:8px">🤝 Hợp tác</button>
+      <button class="go" id="go3" style="margin-top:8px">⚔️ Solo 1vs1</button>
       <button id="helpBtn" style="width:100%;margin-top:8px">📖 Cách chơi</button>
       <div class="best" id="bestT" style="margin:10px 0 0"></div>
       </div>
@@ -1520,7 +1520,8 @@ $('helpBtn').onclick=showHelp;
 $('helpBack').onclick=closeHelp;
 $('pname').value=myName;
 $('pname').addEventListener('input',()=>{myName=cleanName($('pname').value);try{localStorage.setItem('mctt-name',myName)}catch(e){}});
-$('go2').onclick=()=>{if(!myName){toast('Đặt tên trước khi chơi 2 người nhé',2200);$('pname').focus();return}$('start').style.display='none';openLobby()};
+function goOnline(m){if(!myName){toast('Đặt tên trước khi chơi online nhé',2200);$('pname').focus();return}setLbMode(m);$('start').style.display='none';openLobby()}
+$('go2').onclick=()=>goOnline('coop');$('go3').onclick=()=>goOnline('vs');
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
 $('again').onclick=reset;
@@ -1571,7 +1572,7 @@ function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';to
 const modeName=m=>m==='coop'?'🤝 Hợp tác':'⚔️ Solo';
 let lobby=null,lbMode='coop';
 const MODE_DESC={coop:'Hai người cùng giữ một lâu đài, mỗi người xây tháp bằng vàng riêng. Qua màn cùng nhau.',vs:'Mỗi người một bản đồ. Bỏ vàng gửi quái sang bên kia, ai hết mạng trước thì thua.'};
-function setLbMode(m){lbMode=m;for(const b of document.querySelectorAll('#lobby .tab'))b.classList.toggle('sel',b.dataset.m===m);$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
+function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Hợp tác':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
 function lobbyMsg(m){setText($('roomList'),'<div class="empty">'+m+'</div>',true)}
 async function openLobby(){
   $('levels').style.display='none';$('lobby').style.display='flex';
@@ -1632,7 +1633,7 @@ function showRoom(o){
   $('slot2s').textContent=full?'Đã vào phòng':'Phòng sẽ hiện trong danh sách để người khác chạm vào';
   $('slot2c').textContent=full?'✓':'';
   $('rmStart').style.display=host?'':'none';$('rmStart').disabled=!full;
-  $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(full?'Đủ người rồi, bấm Bắt đầu nhé!':'Bảo bạn bè vào Chơi 2 người, phòng của bạn sẽ hiện trong danh sách.'):'Chờ chủ phòng bấm Bắt đầu…';
+  $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(full?'Đủ người rồi, bấm Bắt đầu nhé!':'Bảo bạn bè vào mục '+(roomInfo&&roomInfo.mode==='vs'?'Solo':'Hợp tác')+', phòng của bạn sẽ hiện trong danh sách.'):'Chờ chủ phòng bấm Bắt đầu…';
 }
 function hideRoom(){roomInfo=null;$('room').style.display='none'}
 async function createRoom(mode){
@@ -1820,7 +1821,6 @@ function guestStep(dt){
   updateUI();
 }
 $('mkRoom').onclick=()=>createRoom(lbMode);
-for(const b of document.querySelectorAll('#lobby .tab'))b.onclick=()=>setLbMode(b.dataset.m);
 setLbMode('coop');
 $('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
 $('rmLeave').onclick=()=>{mpStopSearch();if(mp)mpCleanup();hideRoom();openLobby()};
