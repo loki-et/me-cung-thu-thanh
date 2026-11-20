@@ -66,8 +66,12 @@
   .volrow input{flex:1;accent-color:var(--acc)}
   .volrow span{width:34px;text-align:right;color:var(--txt)}
   /* next wave strip */
-  .nextw{position:relative;padding:0 10px 4px}
-  .next{display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;padding-top:7px}
+  .nextw{position:relative;padding:0 10px}
+  .next{display:none;position:absolute;left:10px;right:10px;top:0;z-index:7;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 10px 8px;background:#141c15f2;border:1px solid #4d634f;border-radius:14px;box-shadow:0 10px 28px #000b}
+  .next.open{display:flex}
+  #wave{cursor:pointer;position:relative}
+  #wave .dd{font-size:10px;color:var(--mut);margin-left:auto}
+  #wave.new::after{content:'';position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff5a4a;box-shadow:0 0 0 2px #1d261e}
   .next::-webkit-scrollbar{display:none}
   .next .nl{font-size:12px;color:var(--mut);white-space:nowrap;margin-right:1px}
   .next .nl b{color:var(--txt)}
@@ -76,15 +80,15 @@
   .ec b{font-weight:800;pointer-events:none}
   .ec.new{border-color:#ffd166;box-shadow:0 0 0 1px #ffd16655}
   .ec .nw{position:absolute;top:-6px;right:-4px;background:#ffd166;color:#3a2800;font-size:8.5px;font-weight:900;border-radius:6px;padding:0 4px;line-height:13px;pointer-events:none}
-  #etip{top:calc(100% - 2px);bottom:auto;left:10px}
+  #etip{bottom:auto;left:10px;z-index:9}
   /* tower dock */
   .dock{position:relative;display:flex;gap:5px;padding:0 10px 10px}
   .tip{position:absolute;bottom:calc(100% + 4px);width:250px;z-index:8;background:#141c15f5;border:1px solid #4d634f;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.4;color:var(--mut);box-shadow:0 8px 24px #000b;pointer-events:none;opacity:0;transition:opacity .15s}
   .tip.on{opacity:1}
   .tip b{color:var(--txt)}
   .tip .nm{font-size:14px;font-weight:800;color:var(--txt)}
-  .tip .lv{margin-top:4px;padding-top:4px;border-top:1px solid #ffffff14}
-  .tip .lv span{color:#ffd166}
+  .tip .ln{margin-top:4px;padding-top:4px;border-top:1px solid #ffffff14}
+  .tip .ln span{color:#ffd166}
   .tb{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:0;padding:4px 0 3px;border-radius:12px}
   .tb img{width:34px;height:34px;display:block;pointer-events:none}
   .tb small{color:var(--gold);font-size:11.5px;font-weight:700;pointer-events:none}
@@ -166,7 +170,7 @@
   <div class="hud">
     <div class="st" id="gold"><span class="ic">🪙</span><i>0</i></div>
     <div class="st" id="lives"><span class="ic">❤️</span><i>0</i></div>
-    <div class="st" id="wave"><span class="ic">⚔️</span><div><i>0</i><small>…</small></div></div>
+    <div class="st" id="wave"><span class="ic">⚔️</span><div><i>0</i><small>…</small></div><span class="dd">▾</span></div>
     <button id="sndq" aria-label="Bật tắt âm thanh">🔊</button>
     <button id="pause" aria-label="Menu">☰</button>
   </div>
@@ -696,9 +700,8 @@ function startWave(){
   for(const [k,c] of waveComp(n))for(let i=0;i<c;i++)list.push(k);
   for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
   for(const k of list)queue.push({k,hpm,spm,n});
-  if(n===4)toast('🐟 Quái nước xuất hiện: chúng bơi thẳng qua hồ!',3000);
-  if(n===6)toast('🦇 Quái bay xuất hiện: bay thẳng tới lâu đài!',3000);
-  if(n%10===0)toast('👑 Trùm xuất hiện!',2500);
+  if(n%10===0)toast('👑 Trùm xuất hiện! Trùm triệu hồi thêm lính',2500);
+  else setTimeout(warnNewType,2600);
   updateUI();
 }
 function mkEnemy(k,x,y,tx,ty,hpm,spm,n){
@@ -1345,9 +1348,10 @@ function showEtip(k,ms){
   const T=ETYPES[k],n=state.wave+1,{hpm,spm}=waveMul(n),sp=T.sp*spm;
   const tip=$('etip');
   tip.innerHTML='<div class="nm">'+T.name+'</div>'+T.trait
-    +'<div class="lv">Máu ~<b>'+Math.round(T.hp*hpm)+'</b> · Tốc độ <b>'+(sp>2.2?'rất nhanh':sp>1.3?'vừa':'chậm')+'</b>'+(T.armor?' · Giáp <b>'+T.armor+'</b>':'')+' · Thưởng <b style="color:var(--gold)">'+T.gold+'</b></div>';
-  const b=$('next').querySelector('[data-e="'+k+'"]'),W=$('next').clientWidth,w=tip.offsetWidth;
-  const bx=b?b.offsetLeft-$('next').scrollLeft+b.offsetWidth/2:0;
+    +'<div class="ln">Máu ~<b>'+Math.round(T.hp*hpm)+'</b> · Tốc độ <b>'+(sp>2.2?'rất nhanh':sp>1.3?'vừa':'chậm')+'</b>'+(T.armor?' · Giáp <b>'+T.armor+'</b>':'')+' · Thưởng <b style="color:var(--gold)">'+T.gold+'</b></div>';
+  const nx=$('next'),b=nx.querySelector('[data-e="'+k+'"]'),W=nx.clientWidth,w=tip.offsetWidth;
+  const bx=b?b.offsetLeft+b.offsetWidth/2:0;
+  tip.style.top=(nx.offsetTop+nx.offsetHeight+6)+'px';
   tip.style.left=(10+Math.max(0,Math.min(W-w,bx-w/2)))+'px';
   tip.classList.add('on');clearTimeout(etipT);if(ms)etipT=setTimeout(hideEtip,ms);
 }
@@ -1404,7 +1408,7 @@ let tipT=0;
 function tipHTML(k){
   const T=TYPES[k],L=T.lv;
   return '<div class="nm">'+T.name+' <small style="color:var(--gold);font-weight:700">'+L[0].cost+' vàng</small></div>'+T.desc
-    +'<div class="lv"><b>Cấp 1</b>: '+statLine(L[0])+'</div>'
+    +'<div class="ln"><b>Cấp 1</b>: '+statLine(L[0])+'</div>'
     +'<div><b>Cấp 2</b> (+'+L[1].cost+'): <span>'+L[1].note+'</span></div>'
     +'<div><b>Cấp 3</b> (+'+L[2].cost+'): <span>'+L[2].note+'</span></div>';
 }
@@ -1545,6 +1549,17 @@ function renderRooms(){
   setText($('lbCount'),'Phòng '+(lbMode==='coop'?'Cùng thủ':'Đối kháng')+' đang chờ ('+list.length+')');
   if(!list.length)return lobbyMsg('Chưa có phòng '+(lbMode==='coop'?'Cùng thủ':'Đối kháng')+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
   setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">Phòng '+r.k+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
+}
+function toggleNext(force){
+  const nx=$('next'),open=force!=null?force:!nx.classList.contains('open');
+  nx.classList.toggle('open',open);if(!open)hideEtip();else $('wave').classList.remove('new');
+}
+$('wave').addEventListener('click',e=>{e.stopPropagation();toggleNext()});
+// warn when the next wave brings a monster type the player has not met yet
+function warnNewType(){
+  const n=state.wave+1;if(n>WAVES)return;
+  const nw=waveComp(n).filter(([k])=>FIRST[k]===n&&n>1).map(([k])=>ETYPES[k].name);
+  if(nw.length){$('wave').classList.add('new');toast('⚠️ Đợt sau có quái mới: '+nw.join(', ')+'. Chạm ⚔️ để xem',3200)}
 }
 $('roomList').addEventListener('click',e=>{const b=e.target.closest('.room');if(b)joinRoom(b.dataset.id)});
 function joinRoom(id){
@@ -1811,7 +1826,7 @@ cv.addEventListener('pointermove',ev=>{
 });
 cv.addEventListener('pointerleave',ev=>{if(ev.pointerType==='mouse'&&!drag)hover=null});
 cv.addEventListener('pointerdown',ev=>{
-  hideTip();hideEtip();
+  hideTip();hideEtip();toggleNext(false);
   if(!started||state.over||paused)return;
   const c=cell(ev);
   if(!inB(c)){if(selTower)closePop();return}
