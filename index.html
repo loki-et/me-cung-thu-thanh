@@ -1355,64 +1355,87 @@ $('go2').onclick=()=>{$('start').style.display='none';openLobby()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
 $('again').onclick=reset;
-/* ---------------- multiplayer (PeerJS / WebRTC) ---------------- */
-const PEER_OPTS=(()=>{try{const q=new URLSearchParams(location.search).get('peer');if(!q)return {};const [host,port]=q.split(':');return {host,port:+port||9000,path:'/',secure:false}}catch(e){return {}}})();
-const ROOMS=10,TK=Object.keys(TYPES),EK=Object.keys(ETYPES);
+/* ---------------- multiplayer (MQTT relay over WebSocket) ---------------- */
+// Both players talk through a public MQTT broker, so no direct device-to-device connection is needed.
+// Rooms are retained messages on mctt3/rooms/<id>; each room has two topics: .../h (to host) and .../g (to guest).
+const MQ_URLS=(()=>{try{const q=new URLSearchParams(location.search).get('mqtt');if(q)return [q]}catch(e){}
+  return ['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt']})();
+const TK=Object.keys(TYPES),EK=Object.keys(ETYPES),NS='mctt3/';
 let mpTry=null;
-function loadPeer(){return window.Peer?Promise.resolve():new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='peerjs.min.js';sc.onload=ok;sc.onerror=()=>no(new Error('load'));document.head.appendChild(sc)})}
+const rid=n=>Math.random().toString(36).slice(2,2+n);
+function loadMqtt(){return window.mqtt?Promise.resolve():new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='mqtt.min.js';sc.onload=ok;sc.onerror=()=>no(new Error('load'));document.head.appendChild(sc)})}
 function mpWait(m){$('mpMsg').textContent=m;$('mpwait').style.display='flex'}
-function mpStopSearch(){if(mpTry){mpTry.dead=true;for(const p of mpTry.peers)try{p.destroy()}catch(e){};clearInterval(mpTry.iv);mpTry=null}}
+// connect to the first broker that answers; resolves a client with a tiny topic dispatcher, or null
+async function mqConnect(will){
+  try{await loadMqtt()}catch(e){return null}
+  const id='mctt_'+rid(10);
+  for(const url of MQ_URLS){
+    const c=await new Promise(res=>{
+      let done=false;const cl=mqtt.connect(url,{clientId:id,clean:true,connectTimeout:7000,reconnectPeriod:0,keepalive:20,will});
+      const fin=v=>{if(done)return;done=true;if(!v){try{cl.end(true)}catch(_){}};res(v)};
+      cl.on('connect',()=>fin(cl));cl.on('error',()=>fin(null));setTimeout(()=>fin(null),8000);
+    });
+    if(c){c.myId=id;c.subs=new Map();c.on('message',(t,buf)=>{let d=null;try{d=buf.length?JSON.parse(buf.toString()):null}catch(e){return}
+      const f=c.subs.get(t);if(f)f(d,t);else for(const [k,g] of c.subs)if(k.endsWith('/+')&&t.startsWith(k.slice(0,-1)))g(d,t)});
+      return c}
+  }
+  return null;
+}
+function mqSub(c,t,f){c.subs.set(t,f);c.subscribe(t,{qos:1})}
+function mqUnsub(c,t){c.subs.delete(t);try{c.unsubscribe(t)}catch(e){}}
+function mqPub(c,t,o,opt){try{c.publish(t,o==null?'':JSON.stringify(o),Object.assign({qos:0},opt||{}))}catch(e){}}
+// a two-way link that looks like the old connection object: send(), on('data'|'close'), close(), open
+function makeLink(c,pubT,subT,peerId){
+  const h={data:[],close:[]},L={open:true,last:Date.now(),
+    on(ev,f){(h[ev]||(h[ev]=[])).push(f)},
+    send(o){if(L.open)mqPub(c,pubT,Object.assign({},o,{from:c.myId}),o.t==='s'||o.t==='st'||o.t==='ping'?{}:{qos:1})},
+    close(){if(!L.open)return;L.send({t:'bye'});L.open=false;clearInterval(L.iv);mqUnsub(c,subT);h.close.forEach(f=>f())}};
+  mqSub(c,subT,d=>{if(!d||d.from!==peerId||!L.open)return;L.last=Date.now();if(d.t==='bye'){L.open=false;clearInterval(L.iv);mqUnsub(c,subT);h.close.forEach(f=>f());return}if(d.t!=='ping')h.data.forEach(f=>f(d))});
+  L.iv=setInterval(()=>{if(!L.open)return;L.send({t:'ping'});if(Date.now()-L.last>10000||!c.connected){L.open=false;clearInterval(L.iv);mqUnsub(c,subT);h.close.forEach(f=>f())}},2000);
+  return L;
+}
+function mpStopSearch(){
+  const m=mpTry;if(!m)return;mpTry=null;m.dead=true;clearInterval(m.hb);
+  if(m.client&&!m.paired){mqPub(m.client,m.topic,null,{retain:true,qos:1});setTimeout(()=>{try{m.client.end()}catch(e){}},300)}
+}
 function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
-function newPeer(id){return new Promise(res=>{const p=id?new Peer(id,PEER_OPTS):new Peer(PEER_OPTS);let done=false;
-  p.on('open',()=>{if(!done){done=true;res(p)}});p.on('error',e=>{if(!done){done=true;try{p.destroy()}catch(_){};res(null)}});setTimeout(()=>{if(!done){done=true;try{p.destroy()}catch(_){};res(null)}},9000)})}
-// Rooms live at fixed PeerJS ids RP+1..RP+ROOMS. The lobby probes them: a host answers {t:'info'}, so we can list open rooms.
-const RP='mctt3-room-';
-let lobby=null;
 const modeName=m=>m==='coop'?'🤝 Cùng thủ':'⚔️ Đối kháng';
-function lobbyMsg(m){$('roomList').innerHTML='<div class="empty">'+m+'</div>'}
+let lobby=null;
+function lobbyMsg(m){setText($('roomList'),'<div class="empty">'+m+'</div>',true)}
 async function openLobby(){
   $('levels').style.display='none';$('lobby').style.display='flex';
-  if(lobby&&lobby.peer&&!lobby.peer.destroyed){scanRooms();return}
-  lobbyMsg('Đang kết nối…');
-  try{await loadPeer()}catch(e){return lobbyMsg('Không tải được phần chơi online')}
-  const p=await newPeer();
-  if(!p)return lobbyMsg('Không kết nối được máy chủ, bấm Làm mới để thử lại');
-  if($('lobby').style.display!=='flex'){p.destroy();return}
-  lobby={peer:p,miss:new Map()};
-  p.on('error',e=>{if(e&&e.type==='peer-unavailable'){const id=String(e.message).split(' ').pop(),f=lobby&&lobby.miss.get(id);if(f)f()}});
-  lobby.timer=setInterval(()=>{if($('lobby').style.display==='flex')scanRooms()},6000);
-  scanRooms();
+  if(lobby&&lobby.client&&lobby.client.connected){renderRooms();return}
+  lobby=null;lobbyMsg('Đang kết nối…');
+  const c=await mqConnect();
+  if($('lobby').style.display!=='flex'){c&&c.end();return}
+  if(!c)return lobbyMsg('Không kết nối được máy chủ, bấm Làm mới để thử lại');
+  lobby={client:c,rooms:new Map()};
+  c.on('close',()=>{if(lobby&&lobby.client===c&&!(mp&&mp.client===c)){lobby=null;if($('lobby').style.display==='flex')lobbyMsg('Mất kết nối, bấm Làm mới để thử lại')}});
+  mqSub(c,NS+'rooms/+',(d,t)=>{if(!lobby)return;const id=t.slice((NS+'rooms/').length);if(d&&d.mode)lobby.rooms.set(id,Object.assign(d,{id,seen:Date.now()}));else lobby.rooms.delete(id);renderRooms()});
+  lobby.timer=setInterval(renderRooms,5000);
+  renderRooms();
 }
-function closeLobby(){if(lobby){clearInterval(lobby.timer);const p=lobby.peer;lobby=null;try{p.destroy()}catch(e){}}$('lobby').style.display='none'}
-function scanRooms(){
-  if(!lobby||lobby.scanning)return;lobby.scanning=true;
-  if(!$('roomList').querySelector('.room'))lobbyMsg('Đang tìm phòng…');
-  const found=[];let left=ROOMS;const L=lobby;
-  for(let k=1;k<=ROOMS;k++){
-    const id=RP+k;let fin=false,c=null,to=0;
-    const end=()=>{if(fin)return;fin=true;clearTimeout(to);L.miss.delete(id);try{c&&c.close()}catch(_){};if(--left===0){L.scanning=false;if(lobby===L)renderRooms(found)}};
-    L.miss.set(id,end);to=setTimeout(end,4500);
-    c=L.peer.connect(id,{reliable:true});
-    c.on('open',()=>c.send({t:'hello',join:false}));
-    c.on('data',d=>{if(d&&d.t==='info'){if(!d.full)found.push({id,k,mode:d.mode});end()}});
-  }
+function closeLobby(keepClient){
+  if(lobby){clearInterval(lobby.timer);const c=lobby.client;lobby=null;mqUnsub(c,NS+'rooms/+');if(!keepClient&&!(mp&&mp.client===c))try{c.end()}catch(e){}}
+  $('lobby').style.display='none';
 }
-function renderRooms(list){
+function renderRooms(){
+  if(!lobby)return;
+  const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full).sort((a,b)=>a.k-b.k);
   if(!list.length)return lobbyMsg('Chưa có phòng nào đang chờ. Hãy tạo phòng để bạn bè vào!');
-  list.sort((a,b)=>a.k-b.k);
-  $('roomList').innerHTML=list.map(r=>'<button class="room" data-id="'+r.id+'">'+modeName(r.mode)+' · Phòng '+r.k+'<span>Vào ▶</span></button>').join('');
+  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+modeName(r.mode)+' · Phòng '+r.k+'<span>Vào ▶</span></button>').join(''),true);
 }
 $('roomList').addEventListener('click',e=>{const b=e.target.closest('.room');if(b)joinRoom(b.dataset.id)});
 function joinRoom(id){
-  if(!lobby)return;const L=lobby;mpWait('Đang vào phòng…');
-  const c=L.peer.connect(id,{reliable:true});let ok=false;
-  const fail=m=>{if(ok)return;ok=true;clearTimeout(to);try{c.close()}catch(_){};$('mpwait').style.display='none';toast(m,2500);scanRooms()};
+  if(!lobby)return;const L=lobby,c=L.client,info=L.rooms.get(id)||{};mpWait('Đang vào phòng…');
+  const gT=NS+'r/'+id+'/g',hT=NS+'r/'+id+'/h';let ok=false;
+  const fail=m=>{if(ok)return;ok=true;clearTimeout(to);mqUnsub(c,gT);$('mpwait').style.display='none';toast(m,2500);renderRooms()};
   const to=setTimeout(()=>fail('Phòng đã đóng, chọn phòng khác nhé'),7000);
-  L.miss.set(id,()=>fail('Phòng đã đóng, chọn phòng khác nhé'));
-  c.on('open',()=>c.send({t:'hello',join:true}));
-  c.on('data',d=>{if(ok||!d)return;
-    if(d.t==='welcome'){ok=true;clearTimeout(to);clearInterval(L.timer);lobby=null;$('lobby').style.display='none';joinAsGuest(L.peer,c,d.mode,d.k)}
+  mqSub(c,gT,d=>{if(ok||!d||d.to!==c.myId)return;
+    if(d.t==='welcome'){ok=true;clearTimeout(to);mqUnsub(c,gT);closeLobby(true);
+      const link=makeLink(c,hT,gT,d.from);joinAsGuest(c,link,d.mode,d.k||info.k)}
     else if(d.t==='full')fail('Phòng đã đủ người');});
+  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId},{qos:1}),150);
 }
 let roomInfo=null;
 function showRoom(o){
@@ -1430,32 +1453,31 @@ function showRoom(o){
 }
 function hideRoom(){roomInfo=null;$('room').style.display='none'}
 async function createRoom(mode){
-  closeLobby();mpStopSearch();mpTry={dead:false,peers:[],mode};const my=mpTry;
+  closeLobby();mpStopSearch();
+  const id=rid(8),k=100+Math.floor(Math.random()*900),topic=NS+'rooms/'+id,hT=NS+'r/'+id+'/h',gT=NS+'r/'+id+'/g';
+  const my=mpTry={dead:false,topic,mode};
   roomInfo=null;showRoom({mode,role:'host',k:0,full:false});
-  try{await loadPeer()}catch(e){return mpFail('Không tải được phần chơi online')}
-  for(let k=1;k<=ROOMS&&!my.dead;k++){
-    const h=await newPeer(RP+k);if(my.dead){h&&h.destroy();return}
-    if(!h)continue;
-    my.peers.push(h);
-    showRoom({k});
-    h.on('connection',conn=>{
-      conn.on('data',d=>{
-        if(!d||d.t!=='hello')return;
-        const full=!!mp||my.dead;
-        if(!d.join){conn.send({t:'info',mode,full});setTimeout(()=>{try{conn.close()}catch(_){}},600);return}
-        if(full){conn.send({t:'full'});setTimeout(()=>{try{conn.close()}catch(_){}},300);return}
-        conn.send({t:'welcome',mode,k});my.peers=my.peers.filter(p=>p!==h);mpStopSearch();
-        mp={mode,role:'host',peer:h,conn,opp:{},snapT:0,stT:0,k};mpWire();
-        showRoom({full:true});SFX.play('build');
-      });
-    });
-    return;
-  }
-  if(!my.dead)mpFail('Không tạo được phòng, thử lại sau nhé');
+  const c=await mqConnect({topic,payload:'',retain:true,qos:1});
+  if(my.dead){c&&c.end();return}
+  if(!c)return mpFail('Không kết nối được máy chủ, thử lại sau nhé');
+  my.client=c;
+  const announce=()=>mqPub(c,topic,{mode,k,at:Date.now()},{retain:true,qos:1});
+  announce();my.hb=setInterval(announce,15000);
+  showRoom({k});
+  mqSub(c,hT,d=>{
+    if(!d||d.t!=='hello'||!d.from)return;
+    if(my.paired||my.dead){mqPub(c,gT,{t:'full',to:d.from,from:c.myId},{qos:1});return}
+    my.paired=true;clearInterval(my.hb);mqPub(c,topic,null,{retain:true,qos:1});
+    mqPub(c,gT,{t:'welcome',to:d.from,from:c.myId,mode,k},{qos:1});
+    mqUnsub(c,hT);
+    const link=makeLink(c,gT,hT,d.from);mpTry=null;
+    mp={mode,role:'host',client:c,own:true,conn:link,opp:{},snapT:0,stT:0,k};mpWire();
+    showRoom({full:true});SFX.play('build');
+  });
 }
 function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'?COOP_LEVEL:VS_LEVEL);mpSend({t:'start',mode:mp.mode,level:lv});mpBegin(lv)}
-function joinAsGuest(peer,conn,mode,k){
-  mp={mode,role:'guest',peer,conn,opp:{},stT:0,k};mpWire();roomInfo=null;showRoom({mode,role:'guest',k:k||'?',full:true});
+function joinAsGuest(c,conn,mode,k){
+  mp={mode,role:'guest',client:c,own:true,conn,opp:{},stT:0,k};mpWire();roomInfo=null;showRoom({mode,role:'guest',k:k||'?',full:true});
 }
 function mpSend(o){try{mp&&mp.conn&&mp.conn.open&&mp.conn.send(o)}catch(e){}}
 function mpWire(){
@@ -1463,6 +1485,7 @@ function mpWire(){
   c.on('data',mpOnData);
   c.on('close',()=>{if(mp&&mp.conn===c){
     if(roomInfo&&!started){const m=mp.mode,host=mp.role==='host';mpCleanup();hideRoom();toast('Bạn kia đã rời phòng',2500);if(host)createRoom(m);else openLobby();return}
+    if(started&&state.over&&$('over').style.display==='flex'){mpCleanup();toast('Bạn kia đã rời phòng',3000);$('mpAgain').style.display='none';$('overLv').textContent='Về sảnh';$('overLv').onclick=()=>{$('overLv').onclick=()=>{if(mp){mpLeave();return}showLevels()};started=false;$('over').style.display='none';openLobby()};return}
     const was=started&&!state.over;mpCleanup();if(was||$('mpwait').style.display==='flex'){$('mpwait').style.display='none';toast('Bạn kia đã rời phòng',3000);$('over').style.display='none';started=false;openLobby()}}});
   c.on('error',()=>{});
 }
@@ -1479,7 +1502,7 @@ function mpBegin(lv){
 }
 function mpCleanup(){
   if(!mp)return;const m=mp;mp=null;
-  try{m.conn.close()}catch(e){};setTimeout(()=>{try{m.peer.destroy()}catch(e){}},300);
+  try{m.conn.close()}catch(e){};if(m.own&&m.client)setTimeout(()=>{try{m.client.end()}catch(e){}},400);
   $('menuLv').style.display='';$('reset').style.display='';$('mpLeave').style.display='none';
   $('sendbar').style.display='none';$('opp').style.display='none';$('menu').style.display='none';
   fit();
@@ -1551,7 +1574,7 @@ function mpTick(dt){
   if(!mp||!mp.conn)return;
   mp.stT-=dt;
   if(mp.stT<=0){mp.stT=.5;mpSend({t:'st',l:state.lives,w:state.wave,g:state.gold})}
-  if(mp.mode==='coop'&&mp.role==='host'){mp.snapT-=dt;if(mp.snapT<=0){mp.snapT=.1;mpSend(makeSnap())}}
+  if(mp.mode==='coop'&&mp.role==='host'){mp.snapT-=dt;if(mp.snapT<=0){mp.snapT=.15;mpSend(makeSnap())}}
   updateOpp();
 }
 function updateOpp(){
@@ -1602,7 +1625,7 @@ function applySnap(d){
   if(d.ov&&!state.over){state.over=true;mpShow(d.wn?'Cùng nhau qua màn '+level+'!':'Thua rồi!',d.wn?'Còn '+d.l+'/20 mạng':'Trụ được tới đợt '+d.w+'/'+WAVES,!!d.wn)}
 }
 function guestStep(dt){
-  for(const e of enemies){if(e.nx!=null){const k=Math.min(1,dt*12);e.x+=(e.nx-e.x)*k;e.y+=(e.ny-e.y)*k}if(e.hit>0)e.hit-=dt}
+  for(const e of enemies){if(e.nx!=null){const k=Math.min(1,dt*9);e.x+=(e.nx-e.x)*k;e.y+=(e.ny-e.y)*k}if(e.hit>0)e.hit-=dt}
   for(const tw of towers)if(tw.hurt>0)tw.hurt-=dt;
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.93;p.vy*=.93;p.life-=dt}
   parts=parts.filter(p=>p.life>0);
@@ -1616,7 +1639,7 @@ $('mkCoop').onclick=()=>createRoom('coop');
 $('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
 $('rmLeave').onclick=()=>{mpStopSearch();if(mp)mpCleanup();hideRoom();openLobby()};
 $('mkVs').onclick=()=>createRoom('vs');
-$('lbRefresh').onclick=()=>{if(lobby)scanRooms();else openLobby()};
+$('lbRefresh').onclick=()=>{if(lobby&&lobby.client.connected){lobbyMsg('Đang tải…');try{lobby.client.subscribe(NS+'rooms/+',{qos:1})}catch(e){};setTimeout(renderRooms,1200)}else{lobby=null;openLobby()}};
 $('lbBack').onclick=showHome;
 $('mpAgain').onclick=()=>{if(!mp||mp.ready)return;mp.ready=true;mpSend({t:'again'});$('mpAgain').disabled=true;$('mpAgain').textContent='Đang chờ bạn kia…';if(mp.oppReady&&mp.role==='host')mpStartMatch()};
 $('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.display='none';openLobby()};
