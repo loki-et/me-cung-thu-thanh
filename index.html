@@ -150,7 +150,6 @@
         <button id="howto">Cách chơi</button>
         <button id="snd">🔊 Âm thanh: Bật</button>
         <label class="volrow">Âm lượng <input type="range" id="vol" min="0" max="100" step="5"><span id="volT"></span></label>
-        <button id="coinSnd">💰 Tiếng tiền: Bật</button>
         <button class="warn" id="reset">↻ Chơi lại từ đầu</button>
       </div>
       <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button class="go" id="mpAgain" style="display:none">Chơi lại cùng bạn kia</button><button id="overLv">Chọn màn</button></div>
@@ -285,7 +284,7 @@ const unlocked=n=>n===1||stars[n-1]>0;
 /* ---------- sound ---------- */
 const SFX=(()=>{
   let ctx=null,master=null,muted=false,vol=.7,coin=true;
-  try{muted=localStorage.getItem('mctt-mute')==='1';const v=localStorage.getItem('mctt-vol');if(v!=null)vol=+v;coin=localStorage.getItem('mctt-coin')!=='0'}catch(e){}
+  try{muted=localStorage.getItem('mctt-mute')==='1';const v=localStorage.getItem('mctt-vol');if(v!=null)vol=+v;coin=true}catch(e){}
   const ac=()=>{if(!ctx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;ctx=new A();master=ctx.createGain();master.gain.value=vol;master.connect(ctx.destination)}if(ctx.state==='suspended')ctx.resume();return ctx};
   const last={};
   function tone(f,d,type,v,slide,delay){const c=ac();if(!c||muted)return;const t=c.currentTime+(delay||0);const o=c.createOscillator(),gn=c.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(slide&&slide!==1)o.frequency.exponentialRampToValueAtTime(Math.max(30,f*slide),t+d);gn.gain.setValueAtTime(v||.05,t);gn.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(gn);gn.connect(master);o.start(t);o.stop(t+d+.03)}
@@ -1327,8 +1326,6 @@ $('snd').onclick=()=>{SFX.toggle();sndLabel();SFX.play('click')};
 $('vol').value=Math.round(SFX.vol()*100);$('volT').textContent=$('vol').value+'%';
 $('vol').oninput=()=>{SFX.setVol($('vol').value/100);$('volT').textContent=$('vol').value+'%'};
 $('vol').onchange=()=>SFX.play('arrow');
-const coinLabel=()=>{$('coinSnd').textContent=SFX.coinOn()?'💰 Tiếng tiền: Bật':'💰 Tiếng tiền: Tắt'};coinLabel();
-$('coinSnd').onclick=()=>{SFX.toggleCoin();coinLabel();SFX.play('coin')};
 $('go').onclick=()=>{$('start').style.display='none';showLevels()};
 $('helpBtn').onclick=showHelp;
 $('helpBack').onclick=closeHelp;
