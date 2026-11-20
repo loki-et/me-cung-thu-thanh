@@ -302,15 +302,15 @@ const TYPES={
     {cost:90,range:3.4,dmg:28,cd:1,chain:4,note:'lan thêm 1 quái'},
     {cost:150,range:3.6,dmg:46,cd:.85,chain:6,note:'lan tới 6 quái'}]},
   wind:{name:'Gió',color:'#bff0e0',desc:'hất tung quái, đứng khựng một lúc',lv:[
-    {cost:60,range:2.6,dmg:4,cd:2.2,knock:.6},
-    {cost:70,range:2.8,dmg:8,cd:2,knock:.9,note:'hất lâu hơn'},
-    {cost:110,range:3,dmg:14,cd:1.8,knock:.5,area:1,note:'hất tung cả nhóm 0,5 giây'}]}
+    {cost:60,range:2.6,dmg:4,cd:2.2,knock:.5,area:1,maxT:1},
+    {cost:70,range:2.8,dmg:8,cd:2,knock:.5,area:1,maxT:2,note:'hất 2 quái cùng lúc'},
+    {cost:110,range:3,dmg:14,cd:1.8,knock:.5,area:1,maxT:3,note:'hất 3 quái cùng lúc'}]}
 };
 const st=tw=>TYPES[tw.type].lv[tw.lvl];
 function statLine(L){
   return 'tầm '+L.range+' · sát thương '+L.dmg+(L.multi?' ×'+L.multi+' mục tiêu':'')+(L.splash?' (nổ lan)':'')
     +(L.slow?' · chậm '+Math.round(L.slow*100)+'%':'')+(L.burn?' · cháy '+L.burn+'/s':'')
-    +(L.chain?' · lan '+L.chain+' quái':'')+(L.knock?' · hất '+L.knock+'s':'')+(L.area&&!L.splash?' (cả nhóm)':'');
+    +(L.chain?' · lan '+L.chain+' quái':'')+(L.knock?' · hất '+L.knock+'s, tối đa '+(L.maxT||1)+' quái':'')+(L.area&&!L.splash&&!L.maxT?' (cả nhóm)':'');
 }
 const ETYPES={
   grunt:{atk:6,name:'Lính',trait:'quái thường, không có gì đặc biệt',hp:40,sp:1.5,col:'#e05a5a',lite:'#ff9f8f',dark:'#9a2c38',r:.3,gold:4,move:'g'},
@@ -748,7 +748,8 @@ function impact(s,tx,ty){
     burst(tx,ty,'#5a4a3a',6,2);return;
   }
   if(t.hp<=0)return;
-  const group=L.area?around(t.x,t.y,L.area):[t];
+  let group=L.area?around(t.x,t.y,L.area):[t];
+  if(L.maxT){group=group.filter(e=>e!==t).sort((a,b)=>Math.hypot(a.x-t.x,a.y-t.y)-Math.hypot(b.x-t.x,b.y-t.y));group=[t,...group].slice(0,L.maxT)}
   if(s.type==='arrow'){hurt(t,L.dmg);burst(t.x,t.y,'#fff6c0',4,2.2);fx.push({star:1,x:t.x,y:t.y,t:.18,c:'#fffbe0'})}
   else if(s.type==='frost'){
     hurt(t,L.dmg);
