@@ -266,7 +266,7 @@ const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
 const isRes=(x,y)=>x===SP.x&&y===SP.y+1;
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
-const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=150,WAVES=30,LEVELS=10,COOP_HP=2.6,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=15,RAGE_ATK=2;
+const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=150,WAVES=30,LEVELS=10,COOP_HP=1.3,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=15,RAGE_ATK=2;
 const TYPES={
   arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu',lv:[
     {cost:30,range:3.4,dmg:8,cd:.35},
@@ -431,7 +431,7 @@ function genMap(){
 const terrain=document.createElement('canvas');
 terrain.width=C*S*DPR;terrain.height=R*S*DPR;
 // soft organic shape over a set of cells: blur a low-res cell mask, then threshold it (rounded corners, natural edges)
-function softMask(pred,thr,blurR){
+function softMask(pred,thr,blurR,edge){
   const K=8,w=C*K,h=R*K,a=new Float32Array(w*h);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++)a[y*w+x]=pred(Math.floor(x/K),Math.floor(y/K))?1:0;
   const tmp=new Float32Array(w*h),rad=blurR||4;
@@ -440,7 +440,7 @@ function softMask(pred,thr,blurR){
     for(let x=0;x<w;x++){let acc=0;for(let y=-rad;y<h+rad;y++){if(y+rad<h)acc+=tmp[(y+rad)*w+x];if(y-rad-1>=0)acc-=tmp[(y-rad-1)*w+x];if(y>=0&&y<h)a[y*w+x]=acc/(2*rad+1)}}
   }
   const cv2=document.createElement('canvas');cv2.width=w;cv2.height=h;const x2=cv2.getContext('2d'),im=x2.createImageData(w,h);
-  for(let i=0;i<w*h;i++){const t=Math.min(1,Math.max(0,(a[i]-thr+.1)/.2)),v=t*t*(3-2*t);im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=255;im.data[i*4+3]=v*255}
+  for(let i=0;i<w*h;i++){const ew=edge||.2,t=Math.min(1,Math.max(0,(a[i]-thr+ew/2)/ew)),v=t*t*(3-2*t);im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=255;im.data[i*4+3]=v*255}
   x2.putImageData(im,0,0);return cv2;
 }
 // paint `draw` into a full-size layer, cut it to the mask, and stamp it onto the terrain
@@ -506,16 +506,16 @@ function buildTerrain(){
   const isR=(x,y)=>x>=0&&x<C&&y>=0&&y<R&&terr[y][x]===ROCK;
   // rocky ground under the mountains
   if(terr.some(r=>r.includes(ROCK))){
-    maskedLayer(c,softMask(isR,.32,4),lc=>{
+    maskedLayer(c,softMask(isR,.5,2,.06),lc=>{
       lc.fillStyle='#8a8068';lc.fillRect(0,0,W,H);
       for(let i=0;i<C*R*3;i++){lc.fillStyle=rnd()<.5?'rgba(60,52,40,.35)':'rgba(170,160,135,.35)';lc.beginPath();lc.arc(rnd()*W,rnd()*H,.8+rnd()*1.8,0,7);lc.fill()}
     });
   }
   // lakes: sand shore, wet sand, water, deep water
   if(waterCellsExist()){
-    maskedLayer(c,softMask(isW,.26,5),lc=>{lc.fillStyle='#d9c48c';lc.fillRect(0,0,W,H);for(let i=0;i<C*R*2;i++){lc.fillStyle='rgba(150,120,70,.35)';lc.beginPath();lc.arc(rnd()*W,rnd()*H,.9,0,7);lc.fill()}});
-    maskedLayer(c,softMask(isW,.4,5),lc=>{lc.fillStyle='#b9a36c';lc.fillRect(0,0,W,H)});
-    maskedLayer(c,softMask(isW,.5,5),lc=>{const wg=lc.createLinearGradient(0,0,0,H);wg.addColorStop(0,'#43a0dc');wg.addColorStop(1,'#2f7fc0');lc.fillStyle=wg;lc.fillRect(0,0,W,H);
+    maskedLayer(c,softMask(isW,.5,2,.05),lc=>{lc.fillStyle='#d9c48c';lc.fillRect(0,0,W,H);for(let i=0;i<C*R*2;i++){lc.fillStyle='rgba(150,120,70,.35)';lc.beginPath();lc.arc(rnd()*W,rnd()*H,.9,0,7);lc.fill()}});
+    maskedLayer(c,softMask(isW,.6,2,.05),lc=>{lc.fillStyle='#b9a36c';lc.fillRect(0,0,W,H)});
+    maskedLayer(c,softMask(isW,.68,2,.05),lc=>{const wg=lc.createLinearGradient(0,0,0,H);wg.addColorStop(0,'#43a0dc');wg.addColorStop(1,'#2f7fc0');lc.fillStyle=wg;lc.fillRect(0,0,W,H);
       for(let i=0;i<20;i++){const x=rnd()*W,y=rnd()*H,r=20+rnd()*40,gg=lc.createRadialGradient(x,y,0,x,y,r);gg.addColorStop(0,'rgba(140,210,255,.25)');gg.addColorStop(1,'rgba(140,210,255,0)');lc.fillStyle=gg;lc.fillRect(x-r,y-r,r*2,r*2)}});
     maskedLayer(c,softMask(isW,.8,6),lc=>{lc.fillStyle='rgba(20,70,130,.45)';lc.fillRect(0,0,W,H)});
   }
@@ -704,14 +704,16 @@ function prog(e){
   const D=m==='s'?distS:distG,tx=Math.min(C-1,Math.max(0,e.tx)),ty=Math.min(R-1,Math.max(0,e.ty));
   return D[ty][tx]+Math.hypot(e.x-(tx+.5),e.y-(ty+.5));
 }
+let dmgBy=0;
 function hurt(e,d,raw,zap){
-  if(e.hp<=0)return;let dm=d;
+  if(e.hp<=0)return;let dm=d;e.lastBy=dmgBy;
   if(e.shield>0){const m=zap?2:1,ab=Math.min(e.shield,dm*m);e.shield-=ab;dm-=ab/m;e.shieldCd=3;e.hit=.1;if(e.shield<=0)burst(e.x,e.y,'#9fe8ff',12,2.6)}
   if(dm<=0)return;
   const a=raw?0:(ETYPES[e.k].armor||0);e.hp-=Math.max(dm*.2,dm-a);e.hit=.1;
 }
 function around(x,y,r){return enemies.filter(e=>e.hp>0&&Math.hypot(e.x-x,e.y-y)<=r)}
 function impact(s,tx,ty){
+  dmgBy=s.owner||0;
   const L=s.L,t=s.t;
   if(s.type==='cannon'){
     fx.push({flash:1,x:tx,y:ty,t:.16,r:L.splash?1.1:.6});
@@ -729,7 +731,7 @@ function impact(s,tx,ty){
     burst(t.x,t.y,'#d6f0ff',5,1.6);fx.push({flake:1,x:t.x,y:t.y,t:.4,a:Math.random()*3});
   }else if(s.type==='fire'){
     hurt(t,L.dmg);
-    for(const e of group){if(!(e.burn>0)||e.burnDps<=L.burn)e.burnDps=L.burn;e.burn=Math.max(e.burn||0,L.burnT)}
+    for(const e of group){e.burnBy=dmgBy;if(!(e.burn>0)||e.burnDps<=L.burn)e.burnDps=L.burn;e.burn=Math.max(e.burn||0,L.burnT)}
     burst(t.x,t.y,'#ff9a3d',6,1.8);for(let i=0;i<6;i++)parts.push({x:t.x+(Math.random()-.5)*.3,y:t.y,vx:(Math.random()-.5)*.8,vy:-1-Math.random(),life:.5,max:.5,c:i%2?'#ffd25a':'#ff5a2a',r:1.5+Math.random()*1.5});
   }else if(s.type==='wind'){
     for(const e of group){hurt(e,L.dmg);const k=L.knock*(e.k==='boss'?.4:1);if(!(e.stun>0))e.stunMax=k;e.stun=Math.max(e.stun||0,k)}
@@ -751,6 +753,7 @@ function zap(tw,first,L){
 function update(dt){
   if(state.over)return;
   const born=[];
+  if(mp&&mp.mode==='coop'&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;state.gold+=1;state.gold2+=1}}
   spawnT-=dt;
   if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))}
   if(!queue.length){
@@ -762,7 +765,7 @@ function update(dt){
     if(e.slow>0)e.slow-=dt;
     if(e.hit>0)e.hit-=dt;
     if(e.burn>0){
-      e.burn-=dt;e.hp-=e.burnDps*dt;
+      e.burn-=dt;e.hp-=e.burnDps*dt;if(e.burnBy!=null)e.lastBy=e.burnBy;
       if(Math.random()<dt*14)parts.push({x:e.x+(Math.random()-.5)*.4,y:e.y-.1,vx:(Math.random()-.5)*.3,vy:-1.2,life:.35,max:.35,c:Math.random()<.5?'#ffb347':'#ff5a2a',r:1.5+Math.random()*1.5});
     }
     if(T.shield){if(e.shieldCd>0)e.shieldCd-=dt;else if(e.shield<e.shieldMax)e.shield=Math.min(e.shieldMax,e.shield+e.shieldMax*.35*dt)}
@@ -833,12 +836,12 @@ function update(dt){
     tw.ang=Math.atan2(tgt.y-(tw.y+.5),tgt.x-(tw.x+.5));
     if(tw.cd>0)continue;
     tw.cd=L.cd;tw.rec=1;
-    if(tw.type==='thunder'){zap(tw,tgt,L);SFX.play('thunder');continue}
+    if(tw.type==='thunder'){dmgBy=tw.owner||0;zap(tw,tgt,L);SFX.play('thunder');continue}
     SFX.play(tw.type);
     const n=Math.min(L.multi||1,inR.length);
     for(let i=0;i<n;i++){
       const t=inR[i][1],a=Math.atan2(t.y-(tw.y+.5),t.x-(tw.x+.5));
-      shots.push({x:tw.x+.5+Math.cos(a)*.35,y:tw.y+.5+Math.sin(a)*.35,t,L,type:tw.type,ang:a});
+      shots.push({x:tw.x+.5+Math.cos(a)*.35,y:tw.y+.5+Math.sin(a)*.35,t,L,type:tw.type,ang:a,owner:tw.owner||0});
       fx.push({mz:1,x:tw.x+.5+Math.cos(a)*.42,y:tw.y+.5+Math.sin(a)*.42,a,t:.12,c:TYPES[tw.type].color});
     }
   }
@@ -857,9 +860,9 @@ function update(dt){
   shots=shots.filter(s=>!s.dead);
   for(const e of enemies)if(e.hp<=0&&!e.leaked){
     const T=ETYPES[e.k];
-    state.gold+=T.gold;if(mp&&mp.mode==='coop')state.gold2+=T.gold;
+    addGold(e.lastBy||0,T.gold);
     burst(e.x,e.y,T.col,e.k==='boss'?30:10,e.k==='boss'?4:2.6);SFX.play(e.k==='boss'?'boom':'coin');
-    texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold});
+    texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold,c:mp&&mp.mode==='coop'&&(e.lastBy||0)!==myId()?'#8fd3ff':null});
     if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n))}burst(e.x,e.y,'#8fe05f',12,2.2)}
   }
   enemies=enemies.filter(e=>e.hp>0).concat(born);
@@ -1266,7 +1269,7 @@ function draw(){
   for(const t of texts){
     g.globalAlpha=Math.min(1,t.t*2);
     g.lineWidth=3;g.strokeStyle='rgba(0,0,0,.6)';g.strokeText(t.txt,t.x*S,t.y*S);
-    g.fillStyle='#ffd166';g.fillText(t.txt,t.x*S,t.y*S);
+    g.fillStyle=t.c||'#ffd166';g.fillText(t.txt,t.x*S,t.y*S);
   }
   g.globalAlpha=1;
   if(state.taunt){
