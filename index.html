@@ -329,6 +329,8 @@ const coopGuest=()=>mp&&mp.mode==='coop'&&mp.role==='guest';
 const goldOf=o=>o===1&&mp&&mp.mode==='coop'&&mp.role==='host'?state.gold2:state.gold;
 function addGold(o,v){if(o===1&&mp&&mp.mode==='coop'&&mp.role==='host')state.gold2+=v;else state.gold+=v}
 try{const v=JSON.parse(localStorage.getItem('mctt-stars')||'[]');if(Array.isArray(v))v.forEach((x,i)=>{if(i<=LEVELS)stars[i]=+x||0})}catch(e){}
+// progress only counts levels cleared in order from level 1 (drops stars saved by older versions from 2-player wins)
+for(let n=2,ok=stars[1]>0;n<=LEVELS;n++){if(!ok)stars[n]=0;ok=ok&&stars[n]>0}
 const cleared=()=>stars.filter(x=>x>0).length;
 const unlocked=n=>n===1||stars[n-1]>0;
 
@@ -660,7 +662,7 @@ const FIRST={};for(let n=1;n<60;n++)for(const [k] of waveComp(n))if(!FIRST[k])FI
 function winLevel(){
   state.over=true;state.won=true;selTower=null;
   const st=state.lives>=18?3:state.lives>=10?2:1;
-  if(st>stars[level]){stars[level]=st;try{localStorage.setItem('mctt-stars',JSON.stringify(stars))}catch(e){}}
+  if(!mp&&st>stars[level]){stars[level]=st;try{localStorage.setItem('mctt-stars',JSON.stringify(stars))}catch(e){}}
   if(mp){mpEnd(true);return}
   showEnd(true,st);
 }
