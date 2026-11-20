@@ -32,7 +32,8 @@
   .st div{min-width:0}
   #gold i{color:var(--gold)} #lives i{color:var(--red)}
   #wave{flex:1.5}
-  #pause{flex:none;width:46px;height:44px;padding:0;font-size:20px}
+  #pause,#sndq{flex:none;width:44px;height:44px;padding:0;font-size:20px}
+  #sndq{font-size:18px}
   /* stage */
   .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 8px 8px}
   .wrap{position:relative}
@@ -148,6 +149,7 @@
     <div class="st" id="gold"><span class="ic">🪙</span><i>0</i></div>
     <div class="st" id="lives"><span class="ic">❤️</span><i>0</i></div>
     <div class="st" id="wave"><span class="ic">⚔️</span><div><i>0</i><small>…</small></div></div>
+    <button id="sndq" aria-label="Bật tắt âm thanh">🔊</button>
     <button id="pause" aria-label="Menu">☰</button>
   </div>
   <div class="nextw"><div id="opp"></div><div class="next" id="next"></div><div class="tip" id="etip"></div></div>
@@ -1389,7 +1391,8 @@ function showHome(){
   started=false;
 }
 $('howto').onclick=showHelp;
-const sndLabel=()=>{$('snd').textContent=SFX.isMuted()?'🔇 Âm thanh: Tắt':'🔊 Âm thanh: Bật'};sndLabel();
+const sndLabel=()=>{$('snd').textContent=SFX.isMuted()?'🔇 Âm thanh: Tắt':'🔊 Âm thanh: Bật';$('sndq').textContent=SFX.isMuted()?'🔇':'🔊'};sndLabel();
+$('sndq').onclick=()=>{SFX.toggle();sndLabel();SFX.play('click')};
 $('snd').onclick=()=>{SFX.toggle();sndLabel();SFX.play('click')};
 $('vol').value=Math.round(SFX.vol()*100);$('volT').textContent=$('vol').value+'%';
 $('vol').oninput=()=>{SFX.setVol($('vol').value/100);$('volT').textContent=$('vol').value+'%'};
