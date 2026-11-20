@@ -327,7 +327,9 @@ const ETYPES={
 let grid,terr,waterCells,towers,enemies,shots,queue,state,distG,distS,parts,texts,fx;
 let started=false,paused=false,selType='arrow',selTower=null,hover=null,tchoice=null;
 let spawnT=0,last=0,msgT=0,best=0,now=0,eid=0,hoverErr=null,hoverKey='',frameN=0;
-let level=1,stars=Array(LEVELS+1).fill(0),mp=null;
+let level=1,stars=Array(LEVELS+1).fill(0),mp=null,bestT={};
+try{bestT=JSON.parse(localStorage.getItem('mctt-times')||'{}')||{}}catch(e){bestT={}}
+const fmtT=t=>{t=Math.round(t);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
 const myId=()=>mp&&mp.role==='guest'?1:0;
 const coopGuest=()=>mp&&mp.mode==='coop'&&mp.role==='guest';
 const goldOf=o=>o===1&&mp&&mp.mode==='coop'&&mp.role==='host'?state.gold2:state.gold;
@@ -552,7 +554,7 @@ function waterCellsExist(){return terr.some(r=>r.includes(WATER))}
 function reset(){
   genMap();buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
-  state={stats:[{k:0,g:0},{k:0,g:0}],gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
+  state={time:0,stats:[{k:0,g:0},{k:0,g:0}],gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
   $('over').style.display='none';
   setPause(false);
   recompute();updateUI();
@@ -668,6 +670,8 @@ function winLevel(){
   const st=state.lives>=18?3:state.lives>=10?2:1;
   if(!mp&&st>stars[level]){stars[level]=st;try{localStorage.setItem('mctt-stars',JSON.stringify(stars))}catch(e){}}
   if(mp){mpEnd(true);return}
+  const prev=bestT[level];state.newBest=!prev||state.time<prev;
+  if(state.newBest){bestT[level]=Math.round(state.time);try{localStorage.setItem('mctt-times',JSON.stringify(bestT))}catch(e){}}
   showEnd(true,st);
 }
 function statsHTML(){
@@ -686,8 +690,8 @@ function showEnd(won,st){
   SFX.play(won?'win':'lose');
   $('overT').textContent=won?'Qua màn '+level+'!':'Thua rồi!';
   $('overStars').textContent=won?'★'.repeat(st)+'☆'.repeat(3-st):'';
-  $('overS').textContent=won?'Còn '+state.lives+'/20 mạng'+(level===LEVELS?' · Bạn đã phá đảo cả '+LEVELS+' màn!':'')
-    :'Màn '+level+', trụ được tới đợt '+state.wave+'/'+WAVES;
+  $('overS').innerHTML=won?'⏱ '+fmtT(state.time)+(state.newBest?' · <b style="color:var(--gold)">🏆 Kỷ lục mới!</b>':' · kỷ lục '+fmtT(bestT[level]))+'<br>Còn '+state.lives+'/20 mạng'+(level===LEVELS?' · Bạn đã phá đảo cả '+LEVELS+' màn!':'')
+    :'Màn '+level+', trụ được tới đợt '+state.wave+'/'+WAVES+' · ⏱ '+fmtT(state.time);
   $('nextLv').style.display=won&&level<LEVELS?'':'none';
   $('again').textContent='Chơi lại màn '+level;
   $('over').style.display='flex';updateUI();
@@ -780,6 +784,7 @@ function zap(tw,first,L){
 function update(dt){
   if(state.over)return;
   const born=[];
+  state.time+=dt;
   // passive income for both players in any 2-player mode (much smaller than kill gold)
   if(mp&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}
   spawnT-=dt;
@@ -1785,7 +1790,7 @@ $('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.di
 $('mpLeave').onclick=mpLeave;
 function startLevel(n){
   level=n;$('levels').style.display='none';$('start').style.display='none';
-  pickLv=n;started=true;reset();toast('Màn '+n+(n>1?': quái trâu hơn!':''),2000);
+  pickLv=n;started=true;reset();toast('Màn '+n,1500);
 }
 function showLevels(){
   $('mpAgain').style.display='none';$('lobby').style.display='none';
@@ -1798,14 +1803,14 @@ function showLevels(){
     h+='<button class="lv'+(st?' done':'')+(n===pickLv?' cur':'')+'" data-n="'+n+'"'+(ok?'':' disabled')+'><b>'+(ok?n:'🔒')+'</b><small>'+(ok?'★'.repeat(st)+'☆'.repeat(3-st):'')+'</small></button>';
   }
   $('lvGrid').innerHTML=h;lvPickInfo();
-  $('lvSub').textContent='Đã qua '+cleared()+'/'+LEVELS+' màn. Mỗi màn có bản đồ riêng, càng về sau quái càng trâu. Qua màn trước để mở màn sau.';
+  $('lvSub').textContent='Đã qua '+cleared()+'/'+LEVELS+' màn';
   $('menu').style.display='none';$('over').style.display='none';
   $('levels').style.display='flex';
 }
 let pickLv=0;
 function lvPickInfo(){
   const n=pickLv,st=stars[n];
-  setText($('lvInfo'),'Màn '+n+(st?' · đã đạt '+'★'.repeat(st)+'☆'.repeat(3-st):' · chưa qua')+' · vàng khởi đầu '+(START_GOLD+LEVEL_GOLD*(n-1)));
+  setText($('lvInfo'),'Màn '+n+(st?' · '+'★'.repeat(st)+'☆'.repeat(3-st)+(bestT[n]?' · kỷ lục ⏱ '+fmtT(bestT[n]):''):' · chưa qua'));
   setText($('lvGo'),'▶ Chơi màn '+n);
 }
 $('lvGrid').addEventListener('click',e=>{const b=e.target.closest('.lv');if(!b||b.disabled)return;
