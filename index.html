@@ -201,7 +201,7 @@
   <div id="mpwait"><div class="card"><div class="spin"></div><div id="mpMsg" style="margin-bottom:14px"></div><button id="mpCancel" style="width:100%">Hủy</button></div></div>
   <div id="lobby"><div class="card">
     <h1>Chơi 2 người</h1>
-    <div class="tabs"><button class="tab sel" data-m="coop">🤝 Cùng thủ</button><button class="tab" data-m="vs">⚔️ Đối kháng</button></div>
+    <div class="tabs"><button class="tab sel" data-m="coop">🤝 Hợp tác</button><button class="tab" data-m="vs">⚔️ Solo</button></div>
     <div class="sub" id="lbDesc" style="margin:8px 0 10px"></div>
     <div class="mph" style="text-align:left;display:flex;align-items:center;justify-content:space-between"><span id="lbCount">Phòng đang chờ</span><button id="lbRefresh" style="padding:3px 10px;font-size:13px">↻ Làm mới</button></div>
     <div id="roomList" class="rooms"></div>
@@ -1568,7 +1568,7 @@ function mpStopSearch(){
   if(m.client&&!m.paired){mqPub(m.client,m.topic,null,{retain:true,qos:1});setTimeout(()=>{try{m.client.end()}catch(e){}},300)}
 }
 function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
-const modeName=m=>m==='coop'?'🤝 Cùng thủ':'⚔️ Đối kháng';
+const modeName=m=>m==='coop'?'🤝 Hợp tác':'⚔️ Solo';
 let lobby=null,lbMode='coop';
 const MODE_DESC={coop:'Hai người cùng giữ một lâu đài, mỗi người xây tháp bằng vàng riêng. Qua màn cùng nhau.',vs:'Mỗi người một bản đồ. Bỏ vàng gửi quái sang bên kia, ai hết mạng trước thì thua.'};
 function setLbMode(m){lbMode=m;for(const b of document.querySelectorAll('#lobby .tab'))b.classList.toggle('sel',b.dataset.m===m);$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
@@ -1593,8 +1593,8 @@ function closeLobby(keepClient){
 function renderRooms(){
   if(!lobby)return;
   const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode).sort((a,b)=>a.k-b.k);
-  setText($('lbCount'),'Phòng '+(lbMode==='coop'?'Cùng thủ':'Đối kháng')+' đang chờ ('+list.length+')');
-  if(!list.length)return lobbyMsg('Chưa có phòng '+(lbMode==='coop'?'Cùng thủ':'Đối kháng')+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
+  setText($('lbCount'),'Phòng '+(lbMode==='coop'?'Hợp tác':'Solo')+' đang chờ ('+list.length+')');
+  if(!list.length)return lobbyMsg('Chưa có phòng '+(lbMode==='coop'?'Hợp tác':'Solo')+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
   setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
 }
 function toggleNext(force){
@@ -1680,7 +1680,7 @@ function mpBegin(lv){
   $('menuLv').style.display='none';$('reset').style.display='none';$('mpLeave').style.display='';
   $('sendbar').style.display=mp.mode==='vs'?'flex':'none';$('opp').style.display='block';
   fit();
-  toast(mp.mode==='coop'?'🤝 Cùng thủ! Tháp chấm vàng là của chủ phòng, chấm xanh là của khách':'⚔️ Đối kháng! Bỏ vàng gửi quái sang bên kia',3200);
+  toast(mp.mode==='coop'?'🤝 Hợp tác! Tháp chấm vàng là của chủ phòng, chấm xanh là của khách':'⚔️ Solo! Bỏ vàng gửi quái sang bên kia',3200);
   updateUI();
 }
 function mpCleanup(){
