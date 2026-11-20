@@ -434,7 +434,7 @@ terrain.width=C*S*DPR;terrain.height=R*S*DPR;
 function softMask(pred,thr,blurR,edge){
   const K=8,w=C*K,h=R*K,a=new Float32Array(w*h);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++)a[y*w+x]=pred(Math.floor(x/K),Math.floor(y/K))?1:0;
-  const tmp=new Float32Array(w*h),rad=blurR||4;
+  const tmp=new Float32Array(w*h),rad=blurR??4;
   for(let pass=0;pass<2;pass++){
     for(let y=0;y<h;y++){let acc=0;for(let x=-rad;x<w+rad;x++){const add=x+rad<w&&x+rad>=0?a[y*w+Math.min(w-1,x+rad)]:0,sub=x-rad-1>=0?a[y*w+x-rad-1]:0;if(x+rad<w)acc+=a[y*w+x+rad];if(x-rad-1>=0)acc-=sub;if(x>=0&&x<w)tmp[y*w+x]=acc/(2*rad+1)}}
     for(let x=0;x<w;x++){let acc=0;for(let y=-rad;y<h+rad;y++){if(y+rad<h)acc+=tmp[(y+rad)*w+x];if(y-rad-1>=0)acc-=tmp[(y-rad-1)*w+x];if(y>=0&&y<h)a[y*w+x]=acc/(2*rad+1)}}
@@ -506,16 +506,16 @@ function buildTerrain(){
   const isR=(x,y)=>x>=0&&x<C&&y>=0&&y<R&&terr[y][x]===ROCK;
   // rocky ground under the mountains
   if(terr.some(r=>r.includes(ROCK))){
-    maskedLayer(c,softMask(isR,.5,2,.06),lc=>{
+    maskedLayer(c,softMask(isR,.5,0,.02),lc=>{
       lc.fillStyle='#8a8068';lc.fillRect(0,0,W,H);
       for(let i=0;i<C*R*3;i++){lc.fillStyle=rnd()<.5?'rgba(60,52,40,.35)':'rgba(170,160,135,.35)';lc.beginPath();lc.arc(rnd()*W,rnd()*H,.8+rnd()*1.8,0,7);lc.fill()}
     });
   }
   // lakes: sand shore, wet sand, water, deep water
   if(waterCellsExist()){
-    maskedLayer(c,softMask(isW,.5,2,.05),lc=>{lc.fillStyle='#d9c48c';lc.fillRect(0,0,W,H);for(let i=0;i<C*R*2;i++){lc.fillStyle='rgba(150,120,70,.35)';lc.beginPath();lc.arc(rnd()*W,rnd()*H,.9,0,7);lc.fill()}});
-    maskedLayer(c,softMask(isW,.6,2,.05),lc=>{lc.fillStyle='#b9a36c';lc.fillRect(0,0,W,H)});
-    maskedLayer(c,softMask(isW,.68,2,.05),lc=>{const wg=lc.createLinearGradient(0,0,0,H);wg.addColorStop(0,'#43a0dc');wg.addColorStop(1,'#2f7fc0');lc.fillStyle=wg;lc.fillRect(0,0,W,H);
+    maskedLayer(c,softMask(isW,.5,0,.02),lc=>{lc.fillStyle='#d9c48c';lc.fillRect(0,0,W,H);for(let i=0;i<C*R*2;i++){lc.fillStyle='rgba(150,120,70,.35)';lc.beginPath();lc.arc(rnd()*W,rnd()*H,.9,0,7);lc.fill()}});
+    maskedLayer(c,softMask(isW,.62,1,.04),lc=>{lc.fillStyle='#b9a36c';lc.fillRect(0,0,W,H)});
+    maskedLayer(c,softMask(isW,.7,1,.04),lc=>{const wg=lc.createLinearGradient(0,0,0,H);wg.addColorStop(0,'#43a0dc');wg.addColorStop(1,'#2f7fc0');lc.fillStyle=wg;lc.fillRect(0,0,W,H);
       for(let i=0;i<20;i++){const x=rnd()*W,y=rnd()*H,r=20+rnd()*40,gg=lc.createRadialGradient(x,y,0,x,y,r);gg.addColorStop(0,'rgba(140,210,255,.25)');gg.addColorStop(1,'rgba(140,210,255,0)');lc.fillStyle=gg;lc.fillRect(x-r,y-r,r*2,r*2)}});
     maskedLayer(c,softMask(isW,.8,6),lc=>{lc.fillStyle='rgba(20,70,130,.45)';lc.fillRect(0,0,W,H)});
   }
