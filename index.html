@@ -49,8 +49,17 @@
   canvas#cv{display:block;border-radius:12px;border:2px solid #2c3d2a;box-shadow:0 8px 30px #0008;touch-action:none;cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M3 2 L3 26 L10 19.5 L15 30 L19.5 28 L14.5 17.5 L24 17.5 Z' fill='%23fffbe0' stroke='%23111' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E") 3 2,default;background:#3f7a3a}
   #msg{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:#000c;color:#fff;padding:7px 14px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;width:max-content;max-width:92%;text-align:center;z-index:4}
   .ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#05080dd9;border-radius:12px;text-align:center;padding:20px;z-index:5}
-  .ov h2{margin:0;font-size:28px}
+  .ov h2{margin:0;font-size:24px}
   #overStars{font-size:34px;color:var(--gold);letter-spacing:4px;line-height:1}
+  #overStats{margin:4px 0 6px}
+  .stt{border-collapse:collapse;font-size:14px;min-width:240px}
+  .stt th,.stt td{padding:5px 10px;text-align:center}
+  .stt th{color:var(--mut);font-weight:600;font-size:12px}
+  .stt td:first-child{text-align:left;color:var(--mut)}
+  .stt tr+tr td{border-top:1px solid #ffffff14}
+  .stt b{font-size:17px}
+  .mvp{color:var(--gold);font-size:11px;display:block}
+  .st1{font-size:15px;color:var(--mut)}.st1 b{color:var(--txt)}
   #overS{color:var(--mut);font-size:14px;max-width:280px}
   .ov button{min-width:200px}
   .volrow{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mut);min-width:200px}
@@ -177,7 +186,7 @@
         <label class="volrow">Âm lượng <input type="range" id="vol" min="0" max="100" step="5"><span id="volT"></span></label>
         <button class="warn" id="reset">↻ Chơi lại từ đầu</button>
       </div>
-      <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button class="go" id="mpAgain" style="display:none">Chơi lại cùng bạn kia</button><button id="overLv">Chọn màn</button></div>
+      <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><div id="overStats"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button class="go" id="mpAgain" style="display:none">Chơi lại cùng bạn kia</button><button id="overLv">Chọn màn</button></div>
     </div>
   </div>
   <div id="sendbar"></div>
@@ -537,7 +546,7 @@ function waterCellsExist(){return terr.some(r=>r.includes(WATER))}
 function reset(){
   genMap();buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
-  state={gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
+  state={stats:[{k:0,g:0},{k:0,g:0}],gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
   $('over').style.display='none';
   setPause(false);
   recompute();updateUI();
@@ -655,7 +664,19 @@ function winLevel(){
   if(mp){mpEnd(true);return}
   showEnd(true,st);
 }
+function statsHTML(){
+  const st=state.stats||[{k:0,g:0},{k:0,g:0}];
+  if(!mp)return '<div class="st1">⚔️ Hạ <b>'+st[0].k+'</b> quái · 💰 Kiếm <b>'+st[0].g+'</b> vàng</div>';
+  let me,ot;
+  if(mp.mode==='coop'){me=st[myId()];ot=st[1-myId()]}
+  else{me=st[0];ot={k:mp.opp.sk||0,g:mp.opp.sg||0}}
+  const mv=me.k>ot.k?0:ot.k>me.k?1:-1,crown=i=>mv===i?'<span class="mvp">👑 MVP</span>':'';
+  return '<table class="stt"><tr><th></th><th>Bạn'+crown(0)+'</th><th>Bạn kia'+crown(1)+'</th></tr>'
+    +'<tr><td>⚔️ Quái hạ</td><td><b>'+me.k+'</b></td><td><b>'+ot.k+'</b></td></tr>'
+    +'<tr><td>💰 Vàng kiếm</td><td><b>'+me.g+'</b></td><td><b>'+ot.g+'</b></td></tr></table>';
+}
 function showEnd(won,st){
+  $('overStats').innerHTML=statsHTML();
   SFX.play(won?'win':'lose');
   $('overT').textContent=won?'Qua màn '+level+'!':'Thua rồi!';
   $('overStars').textContent=won?'★'.repeat(st)+'☆'.repeat(3-st):'';
@@ -753,7 +774,7 @@ function zap(tw,first,L){
 function update(dt){
   if(state.over)return;
   const born=[];
-  if(mp&&mp.mode==='coop'&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;state.gold+=1;state.gold2+=1}}
+  if(mp&&mp.mode==='coop'&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}
   spawnT-=dt;
   if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))}
   if(!queue.length){
@@ -860,7 +881,7 @@ function update(dt){
   shots=shots.filter(s=>!s.dead);
   for(const e of enemies)if(e.hp<=0&&!e.leaked){
     const T=ETYPES[e.k];
-    addGold(e.lastBy||0,T.gold);
+    addGold(e.lastBy||0,T.gold);{const sv=state.stats[e.lastBy?1:0];sv.k++;sv.g+=T.gold}
     burst(e.x,e.y,T.col,e.k==='boss'?30:10,e.k==='boss'?4:2.6);SFX.play(e.k==='boss'?'boom':'coin');
     texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold,c:mp&&mp.mode==='coop'&&(e.lastBy||0)!==myId()?'#8fd3ff':null});
     if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n))}burst(e.x,e.y,'#8fe05f',12,2.2)}
@@ -1621,6 +1642,7 @@ function mpVsCheck(){
   mpShow(a>b?'Bạn thắng! 🏆':a<b?'Thua rồi!':'Hòa!','Mạng còn lại: bạn '+a+' · bạn kia '+b,a>b);
 }
 function mpShow(t,sub,won){
+  $('overStats').innerHTML=statsHTML();
   if(mp){mp.nextLv=mp.mode==='coop'?(won?Math.min(LEVELS,level+1):level):(level%LEVELS)+1}
   SFX.play(won?'win':/Thua/.test(t)?'lose':'click');
   $('overT').textContent=t;$('overStars').textContent='';$('overS').textContent=sub;
@@ -1643,7 +1665,7 @@ function mpOnData(d){
     case 'err':toast(d.m);break;
     case 'sel':mp.oppSel=d.x!=null?{x:d.x,y:d.y}:null;break;
     case 's':if(mp.role==='guest')applySnap(d);break;
-    case 'st':mp.opp.l=d.l;mp.opp.w=d.w;mp.opp.g=d.g;break;
+    case 'st':mp.opp.l=d.l;mp.opp.w=d.w;mp.opp.g=d.g;mp.opp.sk=d.sk;mp.opp.sg=d.sg;break;
     case 'send':if(mp.mode==='vs'&&!state.over)receiveSend(d);break;
     case 'lose':if(mp.mode==='vs'&&!state.over){state.over=true;mpShow('Bạn thắng! 🏆','Bạn kia đã hết mạng',true)}break;
     case 'done':mp.opp.done=d.l;if(state.over&&mp.done!=null)mpVsCheck();break;
@@ -1670,7 +1692,7 @@ function receiveSend(d){
 function mpTick(dt){
   if(!mp||!mp.conn)return;
   mp.stT-=dt;
-  if(mp.stT<=0){mp.stT=.5;mpSend({t:'st',l:state.lives,w:state.wave,g:state.gold})}
+  if(mp.stT<=0){mp.stT=.5;mpSend({t:'st',l:state.lives,w:state.wave,g:state.gold,sk:state.stats[0].k,sg:state.stats[0].g})}
   if(mp.mode==='coop'&&mp.role==='host'){mp.snapT-=dt;if(mp.snapT<=0){mp.snapT=.15;mpSend(makeSnap())}}
   updateOpp();
 }
@@ -1683,14 +1705,14 @@ function updateOpp(){
 }
 const r2=v=>Math.round(v*100)/100;
 function makeSnap(){
-  return {t:'s',g:[state.gold,state.gold2],l:state.lives,w:state.wave,q:queue.length,nt:r2(state.nextT),ov:state.over?1:0,wn:state.won?1:0,fl:r2(state.flash),
+  return {t:'s',sx:[state.stats[0].k,state.stats[0].g,state.stats[1].k,state.stats[1].g],g:[state.gold,state.gold2],l:state.lives,w:state.wave,q:queue.length,nt:r2(state.nextT),ov:state.over?1:0,wn:state.won?1:0,fl:r2(state.flash),
     ta:state.taunt?[state.taunt.txt,r2(state.taunt.t),state.taunt.k]:0,
     tw:towers.map(t=>[t.x,t.y,TK.indexOf(t.type),t.lvl,t.owner||0,Math.ceil(t.hp),t.maxhp,r2(t.ang),r2(t.rec),t.hurt>0?1:0]),
     en:enemies.map(e=>[e.id,EK.indexOf(e.k),r2(e.x),r2(e.y),Math.round(e.hp),Math.round(e.max),r2(e.fa),(e.slow>0?1:0)|(e.burn>0?2:0)|(e.stun>0?4:0)|(e.atkT?8:0)|(e.hit>0?16:0),e.tx,e.ty,e.shieldMax?r2(e.shield/e.shieldMax):0]),
     sh:shots.map(x=>[TK.indexOf(x.type),r2(x.x),r2(x.y),r2(x.ang)])};
 }
 function applySnap(d){
-  state.gold=d.g[1];mp.opp.g=d.g[0];state.lives=d.l;
+  state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l;
   if(d.w!==state.wave)state.wave=d.w;
   queue.length=d.q;state.nextT=d.nt;state.flash=Math.max(state.flash,d.fl);
   state.taunt=d.ta?{txt:d.ta[0],t:d.ta[1],k:d.ta[2]}:null;
