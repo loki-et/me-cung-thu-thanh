@@ -87,6 +87,18 @@
   .mpbox{margin-top:14px;padding-top:12px;border-top:1px solid #ffffff14}
   .mph{font-size:13px;color:var(--mut);margin-bottom:8px;text-align:center}
   .mpbox .prow button{flex:1;font-weight:700}
+  #room{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
+  .slots{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .slot{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:1px dashed #ffffff26;background:#0002}
+  .slot.on{border:1px solid #6b8f4e;background:#2f4a2e55}
+  .slot .av{font-size:24px;width:30px;text-align:center}
+  .slot div{flex:1;min-width:0}
+  .slot b{display:block;font-size:15px}
+  .slot small{display:block;font-size:12px;color:var(--mut)}
+  .slot .ck{color:var(--acc);font-weight:900;font-size:18px}
+  .slot:not(.on) .av{animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  #rmStart:disabled{opacity:.45}
   #lobby{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
   .rooms{display:flex;flex-direction:column;gap:6px;min-height:46px}
   .room{display:flex;justify-content:space-between;align-items:center;width:100%;padding:11px 14px;font-weight:700}
@@ -166,6 +178,16 @@
     <div class="mph" style="text-align:left;margin-top:14px;display:flex;align-items:center;justify-content:space-between">Phòng đang chờ<button id="lbRefresh" style="padding:3px 10px;font-size:13px">↻ Làm mới</button></div>
     <div id="roomList" class="rooms"></div>
     <button id="lbBack" style="width:100%;margin-top:12px">Quay lại</button>
+  </div></div>
+  <div id="room"><div class="card">
+    <h1 id="rmTitle">Phòng</h1>
+    <div class="sub" id="rmSub"></div>
+    <div class="slots">
+      <div class="slot on" id="slot1"><span class="av">👑</span><div><b id="slot1n">Bạn</b><small id="slot1s">Chủ phòng</small></div><span class="ck">✓</span></div>
+      <div class="slot" id="slot2"><span class="av" id="slot2a">⏳</span><div><b id="slot2n">Đang chờ người chơi 2…</b><small id="slot2s">Phòng sẽ hiện trong danh sách cho người khác vào</small></div><span class="ck" id="slot2c"></span></div>
+    </div>
+    <div class="mph" id="rmHint" style="margin-top:12px"></div>
+    <div class="prow" style="margin-top:8px"><button id="rmLeave">← Rời phòng</button><button class="go" id="rmStart" disabled>▶ Bắt đầu</button></div>
   </div></div>
   <div id="levels">
     <div class="card">
@@ -1315,7 +1337,7 @@ $('resume').onclick=()=>setPause(false);
 function showHelp(){$('homeBody').style.display='none';$('helpBody').style.display='';$('start').style.display='flex';$('start').querySelector('.card').scrollTop=0}
 function closeHelp(){$('helpBody').style.display='none';$('homeBody').style.display='';if(started){$('start').style.display='none'}}
 function showHome(){
-  if(mp)mpCleanup();closeLobby();
+  if(mp)mpCleanup();closeLobby();hideRoom();
   $('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
   $('helpBody').style.display='none';$('homeBody').style.display='';$('start').style.display='flex';
   started=false;
@@ -1340,7 +1362,7 @@ let mpTry=null;
 function loadPeer(){return window.Peer?Promise.resolve():new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='peerjs.min.js';sc.onload=ok;sc.onerror=()=>no(new Error('load'));document.head.appendChild(sc)})}
 function mpWait(m){$('mpMsg').textContent=m;$('mpwait').style.display='flex'}
 function mpStopSearch(){if(mpTry){mpTry.dead=true;for(const p of mpTry.peers)try{p.destroy()}catch(e){};clearInterval(mpTry.iv);mpTry=null}}
-function mpFail(m){mpStopSearch();$('mpwait').style.display='none';toast(m,3000);openLobby()}
+function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
 function newPeer(id){return new Promise(res=>{const p=id?new Peer(id,PEER_OPTS):new Peer(PEER_OPTS);let done=false;
   p.on('open',()=>{if(!done){done=true;res(p)}});p.on('error',e=>{if(!done){done=true;try{p.destroy()}catch(_){};res(null)}});setTimeout(()=>{if(!done){done=true;try{p.destroy()}catch(_){};res(null)}},9000)})}
 // Rooms live at fixed PeerJS ids RP+1..RP+ROOMS. The lobby probes them: a host answers {t:'info'}, so we can list open rooms.
@@ -1389,27 +1411,42 @@ function joinRoom(id){
   L.miss.set(id,()=>fail('Phòng đã đóng, chọn phòng khác nhé'));
   c.on('open',()=>c.send({t:'hello',join:true}));
   c.on('data',d=>{if(ok||!d)return;
-    if(d.t==='welcome'){ok=true;clearTimeout(to);clearInterval(L.timer);lobby=null;$('lobby').style.display='none';joinAsGuest(L.peer,c,d.mode)}
+    if(d.t==='welcome'){ok=true;clearTimeout(to);clearInterval(L.timer);lobby=null;$('lobby').style.display='none';joinAsGuest(L.peer,c,d.mode,d.k)}
     else if(d.t==='full')fail('Phòng đã đủ người');});
 }
+let roomInfo=null;
+function showRoom(o){
+  roomInfo=Object.assign(roomInfo||{},o);const r=roomInfo,host=r.role==='host',full=!!r.full;
+  $('lobby').style.display='none';$('mpwait').style.display='none';$('room').style.display='flex';
+  $('rmTitle').textContent=r.k?'Phòng '+r.k:'Đang tạo phòng…';
+  $('rmSub').textContent=modeName(r.mode)+(r.mode==='coop'?' · hai người cùng giữ một lâu đài':' · mỗi người một bản đồ, gửi quái sang nhau');
+  $('slot1n').textContent=host?'Bạn':'Chủ phòng';$('slot1s').textContent=host?'Chủ phòng':'Đã ở trong phòng';
+  $('slot2').classList.toggle('on',full);$('slot2a').textContent=full?(host?'🙂':'🙋'):'⏳';
+  $('slot2n').textContent=full?(host?'Người chơi 2':'Bạn'):'Đang chờ người chơi 2…';
+  $('slot2s').textContent=full?'Đã vào phòng':'Phòng sẽ hiện trong danh sách để người khác chạm vào';
+  $('slot2c').textContent=full?'✓':'';
+  $('rmStart').style.display=host?'':'none';$('rmStart').disabled=!full;
+  $('rmHint').textContent=!r.k?'':host?(full?'Đủ người rồi, bấm Bắt đầu nhé!':'Bảo bạn bè vào Chơi 2 người, phòng của bạn sẽ hiện trong danh sách.'):'Chờ chủ phòng bấm Bắt đầu…';
+}
+function hideRoom(){roomInfo=null;$('room').style.display='none'}
 async function createRoom(mode){
-  closeLobby();mpStopSearch();mpTry={dead:false,peers:[]};const my=mpTry;
-  mpWait('Đang tạo phòng…');
+  closeLobby();mpStopSearch();mpTry={dead:false,peers:[],mode};const my=mpTry;
+  roomInfo=null;showRoom({mode,role:'host',k:0,full:false});
   try{await loadPeer()}catch(e){return mpFail('Không tải được phần chơi online')}
   for(let k=1;k<=ROOMS&&!my.dead;k++){
     const h=await newPeer(RP+k);if(my.dead){h&&h.destroy();return}
     if(!h)continue;
     my.peers.push(h);
-    mpWait('Đã tạo Phòng '+k+' ('+modeName(mode)+'). Đang chờ người khác vào…');
+    showRoom({k});
     h.on('connection',conn=>{
       conn.on('data',d=>{
         if(!d||d.t!=='hello')return;
         const full=!!mp||my.dead;
         if(!d.join){conn.send({t:'info',mode,full});setTimeout(()=>{try{conn.close()}catch(_){}},600);return}
         if(full){conn.send({t:'full'});setTimeout(()=>{try{conn.close()}catch(_){}},300);return}
-        conn.send({t:'welcome',mode});my.peers=my.peers.filter(p=>p!==h);mpStopSearch();
-        mp={mode,role:'host',peer:h,conn,opp:{},snapT:0,stT:0};mpWire();
-        mpStartMatch();
+        conn.send({t:'welcome',mode,k});my.peers=my.peers.filter(p=>p!==h);mpStopSearch();
+        mp={mode,role:'host',peer:h,conn,opp:{},snapT:0,stT:0,k};mpWire();
+        showRoom({full:true});SFX.play('build');
       });
     });
     return;
@@ -1417,17 +1454,20 @@ async function createRoom(mode){
   if(!my.dead)mpFail('Không tạo được phòng, thử lại sau nhé');
 }
 function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'?COOP_LEVEL:VS_LEVEL);mpSend({t:'start',mode:mp.mode,level:lv});mpBegin(lv)}
-function joinAsGuest(peer,conn,mode){
-  mp={mode,role:'guest',peer,conn,opp:{},stT:0};mpWire();mpWait('Đã vào phòng, chuẩn bị bắt đầu…');
+function joinAsGuest(peer,conn,mode,k){
+  mp={mode,role:'guest',peer,conn,opp:{},stT:0,k};mpWire();roomInfo=null;showRoom({mode,role:'guest',k:k||'?',full:true});
 }
 function mpSend(o){try{mp&&mp.conn&&mp.conn.open&&mp.conn.send(o)}catch(e){}}
 function mpWire(){
   const c=mp.conn;
   c.on('data',mpOnData);
-  c.on('close',()=>{if(mp&&mp.conn===c){const was=started&&!state.over;mpCleanup();if(was||$('mpwait').style.display==='flex'){$('mpwait').style.display='none';toast('Bạn kia đã rời phòng',3000);$('over').style.display='none';started=false;openLobby()}}});
+  c.on('close',()=>{if(mp&&mp.conn===c){
+    if(roomInfo&&!started){const m=mp.mode,host=mp.role==='host';mpCleanup();hideRoom();toast('Bạn kia đã rời phòng',2500);if(host)createRoom(m);else openLobby();return}
+    const was=started&&!state.over;mpCleanup();if(was||$('mpwait').style.display==='flex'){$('mpwait').style.display='none';toast('Bạn kia đã rời phòng',3000);$('over').style.display='none';started=false;openLobby()}}});
   c.on('error',()=>{});
 }
 function mpBegin(lv){
+  hideRoom();
   mp.ready=mp.oppReady=false;mp.done=null;mp.opp={};mp.oppSel=null;mp.lastSel='';$('mpAgain').style.display='none';$('mpAgain').disabled=false;
   level=lv;$('mpwait').style.display='none';$('levels').style.display='none';$('start').style.display='none';
   started=true;reset();
@@ -1573,6 +1613,8 @@ function guestStep(dt){
   updateUI();
 }
 $('mkCoop').onclick=()=>createRoom('coop');
+$('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
+$('rmLeave').onclick=()=>{mpStopSearch();if(mp)mpCleanup();hideRoom();openLobby()};
 $('mkVs').onclick=()=>createRoom('vs');
 $('lbRefresh').onclick=()=>{if(lobby)scanRooms();else openLobby()};
 $('lbBack').onclick=showHome;
