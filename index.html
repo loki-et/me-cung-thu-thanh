@@ -1875,8 +1875,9 @@ function joinRoom(id){
     if(d.t==='welcome'){ok=true;clearTimeout(to);mqUnsub(c,gT);closeLobby(true);
       const link=makeLink(c,hT,gT,d.from);
       if(d.mode==='2v2')joinAsGuest4(c,link,d);else joinAsGuest(c,link,d.mode,d.k||info.k,cleanName(d.name)||cleanName(info.name)||'Chủ phòng')}
-    else if(d.t==='full')fail('Phòng đã đủ người');});
-  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName,hero:heroK},{qos:1}),150);
+    else if(d.t==='full')fail('Phòng đã đủ người');
+    else if(d.t==='oldver')fail('Phiên bản game khác với chủ phòng. Cả hai hãy tải lại trang rồi vào lại nhé');});
+  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName,hero:heroK,ver:APP_VER},{qos:1}),150);
 }
 let roomInfo=null;
 function showRoom(o){
@@ -2159,6 +2160,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=120;
+const APP_VER='mctt-v93'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2266,6 +2268,7 @@ function hostRecv4(d){
   const p=mp.peers.get(d.from);
   if(d.t==='hello'){
     if(p)return;
+    if(d.ver!==APP_VER){mqPub(mp.client,mp.gT,{t:'oldver',to:d.from,from:mp.client.myId},{qos:1});return}
     const idx=(mp.cap===2?[1]:[1,2,3]).find(i=>!mp.names[i]);
     if(mp.started||idx==null){mqPub(mp.client,mp.gT,{t:'full',to:d.from,from:mp.client.myId},{qos:1});return}
     const name=cleanName(d.name)||'Người chơi '+(idx+1);
