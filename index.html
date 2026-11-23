@@ -48,6 +48,19 @@
   /* stage */
   .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 8px 8px}
   .wrap{position:relative}
+  /* hero controls live in their own bar under the map so every map cell stays buildable */
+  #ctrl{display:none;align-items:center;gap:10px;padding:2px 12px 6px;flex:none}
+  #ctrl .sp{flex:1}
+  #ctrl .skb,#ctrl #joy{position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important}
+  #ctrl #joy{width:84px;height:84px}
+  #app.wide #ctrl{width:100%;max-width:640px;margin:0 auto;box-sizing:border-box}
+  /* PC: skill buttons float in the empty space at the bottom-right of the window, the map keeps its full size */
+  /* phone: controls float over the bottom of the map (map keeps its size) */
+  .wrap #ctrl{position:absolute;left:0;right:0;bottom:6px;padding:0 6px;z-index:3;pointer-events:none}
+  .wrap #ctrl>*{pointer-events:auto}
+  #ctrl>*{transition:opacity .2s}
+  #ctrl.dim>*{opacity:.22;pointer-events:none!important}
+  .kb #ctrl{position:fixed;right:22px;bottom:22px;padding:0;gap:14px;width:auto!important;max-width:none!important;margin:0!important;z-index:6}
   .skb{position:absolute;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
     background:conic-gradient(#0009 var(--p,0deg),#2c4a2acc 0);border:2px solid #fffbe0aa;box-shadow:0 3px 10px #0008;touch-action:none}
   #skill{right:6px;bottom:6px;width:64px;height:64px;border-color:#ffd65a}
@@ -232,9 +245,6 @@
   <div class="stage">
     <div class="wrap">
       <canvas id="cv"></canvas>
-      <div id="joy"><div id="joyK"></div></div>
-      <button id="skillE" class="skb"><i class="kk">E</i><span class="sx"></span><span class="sl"></span></button>
-      <button id="skill" class="skb"><i class="kk">Q</i><span class="sx"></span><span class="sl"></span></button>
       <div class="pop" id="pop"></div>
       <div class="ov" id="menu">
         <h2>Tạm dừng</h2>
@@ -249,6 +259,9 @@
       <div class="ov" id="over"><h2 id="overT">Thua rồi!</h2><div id="overStars"></div><div id="overS"></div><div id="overStats"></div><button class="go" id="nextLv">Màn tiếp theo ▶</button><button id="again">Chơi lại</button><button class="go" id="mpAgain" style="display:none">Chơi lại cùng bạn kia</button><button id="overLv">Chọn màn</button></div>
     </div>
   </div>
+  <div id="ctrl"><div id="joy"><div id="joyK"></div></div><span class="sp"></span>
+    <button id="skillE" class="skb"><i class="kk">E</i><span class="sx"></span><span class="sl"></span></button>
+    <button id="skill" class="skb"><i class="kk">Q</i><span class="sx"></span><span class="sl"></span></button></div>
   <div id="sendbar"></div>
   <div class="dock" id="dock"><div class="tip" id="tip"></div></div>
   <div id="mpwait"><div class="card"><div class="spin"></div><div id="mpMsg" style="margin-bottom:14px"></div><button id="mpCancel" style="width:100%">Hủy</button></div></div>
@@ -1648,6 +1661,7 @@ function showTip(k,ms){
 }
 function hideTip(){clearTimeout(tipT);$('tip').classList.remove('on')}
 function pickType(k,fromTouch){
+  if(typeof dimCtrl==='function'&&heroOn())dimCtrl(4000);
   selType=k;selTower=null;tchoice=null;
   if(fromTouch)showTip(k,2600);
   updateUI();
@@ -1751,14 +1765,43 @@ async function mqConnect(will){
 function mqSub(c,t,f){c.subs.set(t,f);c.subscribe(t,{qos:1})}
 function mqUnsub(c,t){c.subs.delete(t);try{c.unsubscribe(t)}catch(e){}}
 function mqPub(c,t,o,opt){try{c.publish(t,o==null?'':JSON.stringify(o),Object.assign({qos:0},opt||{}))}catch(e){}}
+// ---- direct device-to-device channel (WebRTC). MQTT is only used to find rooms, to set this up, and as a fallback ----
+const ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];
+const FAST=t=>t==='s'||t==='joy'||t==='ping';
+function rtcOpen(sendSig,onMsg,initiator){
+  if(typeof RTCPeerConnection==='undefined')return null;
+  let pc;try{pc=new RTCPeerConnection({iceServers:ICE})}catch(e){return null}
+  const o={pc,r:null,u:null,pend:[]};
+  pc.onicecandidate=e=>{if(e.candidate)sendSig({t:'rtc',ice:e.candidate.toJSON?e.candidate.toJSON():e.candidate})};
+  const wire=ch=>{ch.onmessage=ev=>{let d;try{d=JSON.parse(ev.data)}catch(er){return}onMsg(d)};if(ch.label==='u')o.u=ch;else o.r=ch};
+  if(initiator){wire(pc.createDataChannel('r'));wire(pc.createDataChannel('u',{ordered:false,maxRetransmits:0}));
+    pc.createOffer().then(of=>pc.setLocalDescription(of)).then(()=>sendSig({t:'rtc',sdp:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}})).catch(()=>{})}
+  else pc.ondatachannel=e=>wire(e.channel);
+  o.sig=async d=>{try{
+    if(d.sdp){await pc.setRemoteDescription(d.sdp);for(const c of o.pend.splice(0))await pc.addIceCandidate(c).catch(()=>{});
+      if(d.sdp.type==='offer'){const a=await pc.createAnswer();await pc.setLocalDescription(a);sendSig({t:'rtc',sdp:{type:a.type,sdp:a.sdp}})}}
+    else if(d.ice){if(pc.remoteDescription)await pc.addIceCandidate(d.ice);else o.pend.push(d.ice)}}catch(e){}};
+  o.open=()=>!!(o.r&&o.r.readyState==='open');
+  o.send=obj=>{const ch=FAST(obj.t)&&o.u&&o.u.readyState==='open'?o.u:o.r;if(!ch||ch.readyState!=='open')return false;try{ch.send(JSON.stringify(obj));return true}catch(e){return false}};
+  o.close=()=>{try{pc.close()}catch(e){}};
+  return o;
+}
 // a two-way link that looks like the old connection object: send(), on('data'|'close'), close(), open
 function makeLink(c,pubT,subT,peerId){
-  const h={data:[],close:[]},L={open:true,last:Date.now(),
+  const h={data:[],close:[]},L={open:true,last:Date.now(),rtc:null,
     on(ev,f){(h[ev]||(h[ev]=[])).push(f)},
-    send(o){if(L.open)mqPub(c,pubT,Object.assign({},o,{from:c.myId}),o.t==='s'||o.t==='st'||o.t==='ping'?{}:{qos:1})},
-    close(){if(!L.open)return;L.send({t:'bye'});L.open=false;clearInterval(L.iv);mqUnsub(c,subT);h.close.forEach(f=>f())}};
-  mqSub(c,subT,d=>{if(!d||d.from!==peerId||!L.open)return;L.last=Date.now();if(d.t==='bye'){L.open=false;clearInterval(L.iv);mqUnsub(c,subT);h.close.forEach(f=>f());return}if(d.t!=='ping')h.data.forEach(f=>f(d))});
-  L.iv=setInterval(()=>{if(!L.open)return;L.send({t:'ping'});if(Date.now()-L.last>10000||!c.connected){L.open=false;clearInterval(L.iv);mqUnsub(c,subT);h.close.forEach(f=>f())}},2000);
+    sendMq(o){mqPub(c,pubT,Object.assign({},o,{from:c.myId}),FAST(o.t)||o.t==='st'?{}:{qos:1})},
+    send(o){if(!L.open)return;if(L.rtc&&L.rtc.open()&&o.t!=='bye'&&o.t!=='rtc'&&L.rtc.send(Object.assign({},o,{from:c.myId})))return;L.sendMq(o)},
+    direct(){return !!(L.rtc&&L.rtc.open())},
+    startRtc(init){L.rtc=rtcOpen(sg=>L.sendMq(sg),d=>{L.last=Date.now();d.__dc=1;if(d.t==='bye'){shut();return}if(d.t!=='ping')h.data.forEach(f=>f(d))},init)},
+    close(){if(!L.open)return;L.send({t:'bye'});shut()}};
+  const shut=()=>{if(!L.open)return;L.open=false;clearInterval(L.iv);mqUnsub(c,subT);if(L.rtc)L.rtc.close();h.close.forEach(f=>f())};
+  mqSub(c,subT,d=>{if(!d||d.from!==peerId||!L.open)return;if(d.to&&d.to!==c.myId)return;L.last=Date.now();
+    if(d.t==='rtc'){if(!L.rtc)L.startRtc(false);if(L.rtc)L.rtc.sig(d);return}
+    if(d.t==='bye'){shut();return}
+    if(L.direct()&&!d.to&&d.t!=='ping')return; // the direct channel carries the game now
+    if(d.t!=='ping')h.data.forEach(f=>f(d))});
+  L.iv=setInterval(()=>{if(!L.open)return;L.send({t:'ping'});if(Date.now()-L.last>10000||(!c.connected&&!L.direct()))shut()},2000);
   return L;
 }
 function mpStopSearch(){
@@ -1853,7 +1896,7 @@ async function createRoom(mode){
     my.paired=true;clearInterval(my.hb);mqPub(c,topic,null,{retain:true,qos:1});
     mqPub(c,gT,{t:'welcome',to:d.from,from:c.myId,mode,k,name:myName},{qos:1});
     mqUnsub(c,hT);
-    const link=makeLink(c,gT,hT,d.from);mpTry=null;
+    const link=makeLink(c,gT,hT,d.from);mpTry=null;setTimeout(()=>{if(link.open&&!link.rtc)link.startRtc(true)},1500);
     mp={mode,role:'host',client:c,own:true,conn:link,opp:{},snapT:0,stT:0,k,oppName:cleanName(d.name)||'Người chơi 2'};mpWire();
     showRoom({full:true});SFX.play('build');
   });
@@ -2151,8 +2194,10 @@ async function createRoom4(cap){
   if(mp!==my){c&&c.end();return}
   if(!c){mp=null;return mpFail(mqErr==='load'?mqFailMsg():'Không kết nối được máy chủ, thử lại sau nhé')}
   mp.client=c;mp.own=true;mp.k=k;
-  mp.conn={open:true,send(o){if(this.open)mqPub(c,gT,Object.assign({},o,{from:c.myId}),o.t==='s'||o.t==='ping'?{}:{qos:1})},
-    close(){if(!this.open)return;this.send({t:'bye'});this.open=false;clearInterval(my.iv);clearInterval(my.hb);mqPub(c,topic,null,{retain:true,qos:1});mqUnsub(c,hT)}};
+  mp.conn={open:true,send(o){if(!this.open)return;const m=Object.assign({},o,{from:c.myId});let mq=!!o.to||!my.peers.size;
+      if(!o.to)for(const p of my.peers.values())if(!(p.rtc&&p.rtc.open()&&p.rtc.send(m)))mq=true;
+      if(mq)mqPub(c,gT,m,FAST(o.t)?{}:{qos:1})},
+    close(){if(!this.open)return;this.send({t:'bye'});mqPub(c,gT,{t:'bye',from:c.myId},{qos:1});for(const p of my.peers.values())if(p.rtc)p.rtc.close();this.open=false;clearInterval(my.iv);clearInterval(my.hb);mqPub(c,topic,null,{retain:true,qos:1});mqUnsub(c,hT)}};
   room4Announce();my.hb=setInterval(room4Announce,15000);
   mqSub(c,hT,hostRecv4);
   my.iv=setInterval(()=>{if(mp!==my)return;my.conn.send({t:'ping'});const t=Date.now();for(const [pid,p] of my.peers)if(t-p.last>10000)dropPeer4(pid)},2000);
@@ -2174,17 +2219,19 @@ function hostRecv4(d){
     if(mp.started||idx==null){mqPub(mp.client,mp.gT,{t:'full',to:d.from,from:mp.client.myId},{qos:1});return}
     const name=cleanName(d.name)||'Người chơi '+(idx+1);
     mp.peers.set(d.from,{idx,name,last:Date.now()});mp.names[idx]=name;mp.heroK[idx]=HEROES[d.hero]?d.hero:'warrior';
+    {const pid=d.from,pp=mp.peers.get(pid);setTimeout(()=>{if(mp&&mp.peers.get(pid)===pp)pp.rtc=rtcOpen(sg=>mqPub(mp.client,mp.gT,Object.assign({},sg,{to:pid,from:mp.client.myId}),{qos:1}),m=>{if(mp&&mp.mode==='2v2')hostRecv4(Object.assign(m,{from:pid}))},true)},1500)}
     mp.conn.send({t:'welcome',to:d.from,mode:'2v2',k:mp.k,name:myName,idx,names:mp.names,heroK:mp.heroK,cap:mp.cap});
     roster4();SFX.play('build');return;
   }
   if(!p)return;p.last=Date.now();
+  if(d.t==='rtc'){if(p.rtc)p.rtc.sig(d);return}
   if(d.t==='ping')return;
   if(d.t==='bye'){dropPeer4(d.from);return}
   hostCmd4(d,p,d.from);
 }
 function dropPeer4(pid){
   const p=mp.peers.get(pid);if(!p)return;
-  mp.peers.delete(pid);mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
+  mp.peers.delete(pid);if(p.rtc)p.rtc.close();mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
 }
 function hostCmd4(d,p,pid){
   const err=m=>m&&mp.conn.send({t:'err',to:pid,m});
@@ -2489,6 +2536,9 @@ addEventListener('keydown',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k&&!/I
 addEventListener('keyup',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k)KEYS[k]=false});
 addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false});
 const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
+if(TOUCH)document.querySelector('.wrap').appendChild($('ctrl'));
+// picking a tower fades the hero buttons for a moment so the cells under them can be built on
+let dimT=0;function dimCtrl(ms){$('ctrl').classList.add('dim');clearTimeout(dimT);dimT=setTimeout(()=>$('ctrl').classList.remove('dim'),ms)}
 document.body.classList.toggle('kb',!TOUCH);
 // builders stand beside the cell (on the side they come from), not in the middle of it
 function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;const p={x,y:cy+.1,owner:h.owner};heroClamp(p);return p}
@@ -2776,8 +2826,9 @@ function guestJoy(dt){
 function heroUI(){
   if(coopGuest()&&started)guestJoy(1/60);
   const bq=$('skill'),be=$('skillE');if(!bq)return;
-  $('joy').style.display=heroOn()&&started&&TOUCH?'block':'none';
-  if(!heroOn()||!started){bq.style.display=be.style.display='none';return}
+  const show=heroOn()&&started;$('joy').style.display=show&&TOUCH?'block':'none';
+  if($('ctrl').style.display!==(show?'flex':'none')){$('ctrl').style.display=show?'flex':'none';}
+  if(!show){bq.style.display=be.style.display='none';return}
   const h=hero,H=HEROES[h.k];bq.style.display=be.style.display='flex';
   skBtn(be,H.e.i,H.e.n,h.cdE,H.e.cd);skBtn(bq,H.q.i,H.q.n,h.cdQ,H.q.cd);
 }
