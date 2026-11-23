@@ -109,6 +109,9 @@
   .tb{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:0;padding:4px 0 3px;border-radius:12px}
   .tb img{width:34px;height:34px;display:block;pointer-events:none}
   .tb small{color:var(--gold);font-size:11.5px;font-weight:700;pointer-events:none}
+  .tb{position:relative}
+  .tb .kn{display:none;position:absolute;top:3px;left:5px;font-style:normal;font-size:10px;font-weight:800;color:#fffbe0;opacity:.75}
+  .kb .tb .kn{display:block}
   .tb.sel{border-color:var(--acc);box-shadow:0 0 0 2px #8ee07a88,0 2px 0 #0006;background:linear-gradient(180deg,#2f4a2e,#223622)}
   .tb.poor{opacity:.45}
   .tb.poor.sel{opacity:.7}
@@ -1565,7 +1568,7 @@ function pickType(k,fromTouch){
 for(const k in TYPES){
   const T=TYPES[k];
   const b=document.createElement('button');b.className='tb';b.dataset.k=k;b.setAttribute('aria-label',T.name);
-  b.innerHTML='<img src="'+ICON[k]+'" alt=""><small>'+T.lv[0].cost+'</small>';
+  b.innerHTML='<i class="kn">'+(Object.keys(TYPES).indexOf(k)+1)+'</i><img src="'+ICON[k]+'" alt=""><small>'+T.lv[0].cost+'</small>';
   let lastType='mouse';
   b.addEventListener('pointerdown',e=>{lastType=e.pointerType});
   b.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')showTip(k)});
@@ -2167,6 +2170,7 @@ addEventListener('keydown',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k&&!/I
 addEventListener('keyup',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k)KEYS[k]=false});
 addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false});
 const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
+document.body.classList.toggle('kb',!TOUCH);
 // builders stand beside the cell (on the side they come from), not in the middle of it
 function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;return {x,y:cy+.1}}
 let hero=null,heroK='warrior';
@@ -2371,7 +2375,7 @@ function heroPick(){
   for(const k of HK){const H=HEROES[k];h+='<button class="hb'+(k===heroK?' cur':'')+'" data-k="'+k+'"><b>'+H.ico+'</b><small>'+H.name+'</small></button>'}
   $('heroGrid').innerHTML=h;
   const H=HEROES[heroK];
-  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'WASD (hoặc phím mũi tên, chuột phải) để di chuyển, phím Q để tung chiêu.')+'</span>',true);
+  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'WASD (hoặc phím mũi tên, chuột phải) để di chuyển, phím Q để tung chiêu, phím 1–6 chọn tháp.')+'</span>',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
 (()=>{const J=$('joy'),K=$('joyK'),RAD=34;let id=null;
