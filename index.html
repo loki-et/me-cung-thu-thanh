@@ -307,7 +307,7 @@
       <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
-        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Chạm map để ra lệnh xây, nhân vật sẽ chạy tới xây. Di chuyển nhân vật: trên điện thoại kéo vòng tròn ở góc trái dưới, trên máy tính bấm chuột phải. Chiêu riêng: nút tròn góc phải dưới, hoặc phím Q trên máy tính.</li>
+        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Chạm map để ra lệnh xây, nhân vật sẽ chạy tới xây. Di chuyển nhân vật: trên điện thoại kéo vòng tròn ở góc trái dưới, trên máy tính dùng WASD, phím mũi tên hoặc bấm chuột phải. Chiêu riêng: nút tròn góc phải dưới, hoặc phím Q trên máy tính.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
@@ -1923,7 +1923,7 @@ $('mpLeave').onclick=mpLeave;
 function startLevel(n){
   level=n;$('levels').style.display='none';$('start').style.display='none';
   pickLv=n;started=true;reset();
-  toast(heroOn()?'Màn '+n+' · '+(TOUCH?'kéo vòng tròn góc trái để đi':'chuột phải để đi, phím Q tung chiêu'):'Màn '+n,heroOn()?3500:1500);
+  toast(heroOn()?'Màn '+n+' · '+(TOUCH?'kéo vòng tròn góc trái để đi':'WASD hoặc chuột phải để đi, phím Q tung chiêu'):'Màn '+n,heroOn()?3500:1500);
 }
 function showLevels(){
   $('mpAgain').style.display='none';$('lobby').style.display='none';
@@ -2153,6 +2153,10 @@ const HEROES={
 };
 const HK=Object.keys(HEROES),HERO_SC=1.3;
 const HPAL={warrior:['#ffe6b0','#e8a848','#9a6418'],archer:['#d4f7c0','#6cc870','#2f7a3a'],mage:['#e6dcff','#a68aff','#5a3fc0'],assassin:['#ffd0da','#d86880','#7a2038']};
+const KEYS={},KMAP={w:'w',a:'a',s:'s',d:'d',arrowup:'w',arrowleft:'a',arrowdown:'s',arrowright:'d'};
+addEventListener('keydown',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k&&!/INPUT|TEXTAREA/.test((e.target&&e.target.tagName)||'')){KEYS[k]=true;if(e.key.startsWith('Arrow'))e.preventDefault()}});
+addEventListener('keyup',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k)KEYS[k]=false});
+addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false});
 const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
 // builders stand beside the cell (on the side they come from), not in the middle of it
 function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;return {x,y:cy+.1}}
@@ -2223,6 +2227,9 @@ function heroStep(dt){
   // drop build orders that can no longer happen (cell taken meanwhile)
   while(h.jobs.length&&grid[h.jobs[0].y][h.jobs[0].x]){h.jobs.shift();h.bt=0}
   // joystick steering wins over everything; queued builds resume when it is released
+  // WASD / arrow keys on PC act like the joystick
+  const kx=(KEYS.d?1:0)-(KEYS.a?1:0),ky=(KEYS.s?1:0)-(KEYS.w?1:0);
+  if(kx||ky){const l=Math.hypot(kx,ky);h.joy={x:kx/l,y:ky/l,key:1}}else if(h.joy&&h.joy.key)h.joy=null;
   const jm=h.joy?Math.min(1,Math.hypot(h.joy.x,h.joy.y)):0;
   if(jm>.15){
     const a=Math.atan2(h.joy.y,h.joy.x),step=H.sp*jm*dt;
@@ -2355,7 +2362,7 @@ function heroPick(){
   for(const k of HK){const H=HEROES[k];h+='<button class="hb'+(k===heroK?' cur':'')+'" data-k="'+k+'"><b>'+H.ico+'</b><small>'+H.name+'</small></button>'}
   $('heroGrid').innerHTML=h;
   const H=HEROES[heroK];
-  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'Chuột phải để di chuyển, phím Q để tung chiêu.')+'</span>',true);
+  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'WASD (hoặc phím mũi tên, chuột phải) để di chuyển, phím Q để tung chiêu.')+'</span>',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
 (()=>{const J=$('joy'),K=$('joyK'),RAD=34;let id=null;
