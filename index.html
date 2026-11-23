@@ -1962,7 +1962,7 @@ cv.addEventListener('pointerdown',ev=>{
   hideTip();hideEtip();toggleNext(false);
   if(!started||state.over||paused)return;
   if(heroOn()){const r=cv.getBoundingClientRect(),fx=(ev.clientX-r.left)/r.width*C,fy=(ev.clientY-r.top)/r.height*R;
-    if(Math.hypot(fx-hero.x,fy-(hero.y-.1))<.6){hero.sel=!hero.sel;if(selTower)closePop();SFX.play('click');return}
+    if(Math.hypot(fx-hero.x,fy-(hero.y-.25))<.75){hero.sel=!hero.sel;if(selTower)closePop();SFX.play('click');return}
     if(hero.sel){hero.sel=false;if(fx>=0&&fy>=0&&fx<C&&fy<R){hero.jobs=[];hero.goto={x:fx,y:fy};hero.bt=0}return}}
   const c=cell(ev);
   if(!inB(c)){if(selTower)closePop();return}
@@ -2131,7 +2131,9 @@ const HEROES={
   assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,
     desc:'Đâm cực đau, xuyên giáp, chạy nhanh',sk:'Ám sát',skDesc:'lướt tới con quái trâu nhất bản đồ và đâm một nhát chí mạng',skCd:13}
 };
-const HK=Object.keys(HEROES);
+const HK=Object.keys(HEROES),HERO_SC=1.45;
+// builders stand beside the cell (on the side they come from), not in the middle of it
+function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;return {x,y:cy+.1}}
 let hero=null,heroK='warrior';
 try{const v=localStorage.getItem('mctt-hero');if(HEROES[v])heroK=v}catch(e){}
 const heroOn=()=>!!hero&&!mp;
@@ -2193,11 +2195,12 @@ function heroStep(dt){
   for(const f of h.fx)f.t-=dt;h.fx=h.fx.filter(f=>f.t>0);
   // drop build orders that can no longer happen (cell taken meanwhile)
   while(h.jobs.length&&grid[h.jobs[0].y][h.jobs[0].x]){h.jobs.shift();h.bt=0}
-  const job=h.jobs[0],tgt=job?{x:job.x+.5,y:job.y+.5}:h.goto;
+  const job=h.jobs[0];if(job&&!job.at)job.at=buildSpot(h,job);
+  const tgt=job?job.at:h.goto;
   if(tgt){
     const dx=tgt.x-h.x,dy=tgt.y-h.y,dl=Math.hypot(dx,dy),step=H.sp*dt;
     if(dl<=step){h.x=tgt.x;h.y=tgt.y;
-      if(job){h.bt+=dt;if(h.bt>=.3){h.jobs.shift();h.bt=0;const e=doPlace(job.x,job.y,0,job.type);if(e)toast(e)}}
+      if(job){h.fa=Math.atan2(job.y+.5-h.y,job.x+.5-h.x);h.bt+=dt;if(h.bt>=.3){h.jobs.shift();h.bt=0;const e=doPlace(job.x,job.y,0,job.type);if(e)toast(e)}}
       else h.goto=null}
     else{h.x+=dx/dl*step;h.y+=dy/dl*step;h.fa=Math.atan2(dy,dx);h.walk+=dt*10;h.bt=0}
   }
@@ -2230,7 +2233,7 @@ function drawHeroJobs(){
     g.fillStyle='#fff';g.font='bold 9px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText(i+1,x0+S-7,y0+7.5);
   });
   // dotted route to the next stop
-  const h=hero,tg=h.jobs[0]?{x:h.jobs[0].x+.5,y:h.jobs[0].y+.5}:h.goto;
+  const h=hero,tg=h.jobs[0]?h.jobs[0].at||{x:h.jobs[0].x+.5,y:h.jobs[0].y+.5}:h.goto;
   if(tg){g.save();g.setLineDash([3,5]);g.strokeStyle='rgba(255,251,224,.45)';g.lineWidth=1.5;g.beginPath();g.moveTo(h.x*S,h.y*S);g.lineTo(tg.x*S,tg.y*S);g.stroke();g.restore()}
 }
 function drawHero(){
@@ -2244,6 +2247,8 @@ function drawHero(){
   }
   if(h.sel){g.save();g.strokeStyle='rgba(255,251,224,.35)';g.setLineDash([4,4]);g.beginPath();g.arc(px,py,H.range*S,0,7);g.stroke();g.restore()}
   g.save();
+  // drawn a bit bigger than a tower, scaled around the feet
+  g.translate(px,py+S*.28);g.scale(HERO_SC,HERO_SC);g.translate(-px,-py-S*.28);
   // shadow + ring
   g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(px,py+S*.28,S*.26,S*.09,0,0,7);g.fill();
   g.strokeStyle=h.sel?'#fffbe0':H.col;g.lineWidth=h.sel?2.5:1.8;g.beginPath();g.ellipse(px,py+S*.28,S*.33,S*.13,0,0,7);g.stroke();
@@ -2276,7 +2281,7 @@ function drawHero(){
     g.fillStyle='#ff4d6d';g.beginPath();g.arc(px+face*S*.045,y-S*.18,1.4,0,7);g.fill();
     g.strokeStyle='#e8ecf2';g.lineWidth=2;for(const sd of [-1,1]){g.save();g.translate(px+sd*S*.17,y+S*.04);g.rotate(sd*(.5+sw));g.beginPath();g.moveTo(0,0);g.lineTo(0,-S*.2);g.stroke();g.restore()}
   }
-  if(h.jobs.length&&h.bt>0){g.fillStyle='#fffbe0';g.font='bold 13px system-ui';g.textAlign='center';g.fillText('🔨',px+S*.25,y-S*.35+Math.sin(now*20)*2)}
+  if(h.jobs.length&&h.bt>0){g.fillStyle='#fffbe0';g.font='bold 11px system-ui';g.textAlign='center';g.fillText('🔨',px+face*S*.28,y-S*.3+Math.sin(now*20)*2)}
   g.restore();
   for(const f of h.fx){
     if(f.slash){g.save();g.globalAlpha=Math.min(1,f.t*6);g.strokeStyle=f.c;g.lineWidth=f.big?4:2.5;g.beginPath();g.arc(f.x*S,f.y*S,(f.big?.45:.3)*S,f.a-1,f.a+1);g.stroke();g.restore()}
