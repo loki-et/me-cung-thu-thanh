@@ -301,7 +301,7 @@
       <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
-        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Muốn dẫn nhân vật đi thì giữ ngón tay trên nhân vật rồi kéo tới chỗ muốn tới (trên máy tính: bấm chuột phải vào chỗ muốn tới). Nút tròn to góc phải dưới là chiêu riêng.</li>
+        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. <b>Chạm vào map</b> (máy tính: chuột trái hoặc chuột phải): nhân vật chạy tới đó. <b>Chọn tháp ở thanh dưới rồi chạm map</b>: nhân vật chạy tới xây, mỗi lần chọn xây 1 tháp. Nút tròn to góc phải dưới là chiêu riêng.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
@@ -1286,7 +1286,7 @@ function draw(){
   if(live&&hover&&!selTower&&hover.x>=0&&hover.y>=0&&hover.x<C&&hover.y<R&&grid[hover.y][hover.x]&&!grid[hover.y][hover.x].wall){
     g.strokeStyle='#fffbe0';g.lineWidth=2.5;rr(g,hover.x*S+1,hover.y*S+1,S-2,S-2,8);g.stroke();
   }
-  if(live&&hover&&!selTower&&hover.x>=0&&hover.y>=0&&hover.x<C&&hover.y<R&&!grid[hover.y][hover.x]){
+  if(live&&hover&&!selTower&&(!heroOn()||armed)&&hover.x>=0&&hover.y>=0&&hover.x<C&&hover.y<R&&!grid[hover.y][hover.x]){
     const x0=hover.x*S,y0=hover.y*S;
     const bad=(hover.x===SP.x&&hover.y===SP.y)||(hover.x===EX.x&&hover.y===EX.y)||isRes(hover.x,hover.y)||terr[hover.y][hover.x]!==GRASS;
     if(bad)markBad(x0,y0);
@@ -1518,7 +1518,7 @@ function updateUI(){
   setText($('wave').querySelector('i'),'Đợt '+state.wave+'/'+WAVES);
   setText($('wave').querySelector('small'),'Màn '+level+' · '+(queue.length?'còn '+queue.length+' lính ra':state.wave>=WAVES?'đợt cuối':'đợt sau '+Math.ceil(state.nextT)+'s'));
   for(const b of $('dock').querySelectorAll('.tb')){
-    b.classList.toggle('sel',b.dataset.k===selType);
+    b.classList.toggle('sel',b.dataset.k===selType&&(!heroOn()||armed));
     b.classList.toggle('poor',state.gold<TYPES[b.dataset.k].lv[0].cost);
   }
   if(mp&&mp.mode==='coop'){const k=selTower?selTower.x+','+selTower.y:'';if(k!==mp.lastSel){mp.lastSel=k;mpSend(selTower?{t:'sel',x:selTower.x,y:selTower.y}:{t:'sel'})}}
@@ -1543,7 +1543,10 @@ function showTip(k,ms){
   if(ms)tipT=setTimeout(hideTip,ms);
 }
 function hideTip(){clearTimeout(tipT);$('tip').classList.remove('on')}
+// with a hero, a tower is "armed" for one build: tap it in the dock, then tap the map. A plain tap on the map moves the hero.
+let armed=false;
 function pickType(k,fromTouch){
+  armed=!(armed&&selType===k);
   selType=k;selTower=null;tchoice=null;
   if(fromTouch)showTip(k,2600);
   updateUI();
@@ -1916,7 +1919,8 @@ $('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.di
 $('mpLeave').onclick=mpLeave;
 function startLevel(n){
   level=n;$('levels').style.display='none';$('start').style.display='none';
-  pickLv=n;started=true;reset();toast('Màn '+n,1500);
+  pickLv=n;started=true;reset();armed=false;
+  toast(heroOn()?'Màn '+n+' · chạm map để đi, chọn tháp ở dưới rồi chạm để xây':'Màn '+n,heroOn()?3500:1500);
 }
 function showLevels(){
   $('mpAgain').style.display='none';$('lobby').style.display='none';
@@ -1965,9 +1969,7 @@ cv.addEventListener('pointerdown',ev=>{
   hideTip();hideEtip();toggleNext(false);
   if(!started||state.over||paused)return;
   // right mouse button: send the hero there (PC)
-  if(ev.button===2){if(heroOn()){const p=fpos(ev);if(p.x>=0&&p.y>=0&&p.x<C&&p.y<R){hero.jobs=[];hero.bt=0;hero.goto={x:Math.max(.3,Math.min(C-.3,p.x)),y:Math.max(.3,Math.min(R-.3,p.y))};fx.push({x:p.x,y:p.y,r:.35,t:.3,c:'#fffbe0'});SFX.play('click')}}return}
-  // press on the hero and drag to send it somewhere; a plain tap still builds on that cell
-  if(heroOn()){const p=fpos(ev);if(Math.hypot(p.x-hero.x,p.y-(hero.y-.3))<.75){hdrag={id:ev.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y};try{cv.setPointerCapture(ev.pointerId)}catch(e){}return}}
+  if(ev.button===2){if(heroOn())heroGo(fpos(ev));return}
   const c=cell(ev);
   if(!inB(c)){if(selTower)closePop();return}
   const tw=grid[c.y][c.x];
@@ -1976,8 +1978,9 @@ cv.addEventListener('pointerdown',ev=>{
     if(tw&&!tw.wall&&tw!==selTower){openTower(tw);return}
     closePop();return;
   }
+  if(tw&&!tw.wall){openTower(tw);return}
+  if(heroOn()&&!armed){heroGo(fpos(ev));return}
   if(tw&&tw.wall){if(tw.rock)toast('Núi đá, không xây được');return}
-  if(tw){openTower(tw);return}
   if(heroOn()){const ji=hero.jobs.findIndex(j=>j.x===c.x&&j.y===c.y);if(ji>=0){hero.jobs.splice(ji,1);toast('Đã hủy lệnh xây');return}}
   drag={id:ev.pointerId,c};hover=c;hoverKey='';
   try{cv.setPointerCapture(ev.pointerId)}catch(e){}
@@ -2003,7 +2006,7 @@ cv.addEventListener('pointercancel',()=>{drag=null;hover=null;hdrag=null});
 addEventListener('keydown',e=>{
   const k=Object.keys(TYPES)[+e.key-1];
   if(k){pickType(k);showTip(k,2000)}
-  if(e.key==='Escape')closePop();
+  if(e.key==='Escape'){closePop();armed=false;updateUI()}
   if(e.key==='p'||e.key==='P'||e.key===' '){e.preventDefault();if(started&&!state.over)setPause(!paused)}
 });
 function fit(){
@@ -2161,7 +2164,12 @@ function heroOrder(x,y){
   if(state.gold<queued+T.cost){toast('Không đủ vàng');return}
   if(hero.jobs.some(j=>j.x===x&&j.y===y)){toast('Ô này đã có lệnh xây');return}
   if(hero.jobs.length>=6){toast('Tối đa 6 lệnh xây chờ');return}
-  hero.jobs.push({x,y,type:selType});hero.goto=null;hero.sel=false;SFX.play('click');
+  hero.jobs.push({x,y,type:selType});hero.goto=null;hero.sel=false;SFX.play('click');armed=false;updateUI();
+}
+function heroGo(p){
+  if(p.x<0||p.y<0||p.x>=C||p.y>=R)return;
+  hero.jobs=[];hero.bt=0;hero.goto={x:Math.max(.3,Math.min(C-.3,p.x)),y:Math.max(.3,Math.min(R-.3,p.y))};
+  fx.push({x:p.x,y:p.y,r:.35,t:.3,c:'#fffbe0'});SFX.play('click');
 }
 function heroTarget(H,px,py){
   let best=null,bv=Infinity;
@@ -2318,7 +2326,7 @@ function heroPick(){
   for(const k of HK){const H=HEROES[k];h+='<button class="hb'+(k===heroK?' cur':'')+'" data-k="'+k+'"><b>'+H.ico+'</b><small>'+H.name+'</small></button>'}
   $('heroGrid').innerHTML=h;
   const H=HEROES[heroK];
-  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).',true);
+  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">Chạm map: nhân vật chạy tới (máy tính: chuột phải cũng được). Chọn tháp ở dưới rồi chạm map: xây.</span>',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
 $('skill').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();heroSkill()});
