@@ -387,7 +387,7 @@ const sideOf=x=>SIDES&&x>=DIVX?1:0;
 const gates=()=>SIDES||[{sp:SP,ex:EX,dir:{x:0,y:1}}];
 const gateWalls=s=>s.open?[]:s.dir.y?[[s.sp.x-1,s.sp.y],[s.sp.x+1,s.sp.y]]:[[s.sp.x,s.sp.y-1],[s.sp.x,s.sp.y+1]];
 const isGate=(x,y)=>gates().some(s=>(x===s.sp.x&&y===s.sp.y)||(x===s.ex.x&&y===s.ex.y));
-const teamOf=i=>(i||0)%2;
+const teamOf=i=>mp&&mp.pve?0:(i||0)%2;
 const myTeam=()=>mp&&mp.mode==='2v2'?teamOf(mp.idx):0;
 const PCOL=['#5ab0ff','#ff6b6b','#7de3ff','#ffa07a'];
 function setDims(c,r){C=c;R=r;$('app').classList.toggle('wide',C>12);cv.width=C*S*DPR;cv.height=R*S*DPR;terrain.width=C*S*DPR;terrain.height=R*S*DPR;try{fit()}catch(e){}}
@@ -689,12 +689,12 @@ function waterCellsExist(){return terr.some(r=>r.includes(WATER))}
 
 /* ---------- game logic ---------- */
 function reset(){
-  if(mp&&mp.mode==='2v2')genMap2();
+  if(mp&&mp.mode==='2v2'&&!mp.pve)genMap2();
   else{if(SIDES||C!==12){SIDES=null;setDims(12,18)}SP={x:5,y:0};EX={x:5,y:17};genMap()}
   buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
   state={time:0,stats:[{k:0,g:0},{k:0,g:0}],gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
-  if(mp&&mp.mode==='2v2'){state.gold=PVP_GOLD;state.livesT=[20,20];state.goldP=[0,1,2,3].map(()=>state.gold);state.stats=[0,1,2,3].map(()=>({k:0,g:0}))}
+  if(mp&&mp.mode==='2v2'){if(!mp.pve){state.gold=PVP_GOLD;state.livesT=[20,20]}state.goldP=[0,1,2,3].map(()=>state.gold);state.stats=[0,1,2,3].map(()=>({k:0,g:0}))}
   $('over').style.display='none';
   setPause(false);makeHero();
   recompute();updateUI();
@@ -794,7 +794,7 @@ function doSell(tw,owner){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(mp&&mp.pve?(1+.45*(Math.max(1,(mp.names||[]).filter(Boolean).length)-1))*HERO_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+Math.round(1.3*n)]];
   if(n>=3)o.push(['runner',2+Math.round(.7*n)]);
@@ -1811,7 +1811,7 @@ function mpStopSearch(){
 function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
 const modeName=m=>m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo';
 let lobby=null,lbMode='coop';
-const MODE_DESC={coop:'Hai người cùng giữ một lâu đài, mỗi người xây tháp bằng vàng riêng. Qua màn cùng nhau.',vs:'Quân hai bên tràn sang đánh lâu đài nhau. Mỗi người giữ một nửa bản đồ, ai hết mạng trước thì thua. Nên chơi trên máy tính.','2v2':'Quân hai đội tràn sang đánh lâu đài nhau. Mỗi đội 2 người giữ một nửa bản đồ, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
+const MODE_DESC={vs:'Quân hai bên tràn sang đánh lâu đài nhau. Mỗi người giữ một nửa bản đồ, ai hết mạng trước thì thua. Nên chơi trên máy tính.',coop:'2–4 người cùng giữ một lâu đài, mỗi người một nhân vật và vàng riêng. Qua màn cùng nhau.','2v2':'Quân hai đội tràn sang đánh lâu đài nhau. Mỗi đội 2 người giữ một nửa bản đồ, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
 function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
 function lobbyMsg(m){setText($('roomList'),'<div class="empty">'+m+'</div>',true)}
 async function openLobby(){
@@ -1901,7 +1901,7 @@ async function createRoom(mode){
     showRoom({full:true});SFX.play('build');
   });
 }
-function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'?COOP_LEVEL:VS_LEVEL);if(mp.mode==='2v2'){mp.started=true;room4Announce()}mpSend({t:'start',mode:mp.mode,level:lv,names:mp.names,heroK:mp.heroK});mpBegin(lv)}
+function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'||mp.pve?COOP_LEVEL:VS_LEVEL);if(mp.mode==='2v2'){mp.started=true;room4Announce()}mpSend({t:'start',mode:mp.mode,level:lv,names:mp.names,heroK:mp.heroK});mpBegin(lv)}
 function joinAsGuest(c,conn,mode,k,hostName){
   mp={mode,role:'guest',client:c,own:true,conn,opp:{},stT:0,k,oppName:hostName};mpWire();roomInfo=null;showRoom({mode,role:'guest',k:k||'?',full:true});
 }
@@ -1922,8 +1922,9 @@ function mpBegin(lv){
   level=lv;$('mpwait').style.display='none';$('levels').style.display='none';$('start').style.display='none';
   started=true;reset();
   $('menuLv').style.display='none';$('reset').style.display='none';$('mpLeave').style.display='';
-  $('sendbar').style.display=mp.mode==='vs'||mp.mode==='2v2'?'flex':'none';$('opp').style.display='block';
+  $('sendbar').style.display=(mp.mode==='vs'||mp.mode==='2v2')&&!mp.pve?'flex':'none';$('opp').style.display='block';
   fit();
+  if(mp.pve){toast('🤝 Hợp tác '+mp.names.filter(Boolean).length+' người! Cùng giữ lâu đài',3000);updateUI();return}
   if(mp.mode==='2v2'){toast('Bạn ở '+TEAMN(myTeam())+' (nhà '+(myTeam()?'bên phải':'bên trái')+'). Lính hai nhà tràn sang phá nhau, giữ nhà mình!',3500);updateUI();return}
   toast(mp.mode==='coop'?'🤝 Hợp tác! Tháp chấm vàng là của chủ phòng, chấm xanh là của khách':'⚔️ Solo! Bỏ vàng gửi quái sang bên kia',3200);
   updateUI();
@@ -1938,6 +1939,7 @@ function mpCleanup(){
 function mpLeave(){mpCleanup();started=false;$('over').style.display='none';openLobby()}
 function mpEnd(won){
   state.over=true;selTower=null;
+  if(mp.mode==='2v2'){state.won=!!won;showPve(won);return}
   if(mp.mode==='vs'){
     if(!won){mpSend({t:'lose'});mpShow('Thua rồi!',oppN()+' trụ vững hơn. Gà quá đi 🐔')}
     else{mp.done=state.lives;mpSend({t:'done',l:state.lives});mpVsCheck()}
@@ -2010,7 +2012,8 @@ function mpTick(dt){
 }
 function updateOpp(){
   const o=mp.opp;let h;
-  if(mp.mode==='2v2'){const L=state.livesT||[20,20],t=myTeam();h=(t?'🔴':'🔵')+' Đội bạn: <b>❤️ '+L[t]+'</b> · '+(t?'🔵':'🔴')+' Đội kia: <b>❤️ '+L[1-t]+'</b>'}
+  if(mp.pve){h='🤝 '+mp.names.map((n,i)=>n&&i!==mp.idx?'<span style="color:'+PCOL[i]+'">'+esc(n)+'</span> 🪙 '+((state.goldP||[])[i]??0):'').filter(Boolean).join(' · ')}
+  else if(mp.mode==='2v2'){const L=state.livesT||[20,20],t=myTeam();h=(t?'🔴':'🔵')+' Đội bạn: <b>❤️ '+L[t]+'</b> · '+(t?'🔵':'🔴')+' Đội kia: <b>❤️ '+L[1-t]+'</b>'}
   else if(mp.mode==='vs')h='🆚 '+esc(oppN())+': <b>❤️ '+(o.l??20)+'</b> · đợt <b>'+(o.w??0)+'</b>';
   else h='🤝 '+esc(oppN())+': <b>🪙 '+(mp.role==='host'?state.gold2:(o.g??0))+'</b>';
   setText($('opp'),h,true);
@@ -2045,7 +2048,7 @@ function applySnap(d){
       Object.assign(h,{k:HK[ki],lv,xp,cdE:ce,cdQ:cq,atk,fx:hf,rain:rn?{x:rn[0],y:rn[1],t:rn[2],r:rn[3]}:null,bt});
       if(i!==mp.idx||!mp.myV)h.fa=fa;
       const js=[];for(let q=0;q<jb.length;q+=3)js.push({x:jb[q],y:jb[q+1],type:TK[jb[q+2]]});h.jobs=js});hero=heroes[mp.idx]||null}
-  if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt[myTeam()];state.stats=[0,1,2,3].map(i=>({k:d.sx[i*2]||0,g:d.sx[i*2+1]||0}))}
+  if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt?d.lt[myTeam()]:d.l;state.stats=[0,1,2,3].map(i=>({k:d.sx[i*2]||0,g:d.sx[i*2+1]||0}))}
   else{state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l}
   if(d.w!==state.wave)state.wave=d.w;
   queue.length=d.q;state.nextT=d.nt;state.flash=Math.max(state.flash,d.fl);
@@ -2081,7 +2084,7 @@ function applySnap(d){
   for(const a of (d.ns||[])){const t=eById.get(a[3]);shots.push({type:TK[a[0]],x:a[1],y:a[2],ang:0,tid:a[3],t:t||{hp:0,x:a[1],y:a[2]},hero:a[4]||undefined,g:1})}
   if(d.ns&&d.ns.length)SFX.play(TK[d.ns[d.ns.length-1][0]]);
   for(const [pf,hr] of (d.ev||[])){const pts=[];for(let i=0;i<pf.length;i+=2)pts.push([pf[i],pf[i+1]]);fx.push({bolt:pts,t:.2,hero:hr||undefined});SFX.play('thunder')}
-  if(d.ov&&!state.over&&mp.mode==='2v2'){state.over=true;show2v2(d.wt)}
+  if(d.ov&&!state.over&&mp.mode==='2v2'){state.over=true;if(mp.pve)showPve(!!d.wn);else show2v2(d.wt)}
   if(d.ov&&!state.over){state.over=true;mpShow(d.wn?'Cùng nhau qua màn '+level+'!':'Thua rồi!',d.wn?'Còn '+d.l+'/20 mạng':'Trụ được tới đợt '+d.w+'/'+WAVES,!!d.wn)}
 }
 function guestStep(dt){
@@ -2139,6 +2142,17 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=120;
+function showPve(won){
+  SFX.play(won?'win':'lose');
+  $('overT').textContent=won?'Cùng nhau qua màn '+level+'!':'Thua rồi!';$('overStars').textContent='';
+  $('overS').textContent=won?'Còn '+state.lives+'/20 mạng':'Trụ được tới đợt '+state.wave+'/'+WAVES;
+  $('overStats').innerHTML=stats4HTML();
+  $('nextLv').style.display='none';$('again').style.display='none';$('overLv').textContent='Rời phòng';
+  const host=mp&&mp.role==='host';mp.lastWon=!!won;
+  $('mpAgain').style.display=mp?'':'none';$('mpAgain').disabled=!host;
+  $('mpAgain').textContent=host?(won&&level<LEVELS?'Màn tiếp theo cùng nhau ▶':'Chơi lại màn này ▶'):'Chờ chủ phòng bắt đầu…';
+  $('over').style.display='flex';updateUI();
+}
 const TEAMN=t=>t?'Đội Đỏ':'Đội Xanh';
 function end2v2(wt){
   state.over=true;state.wt=wt;selTower=null;
@@ -2161,8 +2175,8 @@ function stats4HTML(){
   const st=state.stats||[],names=(mp&&mp.names)||[];
   let best=-1,bk=-1;for(let i=0;i<4;i++)if(names[i]&&st[i]&&st[i].k>bk){bk=st[i].k;best=i}
   let h='<table class="stt"><tr><th></th><th>⚔️ Quái hạ</th><th>💰 Vàng</th></tr>';
-  for(const t of [0,1])for(const i of [t,t+2]){if(!names[i])continue;const s=st[i]||{k:0,g:0};
-    h+='<tr><td style="color:'+PCOL[i]+';text-align:left">'+(t?'🔴 ':'🔵 ')+esc(names[i])+(mp&&i===mp.idx?' (bạn)':'')+(i===best?' <span class="mvp">👑</span>':'')+'</td><td><b>'+s.k+'</b></td><td><b>'+s.g+'</b></td></tr>'}
+  for(const t of [0,1])for(const i of (mp&&mp.pve?(t?[]:[0,1,2,3]):[t,t+2])){if(!names[i])continue;const s=st[i]||{k:0,g:0};
+    h+='<tr><td style="color:'+PCOL[i]+';text-align:left">'+(mp&&mp.pve?'':t?'🔴 ':'🔵 ')+esc(names[i])+(mp&&i===mp.idx?' (bạn)':'')+(i===best?' <span class="mvp">👑</span>':'')+'</td><td><b>'+s.k+'</b></td><td><b>'+s.g+'</b></td></tr>'}
   return h+'</table>';
 }
 // ---- room screen with 4 slots ----
@@ -2171,6 +2185,14 @@ function showRoom4(){
   $('lobby').style.display='none';$('mpwait').style.display='none';$('room').style.display='flex';
   $('rmTitle').textContent=r.k?'Phòng '+r.k:'Đang tạo phòng…';
   const one=r.cap===2;
+  if(r.pve){$('rmSub').textContent='🤝 Hợp tác · 2–4 người cùng giữ một lâu đài';document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
+    let hh='<div class="team4" style="grid-column:1/-1"><div class="tn" style="color:#8fe07a">🤝 Cả đội</div>';
+    for(let i=0;i<4;i++){const n=r.names[i],hk=r.heroK&&r.heroK[i];hh+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div><b style="color:'+(n?PCOL[i]:'')+'">'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div></div>'}
+    hh+='</div><div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Nhân vật của bạn</div><div class="hgrid">'+HK.map(k=>'<button class="hb'+(k===((r.heroK&&r.heroK[r.idx])||heroK)?' cur':'')+'" data-hk="'+k+'"><b>'+HEROES[k].ico+'</b><small>'+HEROES[k].name+'</small></button>').join('')+'</div></div>';
+    $('slots4').innerHTML=hh;const host=r.role==='host',cnt=r.names.filter(Boolean).length;
+    $('rmStart').style.display=host?'':'none';$('rmStart').disabled=cnt<2;
+    $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(cnt<2?'Chờ thêm người vào phòng…':'Có thể bắt đầu ('+cnt+'/4 người)'):'Chờ chủ phòng bấm Bắt đầu…';
+    return}
   $('rmSub').textContent=one?'⚔️ 1vs1 · quân hai bên tràn sang đánh lâu đài nhau':'👥 2vs2 · quân hai đội tràn sang đánh lâu đài nhau';
   document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
   let h='';
@@ -2183,12 +2205,12 @@ function showRoom4(){
   $('rmStart').style.display=host?'':'none';$('rmStart').disabled=!r.names[1];
   $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(r.names[1]?(one?'Đủ người rồi, bấm Bắt đầu nhé!':'Có thể bắt đầu ('+cnt+'/4 người). Đủ 4 người thì vui hơn!'):(one?'Chờ người chơi thứ 2 vào phòng…':'Cần ít nhất 1 người bên Đội Đỏ để bắt đầu')):'Chờ chủ phòng bấm Bắt đầu…';
 }
-async function createRoom4(cap){
+async function createRoom4(cap,pve){
   cap=cap||4;
   closeLobby();mpStopSearch();
   const id=rid(8),k=100+Math.floor(Math.random()*900),topic=NS+'rooms/'+id,hT=NS+'r/'+id+'/h',gT=NS+'r/'+id+'/g';
   roomInfo=null;
-  mp={mode:'2v2',role:'host',idx:0,k:0,cap,heroK:[heroK,null,null,null],names:[myName,null,null,null],peers:new Map(),snapT:0,stT:0,opp:{},topic,hT,gT,born:Date.now()};
+  mp={mode:'2v2',pve:!!pve,role:'host',idx:0,k:0,cap,heroK:[heroK,null,null,null],names:[myName,null,null,null],peers:new Map(),snapT:0,stT:0,opp:{},topic,hT,gT,born:Date.now()};
   const my=mp;showRoom4();
   const c=await mqConnect({topic,payload:'',retain:true,qos:1});
   if(mp!==my){c&&c.end();return}
@@ -2207,7 +2229,7 @@ function room4Announce(){
   if(!mp||mp.mode!=='2v2'||mp.role!=='host'||!mp.client)return;
   const n=mp.names.filter(Boolean).length;
   if(mp.started)mqPub(mp.client,mp.topic,null,{retain:true,qos:1});
-  else mqPub(mp.client,mp.topic,{mode:mp.cap===2?'vs':'2v2',k:mp.k,at:Date.now(),born:mp.born,name:myName,n,cap:mp.cap,full:n>=mp.cap},{retain:true,qos:1});
+  else mqPub(mp.client,mp.topic,{mode:mp.pve?'coop':mp.cap===2?'vs':'2v2',k:mp.k,at:Date.now(),born:mp.born,name:myName,n,cap:mp.cap,full:n>=mp.cap},{retain:true,qos:1});
 }
 function roster4(){mp.conn.send({t:'roster',names:mp.names,heroK:mp.heroK});if(!started)showRoom4();room4Announce()}
 function hostRecv4(d){
@@ -2220,7 +2242,7 @@ function hostRecv4(d){
     const name=cleanName(d.name)||'Người chơi '+(idx+1);
     mp.peers.set(d.from,{idx,name,last:Date.now()});mp.names[idx]=name;mp.heroK[idx]=HEROES[d.hero]?d.hero:'warrior';
     {const pid=d.from,pp=mp.peers.get(pid);setTimeout(()=>{if(mp&&mp.peers.get(pid)===pp)pp.rtc=rtcOpen(sg=>mqPub(mp.client,mp.gT,Object.assign({},sg,{to:pid,from:mp.client.myId}),{qos:1}),m=>{if(mp&&mp.mode==='2v2')hostRecv4(Object.assign(m,{from:pid}))},true)},1500)}
-    mp.conn.send({t:'welcome',to:d.from,mode:'2v2',k:mp.k,name:myName,idx,names:mp.names,heroK:mp.heroK,cap:mp.cap});
+    mp.conn.send({t:'welcome',to:d.from,mode:'2v2',pve:mp.pve,k:mp.k,name:myName,idx,names:mp.names,heroK:mp.heroK,cap:mp.cap});
     roster4();SFX.play('build');return;
   }
   if(!p)return;p.last=Date.now();
@@ -2267,7 +2289,7 @@ $('slots4').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b||
   heroK=b.dataset.hk;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}SFX.play('click');
   mp.heroK=mp.heroK||[];mp.heroK[mp.idx]=heroK;if(mp.role==='host')roster4();else{mpSend({t:'hero',k:heroK});showRoom4()}});
 function joinAsGuest4(c,link,d){
-  mp={mode:'2v2',role:'guest',client:c,own:true,conn:link,idx:d.idx,k:d.k,cap:d.cap||4,heroK:d.heroK||[],names:d.names||[cleanName(d.name),null,null,null],opp:{},stT:0};
+  mp={mode:'2v2',pve:!!d.pve,role:'guest',client:c,own:true,conn:link,idx:d.idx,k:d.k,cap:d.cap||4,heroK:d.heroK||[],names:d.names||[cleanName(d.name),null,null,null],opp:{},stT:0};
   link.on('data',guestRecv4);
   link.on('close',()=>{if(!mp||mp.conn!==link)return;mpCleanup();hideRoom();started=false;$('over').style.display='none';$('mpwait').style.display='none';toast('Chủ phòng đã rời phòng',3000);openLobby()});
   showRoom4();
@@ -2283,13 +2305,13 @@ function guestRecv4(d){
     case 'ev':ev4(d);break;
   }
 }
-$('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4(4):lbMode==='vs'?createRoom4(2):createRoom(lbMode);
+$('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4(4):lbMode==='vs'?createRoom4(2):createRoom4(4,true);
 setLbMode('coop');
 $('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
 $('rmLeave').onclick=()=>{mpStopSearch();if(mp)mpCleanup();hideRoom();openLobby()};
 $('lbRefresh').onclick=()=>{if(lobby&&lobby.client.connected){lobbyMsg('Đang tải…');try{lobby.client.subscribe(NS+'rooms/+',{qos:1})}catch(e){};setTimeout(renderRooms,1200)}else{lobby=null;openLobby()}};
 $('lbBack').onclick=showHome;
-$('mpAgain').onclick=()=>{if(mp&&mp.mode==='2v2'){if(mp.role==='host'){mp.nextLv=(level%LEVELS)+1;mpStartMatch()}return}if(!mp||mp.ready)return;mp.ready=true;mpSend({t:'again'});$('mpAgain').disabled=true;$('mpAgain').textContent='Đang chờ '+oppN()+'…';if(mp.oppReady&&mp.role==='host')mpStartMatch()};
+$('mpAgain').onclick=()=>{if(mp&&mp.mode==='2v2'){if(mp.role==='host'){mp.nextLv=mp.pve?(mp.lastWon?Math.min(LEVELS,level+1):level):(level%LEVELS)+1;mpStartMatch()}return}if(!mp||mp.ready)return;mp.ready=true;mpSend({t:'again'});$('mpAgain').disabled=true;$('mpAgain').textContent='Đang chờ '+oppN()+'…';if(mp.oppReady&&mp.role==='host')mpStartMatch()};
 $('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.display='none';openLobby()};
 $('mpLeave').onclick=mpLeave;
 function startLevel(n){
@@ -2424,7 +2446,7 @@ async function initFB(){
     if(emu){fbAuth.useEmulator('http://'+emu+':9099');fbDb.useEmulator(emu,8080)}
     fbAuth.onAuthStateChanged(onUser);
     fbAuth.getRedirectResult().catch(e=>authErr(e));
-  }catch(e){fbAuth=null;fbDb=null;closeAuth()}
+  }catch(e){fbAuth=null;fbDb=null;fbFailed=true}
   refreshHome();
 }
 const AERR={'auth/invalid-email':'Email không hợp lệ','auth/missing-password':'Nhập mật khẩu','auth/weak-password':'Mật khẩu cần ít nhất 6 ký tự','auth/email-already-in-use':'Email này đã có tài khoản, bấm Đăng nhập',
@@ -2433,10 +2455,16 @@ const AERR={'auth/invalid-email':'Email không hợp lệ','auth/missing-passwor
 function authErr(e){const m=e&&e.code in AERR?AERR[e.code]:'Không đăng nhập được'+(e&&e.code?' ('+e.code+')':'');$('aErr').textContent=m}
 function openAuth(){$('aErr').textContent='';$('auth').style.display='flex'}
 function closeAuth(){$('auth').style.display='none'}
+// never leave the buttons silent: say when accounts are still loading, show progress, give up after 25 s
+let fbFailed=false;
+function authBusyUI(on){for(const id of ['aGoogle','aLogin','aSignup'])$(id).disabled=on;$('aErr').style.color=on?'var(--mut)':''}
 async function authRun(fn){
-  if(authBusy||!fbAuth)return;authBusy=true;$('aErr').textContent='';
-  try{await fn();closeAuth()}catch(e){authErr(e)}
-  authBusy=false;
+  if(authBusy)return;
+  if(!fbAuth){$('aErr').style.color='';$('aErr').textContent=fbFailed?'Không tải được hệ thống tài khoản. Kiểm tra mạng rồi tải lại trang nhé':'Đang tải hệ thống tài khoản, thử lại sau vài giây…';return}
+  authBusy=true;authBusyUI(true);$('aErr').textContent='Đang đăng nhập…';
+  let done=false;const to=setTimeout(()=>{if(done)return;done=true;authBusy=false;authBusyUI(false);$('aErr').textContent='Lâu quá không thấy phản hồi. Bấm lại để thử lần nữa (nếu dùng Google, xem cửa sổ đăng nhập có bị chặn không)'},25000);
+  try{await fn();if(!done)closeAuth()}catch(e){if(!done){authBusyUI(false);authErr(e)}}
+  if(!done){done=true;clearTimeout(to);authBusy=false;authBusyUI(false);if($('aErr').textContent==='Đang đăng nhập…')$('aErr').textContent=''}
 }
 const aEmail=()=>$('aEmail').value.trim();
 $('acctB').onclick=()=>{if(user){lsSet('mctt-guest',null);fbAuth.signOut()}else openAuth()};
@@ -2559,7 +2587,8 @@ function heroClamp(h){h.x=Math.max(.3,Math.min(C-.3,h.x));h.y=Math.max(.3,Math.m
 function makeHero(){
   heroes=[];
   if(mp&&mp.mode==='2v2'){
-    for(let i=0;i<4;i++)if(mp.names&&mp.names[i]){const sd=SIDES[teamOf(i)],x=sd.ex.x+(teamOf(i)?-.6:1.6),y=sd.ex.y+(i<2?-.2:1.4);heroes[i]=newHero((mp.heroK&&mp.heroK[i])||'warrior',x,y,i);heroes[i].fa=teamOf(i)?Math.PI:0}
+    for(let i=0;i<4;i++)if(mp.names&&mp.names[i]&&mp.pve){heroes[i]=newHero((mp.heroK&&mp.heroK[i])||'warrior',EX.x+.5+[-1.2,1.2,-2.2,2.2][i],EX.y-.4,i)}
+    else if(mp.names&&mp.names[i]){const sd=SIDES[teamOf(i)],x=sd.ex.x+(teamOf(i)?-.6:1.6),y=sd.ex.y+(i<2?-.2:1.4);heroes[i]=newHero((mp.heroK&&mp.heroK[i])||'warrior',x,y,i);heroes[i].fa=teamOf(i)?Math.PI:0}
     hero=heroes[mp.idx]||null;return;
   }
   hero=mp?null:newHero(heroK,EX.x+.5,EX.y-.4,0);
