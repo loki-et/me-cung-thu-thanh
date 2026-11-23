@@ -206,6 +206,10 @@
   .slots4{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .team4 .tn{font-weight:800;font-size:13px;margin:0 0 4px}
   .team4 .slot{margin:0 0 6px}
+  .mgrp{margin-top:10px;text-align:left}
+  .mgrp .mh{font-size:12.5px;font-weight:800;color:var(--mut);margin:0 2px 6px;letter-spacing:.3px}
+  .mrow{display:flex;gap:8px}.mrow .go{flex:1;width:auto!important;padding:14px 6px!important}
+  .go.pvp{background:linear-gradient(180deg,#ff9a7a,#e0583e);border-color:#ffb39a;color:#2a0d06}
   .namerow{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:18px}
   .namerow input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--txt);background:#0004;border:1px solid var(--line);border-radius:12px;padding:10px 12px;outline:none}
   .namerow input:focus{border-color:var(--acc)}
@@ -296,6 +300,8 @@
     <div class="sub">Hiện khi chơi online và trên bảng xếp hạng</div>
     <input class="ain" id="pname" maxlength="14" placeholder="Nhập tên" autocomplete="nickname">
     <div class="prow" style="margin-top:6px"><button id="nmCancel">Hủy</button><button class="go" id="nmOk">Lưu</button></div>
+    <div class="sub" id="nmAcc" style="margin:12px 0 4px;text-align:center"></div>
+    <button id="nmOut" style="width:100%"></button>
   </div></div>
   <div id="rank"><div class="card">
     <h1 id="rkTitle">🏆 Bảng xếp hạng</h1>
@@ -310,10 +316,10 @@
       <div class="topb"><button id="meBtn">👤 <b id="meName"></b> ✏️</button><span style="display:flex;gap:6px"><button id="helpBtn" title="Cách chơi" aria-label="Cách chơi">📖</button><button id="acctB" style="display:none"></button></span></div>
       <h1>Mê Cung Thủ Thành</h1>
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
-      <button class="go" id="go">👤 Chơi 1 mình</button>
-      <button class="go" id="go2" style="margin-top:8px">🤝 Hợp tác</button>
-      <button class="go" id="go3" style="margin-top:8px">⚔️ Solo 1vs1</button>
-      <button class="go" id="go4" style="margin-top:8px">👥 2vs2</button>
+      <div class="mgrp"><div class="mh">🧟 Đánh quái</div>
+        <div class="mrow"><button class="go" id="go">👤 1 mình</button><button class="go" id="go2">🤝 Hợp tác</button></div></div>
+      <div class="mgrp"><div class="mh">⚔️ Đấu người</div>
+        <div class="mrow"><button class="go pvp" id="go3">1 vs 1</button><button class="go pvp" id="go4">2 vs 2</button></div></div>
       <div class="best" id="bestT" style="margin:10px 0 0"></div>
       </div>
       <div id="helpBody" style="display:none">
@@ -773,7 +779,7 @@ function doSell(tw,owner){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&(mp.mode==='coop'||mp.mode==='2v2')?COOP_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&(mp.mode==='coop'||mp.mode==='2v2')?COOP_HP:1)*(typeof heroOn==='function'&&heroOn()?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+Math.round(1.3*n)]];
   if(n>=3)o.push(['runner',2+Math.round(.7*n)]);
@@ -1653,8 +1659,13 @@ $('helpBtn').onclick=showHelp;
 $('helpBack').onclick=closeHelp;
 function setName(n){myName=cleanName(n);try{localStorage.setItem('mctt-name',myName)}catch(e){}$('meName').textContent=myName||'Khách'}
 setName(myName);
-function openName(){$('pname').value=myName;$('nmCancel').style.display=myName?'':'none';$('nameBox').style.display='flex';setTimeout(()=>$('pname').focus(),50)}
+function openName(){
+  const fb=typeof fbAuth!=='undefined'&&fbAuth;
+  $('nmAcc').textContent=fb?(user?'Đang đăng nhập: '+(user.email||user.displayName||'tài khoản'):'Đang chơi không cần tài khoản'):location.protocol.startsWith('http')?'Chưa tải được hệ thống tài khoản, thử tải lại trang':'Bản xem trước không có tài khoản';
+  $('nmOut').style.display=fb?'':'none';$('nmOut').textContent=user?'🚪 Đăng xuất / đổi tài khoản':'🔑 Đăng nhập';
+  $('pname').value=myName;$('nmCancel').style.display=myName?'':'none';$('nameBox').style.display='flex';setTimeout(()=>$('pname').focus(),50)}
 $('meBtn').onclick=openName;
+$('nmOut').onclick=()=>{$('nameBox').style.display='none';$('acctB').click()};
 $('nmCancel').onclick=()=>{$('nameBox').style.display='none'};
 $('nmOk').onclick=()=>{const n=cleanName($('pname').value);if(!n){toast('Nhập tên trước nhé',1800);return}setName(n);$('nameBox').style.display='none';if(user)cloudSave()};
 $('pname').addEventListener('keydown',e=>{if(e.key==='Enter')$('nmOk').click()});
@@ -2366,7 +2377,7 @@ const heroOn=()=>!!hero&&!mp;
 function makeHero(){hero=mp?null:{k:heroK,x:EX.x+.5,y:EX.y-.4,fa:-Math.PI/2,cd:0,cdE:2,cdQ:5,lv:1,xp:0,jobs:[],goto:null,sel:false,bt:0,walk:0,atk:0,fx:[],rain:null}}
 // hero damage keeps pace with monster HP so it stays useful in late waves
 // base power is lower than before; each hero level adds 12% (level 10 ≈ double level 1)
-const HERO_BASE=.6,HERO_MAXLV=10,xpNeed=lv=>25+20*(lv-1);
+const HERO_BASE=.6,HERO_MAXLV=10,HERO_HP=1.35,xpNeed=lv=>40+35*(lv-1);
 function heroMul(){const w=Math.max(1,state.wave);return (.3+.7*waveMul(w).hpm/waveMul(1).hpm)*HERO_BASE*(1+.12*((hero&&hero.lv||1)-1))}
 function heroXP(v){
   const h=hero;if(h.lv>=HERO_MAXLV)return;
