@@ -49,6 +49,11 @@
   #skill{position:absolute;right:6px;bottom:6px;width:62px;height:62px;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
     background:conic-gradient(#0009 var(--p,0deg),#2c4a2acc 0);border:2px solid #fffbe0aa;box-shadow:0 3px 10px #0008;touch-action:none}
   #skill.cd{border-color:#fffbe033}
+  #skKey{position:absolute;top:-4px;left:-4px;background:#000c;color:#fffbe0;font-size:10px;border-radius:6px;padding:1px 5px;border:1px solid #fffbe055}
+  #joy{position:absolute;left:8px;bottom:8px;width:100px;height:100px;border-radius:50%;display:none;z-index:3;touch-action:none;
+    background:radial-gradient(circle,#ffffff10 0,#ffffff1c 60%,#ffffff08 100%);border:2px solid #ffffff40;box-shadow:inset 0 0 12px #0005}
+  #joyK{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffffffcc,#c9d6e0aa);box-shadow:0 2px 8px #0008;pointer-events:none}
+  #joy.on{border-color:#fffbe0aa}
   #skill #skI{font-size:22px;line-height:1}
   #skill #skT{font-size:9.5px;font-weight:800;color:#fffbe0;white-space:nowrap;margin-top:1px}
   #skill.cd #skT{font-size:15px}
@@ -210,7 +215,8 @@
   <div class="stage">
     <div class="wrap">
       <canvas id="cv"></canvas>
-      <button id="skill"><span id="skI"></span><span id="skT"></span></button>
+      <div id="joy"><div id="joyK"></div></div>
+      <button id="skill"><b id="skKey">Q</b><span id="skI"></span><span id="skT"></span></button>
       <div id="msg"></div>
       <div class="pop" id="pop"></div>
       <div class="ov" id="menu">
@@ -301,7 +307,7 @@
       <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
-        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. <b>Chạm vào map</b> (máy tính: chuột trái hoặc chuột phải): nhân vật chạy tới đó. <b>Chọn tháp ở thanh dưới rồi chạm map</b>: nhân vật chạy tới xây, mỗi lần chọn xây 1 tháp. Nút tròn to góc phải dưới là chiêu riêng.</li>
+        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Chạm map để ra lệnh xây, nhân vật sẽ chạy tới xây. Di chuyển nhân vật: trên điện thoại kéo vòng tròn ở góc trái dưới, trên máy tính bấm chuột phải. Chiêu riêng: nút tròn góc phải dưới, hoặc phím Q trên máy tính.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
@@ -1286,7 +1292,7 @@ function draw(){
   if(live&&hover&&!selTower&&hover.x>=0&&hover.y>=0&&hover.x<C&&hover.y<R&&grid[hover.y][hover.x]&&!grid[hover.y][hover.x].wall){
     g.strokeStyle='#fffbe0';g.lineWidth=2.5;rr(g,hover.x*S+1,hover.y*S+1,S-2,S-2,8);g.stroke();
   }
-  if(live&&hover&&!selTower&&(!heroOn()||armed)&&hover.x>=0&&hover.y>=0&&hover.x<C&&hover.y<R&&!grid[hover.y][hover.x]){
+  if(live&&hover&&!selTower&&hover.x>=0&&hover.y>=0&&hover.x<C&&hover.y<R&&!grid[hover.y][hover.x]){
     const x0=hover.x*S,y0=hover.y*S;
     const bad=(hover.x===SP.x&&hover.y===SP.y)||(hover.x===EX.x&&hover.y===EX.y)||isRes(hover.x,hover.y)||terr[hover.y][hover.x]!==GRASS;
     if(bad)markBad(x0,y0);
@@ -1518,7 +1524,7 @@ function updateUI(){
   setText($('wave').querySelector('i'),'Đợt '+state.wave+'/'+WAVES);
   setText($('wave').querySelector('small'),'Màn '+level+' · '+(queue.length?'còn '+queue.length+' lính ra':state.wave>=WAVES?'đợt cuối':'đợt sau '+Math.ceil(state.nextT)+'s'));
   for(const b of $('dock').querySelectorAll('.tb')){
-    b.classList.toggle('sel',b.dataset.k===selType&&(!heroOn()||armed));
+    b.classList.toggle('sel',b.dataset.k===selType);
     b.classList.toggle('poor',state.gold<TYPES[b.dataset.k].lv[0].cost);
   }
   if(mp&&mp.mode==='coop'){const k=selTower?selTower.x+','+selTower.y:'';if(k!==mp.lastSel){mp.lastSel=k;mpSend(selTower?{t:'sel',x:selTower.x,y:selTower.y}:{t:'sel'})}}
@@ -1543,10 +1549,7 @@ function showTip(k,ms){
   if(ms)tipT=setTimeout(hideTip,ms);
 }
 function hideTip(){clearTimeout(tipT);$('tip').classList.remove('on')}
-// with a hero, a tower is "armed" for one build: tap it in the dock, then tap the map. A plain tap on the map moves the hero.
-let armed=false;
 function pickType(k,fromTouch){
-  armed=!(armed&&selType===k);
   selType=k;selTower=null;tchoice=null;
   if(fromTouch)showTip(k,2600);
   updateUI();
@@ -1919,8 +1922,8 @@ $('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.di
 $('mpLeave').onclick=mpLeave;
 function startLevel(n){
   level=n;$('levels').style.display='none';$('start').style.display='none';
-  pickLv=n;started=true;reset();armed=false;
-  toast(heroOn()?'Màn '+n+' · chạm map để đi, chọn tháp ở dưới rồi chạm để xây':'Màn '+n,heroOn()?3500:1500);
+  pickLv=n;started=true;reset();
+  toast(heroOn()?'Màn '+n+' · '+(TOUCH?'kéo vòng tròn góc trái để đi':'chuột phải để đi, phím Q tung chiêu'):'Màn '+n,heroOn()?3500:1500);
 }
 function showLevels(){
   $('mpAgain').style.display='none';$('lobby').style.display='none';
@@ -1979,7 +1982,6 @@ cv.addEventListener('pointerdown',ev=>{
     closePop();return;
   }
   if(tw&&!tw.wall){openTower(tw);return}
-  if(heroOn()&&!armed){heroGo(fpos(ev));return}
   if(tw&&tw.wall){if(tw.rock)toast('Núi đá, không xây được');return}
   if(heroOn()){const ji=hero.jobs.findIndex(j=>j.x===c.x&&j.y===c.y);if(ji>=0){hero.jobs.splice(ji,1);toast('Đã hủy lệnh xây');return}}
   drag={id:ev.pointerId,c};hover=c;hoverKey='';
@@ -2006,7 +2008,8 @@ cv.addEventListener('pointercancel',()=>{drag=null;hover=null;hdrag=null});
 addEventListener('keydown',e=>{
   const k=Object.keys(TYPES)[+e.key-1];
   if(k){pickType(k);showTip(k,2000)}
-  if(e.key==='Escape'){closePop();armed=false;updateUI()}
+  if(e.key==='Escape')closePop();
+  if(e.key==='q'||e.key==='Q')heroSkill();
   if(e.key==='p'||e.key==='P'||e.key===' '){e.preventDefault();if(started&&!state.over)setPause(!paused)}
 });
 function fit(){
@@ -2148,7 +2151,9 @@ const HEROES={
   assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,
     desc:'Đâm cực đau, xuyên giáp, chạy nhanh',sk:'Ám sát',skDesc:'lướt tới con quái trâu nhất bản đồ và đâm một nhát chí mạng',skCd:13}
 };
-const HK=Object.keys(HEROES),HERO_SC=1.45;
+const HK=Object.keys(HEROES),HERO_SC=1.3;
+const HPAL={warrior:['#ffe6b0','#e8a848','#9a6418'],archer:['#d4f7c0','#6cc870','#2f7a3a'],mage:['#e6dcff','#a68aff','#5a3fc0'],assassin:['#ffd0da','#d86880','#7a2038']};
+const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
 // builders stand beside the cell (on the side they come from), not in the middle of it
 function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;return {x,y:cy+.1}}
 let hero=null,heroK='warrior';
@@ -2164,7 +2169,7 @@ function heroOrder(x,y){
   if(state.gold<queued+T.cost){toast('Không đủ vàng');return}
   if(hero.jobs.some(j=>j.x===x&&j.y===y)){toast('Ô này đã có lệnh xây');return}
   if(hero.jobs.length>=6){toast('Tối đa 6 lệnh xây chờ');return}
-  hero.jobs.push({x,y,type:selType});hero.goto=null;hero.sel=false;SFX.play('click');armed=false;updateUI();
+  hero.jobs.push({x,y,type:selType});hero.goto=null;hero.sel=false;SFX.play('click');
 }
 function heroGo(p){
   if(p.x<0||p.y<0||p.x>=C||p.y>=R)return;
@@ -2217,8 +2222,15 @@ function heroStep(dt){
   for(const f of h.fx)f.t-=dt;h.fx=h.fx.filter(f=>f.t>0);
   // drop build orders that can no longer happen (cell taken meanwhile)
   while(h.jobs.length&&grid[h.jobs[0].y][h.jobs[0].x]){h.jobs.shift();h.bt=0}
-  const job=h.jobs[0];if(job&&!job.at)job.at=buildSpot(h,job);
-  const tgt=job?job.at:h.goto;
+  // joystick steering wins over everything; queued builds resume when it is released
+  const jm=h.joy?Math.min(1,Math.hypot(h.joy.x,h.joy.y)):0;
+  if(jm>.15){
+    const a=Math.atan2(h.joy.y,h.joy.x),step=H.sp*jm*dt;
+    h.x=Math.max(.3,Math.min(C-.3,h.x+Math.cos(a)*step));h.y=Math.max(.3,Math.min(R-.3,h.y+Math.sin(a)*step));
+    h.fa=a;h.walk+=dt*10*jm;h.goto=null;h.bt=0;for(const j of h.jobs)j.at=null;
+  }
+  const job=jm>.15?null:h.jobs[0];if(job&&!job.at)job.at=buildSpot(h,job);
+  const tgt=jm>.15?null:job?job.at:h.goto;
   if(tgt){
     const dx=tgt.x-h.x,dy=tgt.y-h.y,dl=Math.hypot(dx,dy),step=H.sp*dt;
     if(dl<=step){h.x=tgt.x;h.y=tgt.y;
@@ -2261,7 +2273,7 @@ function drawHeroJobs(){
 function drawHero(){
   if(!heroOn())return;
   const h=hero,H=HEROES[h.k],px=h.x*S,py=h.y*S,moving=h.jobs.length||h.goto;
-  const bob=moving?Math.abs(Math.sin(h.walk))*2:Math.sin(now*3)*.8;
+  const bob=moving||(h.joy&&Math.hypot(h.joy.x,h.joy.y)>.15)?Math.abs(Math.sin(h.walk))*2:Math.sin(now*3)*.8;
   if(h.rain){const r=h.rain;g.save();g.globalAlpha=.25;g.fillStyle='#bff5c4';g.beginPath();g.arc(r.x*S,r.y*S,1.5*S,0,7);g.fill();g.globalAlpha=.9;g.strokeStyle='#e8ffe0';g.lineWidth=1.5;
     for(let i=0;i<10;i++){const a=(i*2.4+now*7)%6.28,d=((i*.37+now*2.3)%1)*1.4,x=r.x*S+Math.cos(a)*d*S,y=r.y*S+Math.sin(a)*d*S,f=(now*6+i)%1;g.beginPath();g.moveTo(x,y-14+f*10);g.lineTo(x,y-6+f*10);g.stroke()}g.restore()}
   for(const f of h.fx){
@@ -2276,34 +2288,49 @@ function drawHero(){
   // shadow + ring
   g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(px,py+S*.28,S*.26,S*.09,0,0,7);g.fill();
   g.strokeStyle=hdrag?'#fffbe0':H.col;g.lineWidth=hdrag?2.5:1.8;g.beginPath();g.ellipse(px,py+S*.28,S*.33,S*.13,0,0,7);g.stroke();
-  const y=py-bob,face=Math.cos(h.fa)>=0?1:-1;
-  // legs
-  g.strokeStyle='#2b2520';g.lineWidth=3;g.lineCap='round';const lg=moving?Math.sin(h.walk)*3:0;
-  g.beginPath();g.moveTo(px-3,y+S*.12);g.lineTo(px-3+lg,y+S*.26);g.moveTo(px+3,y+S*.12);g.lineTo(px+3-lg,y+S*.26);g.stroke();
-  // body
-  g.fillStyle=H.col;g.strokeStyle='#1a1410';g.lineWidth=1.5;g.beginPath();g.moveTo(px-S*.17,y+S*.15);g.lineTo(px-S*.12,y-S*.08);g.lineTo(px+S*.12,y-S*.08);g.lineTo(px+S*.17,y+S*.15);g.closePath();g.fill();g.stroke();
-  // head
-  g.fillStyle='#f3d2b0';g.beginPath();g.arc(px,y-S*.17,S*.12,0,7);g.fill();g.stroke();
-  g.fillStyle='#1a1410';g.beginPath();g.arc(px+face*S*.045,y-S*.18,1.4,0,7);g.fill();
-  // class gear
-  const sw=h.atk>0?Math.sin(h.atk/.18*3.14)*1.2:0;
+  const y=py-bob,face=Math.cos(h.fa)>=0?1:-1,r=S*.25,cy=y-S*.02,P=HPAL[h.k];
+  const sw=h.atk>0?Math.sin(h.atk/.18*3.14):0,walkL=moving?Math.sin(h.walk)*2.2:0;
+  // little feet
+  g.fillStyle=P[2];for(const sd of [-1,1]){g.beginPath();g.ellipse(px+sd*r*.45,py+S*.22+(sd*walkL>0?-1.5:0),r*.28,r*.17,0,0,7);g.fill()}
+  // back gear
+  if(h.k==='mage'){g.strokeStyle='#8a5a30';g.lineWidth=2.6;g.lineCap='round';g.beginPath();g.moveTo(px+face*r*1.05,cy+r*.9);g.lineTo(px+face*r*1.05,cy-r*1.25);g.stroke();
+    const gl=.6+.4*Math.sin(now*5)+(h.atk>0?.5:0);const og=g.createRadialGradient(px+face*r*1.05,cy-r*1.35,0,px+face*r*1.05,cy-r*1.35,r*.55);og.addColorStop(0,'rgba(255,255,255,'+Math.min(1,gl)+')');og.addColorStop(.4,'rgba(201,162,255,'+Math.min(1,gl)+')');og.addColorStop(1,'rgba(201,162,255,0)');g.fillStyle=og;g.beginPath();g.arc(px+face*r*1.05,cy-r*1.35,r*.55,0,7);g.fill()}
+  if(h.k==='assassin'){const fl=Math.sin(now*9)*r*.15;g.fillStyle='#3a2840';for(const k of [0,1]){g.beginPath();g.moveTo(px-face*r*.7,cy-r*.45);g.quadraticCurveTo(px-face*r*1.3,cy-r*(.3-k*.3)+fl,px-face*r*1.6,cy-r*(.1-k*.35)+fl*1.4);g.lineTo(px-face*r*.8,cy-r*.25);g.closePath();g.fill()}}
+  // round body
+  const gr=g.createRadialGradient(px-r*.35,cy-r*.4,r*.1,px,cy,r*1.1);gr.addColorStop(0,P[0]);gr.addColorStop(.55,P[1]);gr.addColorStop(1,P[2]);
+  g.fillStyle=gr;g.beginPath();g.ellipse(px,cy,r*1.02,r*.96,0,0,7);g.fill();g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=1.5;g.stroke();
+  // face patch
+  g.fillStyle='#ffe3c8';g.beginPath();g.ellipse(px+face*r*.12,cy+r*.08,r*.66,r*.5,0,0,7);g.fill();
+  // eyes + blush
+  const ex=px+face*r*.12,blink=(now*0.7+h.k.length)%4<.08;
+  for(const sd of [-1,1]){const x=ex+sd*r*.3;
+    if(blink){g.strokeStyle='#2a1e18';g.lineWidth=1.6;g.beginPath();g.moveTo(x-r*.11,cy+r*.02);g.lineTo(x+r*.11,cy+r*.02);g.stroke()}
+    else{g.fillStyle='#2a1e18';g.beginPath();g.ellipse(x+face*r*.04,cy,r*.12,r*.16,0,0,7);g.fill();g.fillStyle='#fff';g.beginPath();g.arc(x+face*r*.04-r*.04,cy-r*.06,r*.055,0,7);g.fill()}
+    g.fillStyle='rgba(255,120,140,.45)';g.beginPath();g.ellipse(x+sd*r*.12,cy+r*.24,r*.11,r*.06,0,0,7);g.fill()}
+  g.strokeStyle='#7a3a2a';g.lineWidth=1.2;g.beginPath();g.arc(ex,cy+r*.2,r*.08,.2,Math.PI-.2);g.stroke();
+  // headgear + hand gear
   if(h.k==='warrior'){
-    g.fillStyle='#c7ccd6';g.beginPath();g.arc(px,y-S*.2,S*.125,Math.PI,0);g.fill();g.stroke(); // helmet
-    g.fillStyle='#8a5a2b';g.beginPath();g.arc(px-face*S*.17,y+S*.02,S*.1,0,7);g.fill();g.stroke(); // shield
-    g.save();g.translate(px+face*S*.17,y);g.rotate(face*(-.6+sw));g.strokeStyle='#e8ecf2';g.lineWidth=3;g.beginPath();g.moveTo(0,0);g.lineTo(0,-S*.34);g.stroke();g.strokeStyle='#6b4a2a';g.beginPath();g.moveTo(-4,-2);g.lineTo(4,-2);g.stroke();g.restore();
+    const hg=g.createLinearGradient(0,cy-r,0,cy-r*.3);hg.addColorStop(0,'#f4f6fa');hg.addColorStop(1,'#9aa3b2');g.fillStyle=hg;
+    g.beginPath();g.arc(px,cy-r*.28,r*.98,Math.PI*1.04,Math.PI*1.96);g.closePath();g.fill();g.strokeStyle='#5d6676';g.lineWidth=1.2;g.stroke();
+    g.fillStyle='#e04848';g.beginPath();g.moveTo(px-r*.08,cy-r*1.15);g.quadraticCurveTo(px-face*r*.7,cy-r*1.75,px-face*r*.9,cy-r*1.1);g.quadraticCurveTo(px-face*r*.4,cy-r*1.3,px+r*.1,cy-r*1.1);g.fill();
+    g.save();g.translate(px+face*r*.95,cy+r*.35);g.rotate(face*(-.5+sw*1.3));g.fillStyle='#e8ecf2';g.strokeStyle='#5d6676';g.lineWidth=1;
+    g.beginPath();g.moveTo(-r*.1,0);g.lineTo(-r*.1,-r*1.05);g.lineTo(0,-r*1.25);g.lineTo(r*.1,-r*1.05);g.lineTo(r*.1,0);g.closePath();g.fill();g.stroke();g.fillStyle='#c79a3a';g.fillRect(-r*.25,-r*.05,r*.5,r*.12);g.restore();
+    g.fillStyle='#b5813a';g.strokeStyle='#6b4a1c';g.beginPath();g.ellipse(px-face*r*.95,cy+r*.3,r*.32,r*.4,0,0,7);g.fill();g.stroke();g.fillStyle='#f2d27a';g.beginPath();g.arc(px-face*r*.95,cy+r*.3,r*.1,0,7);g.fill();
   }else if(h.k==='archer'){
-    g.fillStyle='#3f8a46';g.beginPath();g.moveTo(px-S*.13,y-S*.17);g.quadraticCurveTo(px,y-S*.42,px+S*.13,y-S*.17);g.closePath();g.fill(); // hood
-    g.strokeStyle='#8a5a2b';g.lineWidth=2.2;g.beginPath();g.arc(px+face*S*.12,y,S*.2,-1.2,1.2,face<0);g.stroke();
-    g.strokeStyle='#f0f0e0';g.lineWidth=.8;g.beginPath();g.moveTo(px+face*S*.12+Math.cos(1.2)*S*.2*face,y-Math.sin(1.2)*S*.2);g.lineTo(px+face*(S*.12-sw*4),y);g.lineTo(px+face*S*.12+Math.cos(1.2)*S*.2*face,y+Math.sin(1.2)*S*.2);g.stroke();
+    g.fillStyle='#3f9a4a';g.beginPath();g.moveTo(px-r*1.02,cy-r*.05);g.quadraticCurveTo(px-r*1.05,cy-r*1.1,px-face*r*.15,cy-r*1.55);g.quadraticCurveTo(px+r*1.05,cy-r*1.1,px+r*1.02,cy-r*.05);g.quadraticCurveTo(px,cy-r*.6,px-r*1.02,cy-r*.05);g.fill();g.strokeStyle='rgba(0,0,0,.3)';g.lineWidth=1.2;g.stroke();
+    g.fillStyle='#ffd65a';g.beginPath();g.moveTo(px+face*r*.3,cy-r*.85);g.lineTo(px+face*r*.75,cy-r*1.45);g.lineTo(px+face*r*.5,cy-r*.8);g.fill();
+    const bx=px+face*r*1.05,bc=cy+r*.15,pull=sw*r*.25;
+    g.strokeStyle='#8a5a2b';g.lineWidth=2.4;g.beginPath();g.arc(bx-face*r*.2,bc,r*.75,face>0?-1.1:Math.PI-1.1+2.2-2.2,face>0?1.1:Math.PI+1.1,false);g.stroke();
+    g.strokeStyle='#f6f0dc';g.lineWidth=.9;g.beginPath();const ty=r*.75*Math.sin(1.1),tx=bx-face*r*.2+face*r*.75*Math.cos(1.1);g.moveTo(tx,bc-ty);g.lineTo(bx-face*(r*.2+pull),bc);g.lineTo(tx,bc+ty);g.stroke();
   }else if(h.k==='mage'){
-    g.fillStyle='#5a3fc0';g.beginPath();g.moveTo(px-S*.17,y-S*.22);g.lineTo(px+face*S*.06,y-S*.55);g.lineTo(px+S*.17,y-S*.22);g.closePath();g.fill();g.stroke(); // hat
-    g.strokeStyle='#7a5230';g.lineWidth=2.5;g.beginPath();g.moveTo(px+face*S*.2,y+S*.22);g.lineTo(px+face*S*.2,y-S*.3);g.stroke();
-    const gl=.6+.4*Math.sin(now*5)+(h.atk>0?.6:0);g.fillStyle=`rgba(201,162,255,${Math.min(1,gl)})`;g.beginPath();g.arc(px+face*S*.2,y-S*.33,S*.07+(h.atk>0?2:0),0,7);g.fill();
+    g.fillStyle='#5a3fc0';g.beginPath();g.ellipse(px,cy-r*.62,r*1.05,r*.26,0,0,7);g.fill();
+    g.beginPath();g.moveTo(px-r*.62,cy-r*.68);g.quadraticCurveTo(px-r*.2,cy-r*1.4,px-face*r*.35,cy-r*2.05);g.quadraticCurveTo(px+r*.3,cy-r*1.3,px+r*.62,cy-r*.68);g.closePath();g.fill();g.strokeStyle='rgba(0,0,0,.3)';g.lineWidth=1.2;g.stroke();
+    g.fillStyle='#ffe37a';g.font='bold '+Math.round(r*.55)+'px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText('★',px,cy-r*1.05);
   }else{
-    g.fillStyle='#2b2030';g.beginPath();g.arc(px,y-S*.19,S*.13,Math.PI*.95,Math.PI*2.05);g.fill(); // hood
-    g.fillStyle='#2b2030';g.fillRect(px-S*.12,y-S*.15,S*.24,S*.06); // mask
-    g.fillStyle='#ff4d6d';g.beginPath();g.arc(px+face*S*.045,y-S*.18,1.4,0,7);g.fill();
-    g.strokeStyle='#e8ecf2';g.lineWidth=2;for(const sd of [-1,1]){g.save();g.translate(px+sd*S*.17,y+S*.04);g.rotate(sd*(.5+sw));g.beginPath();g.moveTo(0,0);g.lineTo(0,-S*.2);g.stroke();g.restore()}
+    g.fillStyle='#3a2840';g.beginPath();g.arc(px,cy-r*.05,r*1.0,Math.PI*1.02,Math.PI*1.98);g.quadraticCurveTo(px,cy-r*.55,px-r*.99,cy-r*.12);g.fill();
+    g.fillStyle='#d05470';g.fillRect(px-r*.95,cy-r*.5,r*1.9,r*.15);
+    g.strokeStyle='#e8ecf2';g.lineWidth=2.2;g.lineCap='round';
+    for(const sd of [-1,1]){g.save();g.translate(px+sd*r*1.0,cy+r*.4);g.rotate(sd*(.35+sw*.9));g.beginPath();g.moveTo(0,0);g.lineTo(0,-r*.75);g.stroke();g.strokeStyle='#5a3a2a';g.beginPath();g.moveTo(-r*.15,0);g.lineTo(r*.15,0);g.stroke();g.restore()}
   }
   if(h.jobs.length&&h.bt>0){g.fillStyle='#fffbe0';g.font='bold 11px system-ui';g.textAlign='center';g.fillText('🔨',px+face*S*.28,y-S*.3+Math.sin(now*20)*2)}
   g.restore();
@@ -2314,6 +2341,8 @@ function drawHero(){
 }
 function heroUI(){
   const b=$('skill');if(!b)return;
+  $('joy').style.display=heroOn()&&started&&TOUCH?'block':'none';
+  $('skKey').style.display=TOUCH?'none':'';
   if(!heroOn()||!started){b.style.display='none';return}
   const h=hero,H=HEROES[h.k];b.style.display='flex';
   setText($('skI'),H.ico);
@@ -2326,9 +2355,17 @@ function heroPick(){
   for(const k of HK){const H=HEROES[k];h+='<button class="hb'+(k===heroK?' cur':'')+'" data-k="'+k+'"><b>'+H.ico+'</b><small>'+H.name+'</small></button>'}
   $('heroGrid').innerHTML=h;
   const H=HEROES[heroK];
-  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">Chạm map: nhân vật chạy tới (máy tính: chuột phải cũng được). Chọn tháp ở dưới rồi chạm map: xây.</span>',true);
+  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'Chuột phải để di chuyển, phím Q để tung chiêu.')+'</span>',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
+(()=>{const J=$('joy'),K=$('joyK'),RAD=34;let id=null;
+  const set=ev=>{const r=J.getBoundingClientRect();let dx=ev.clientX-(r.left+r.width/2),dy=ev.clientY-(r.top+r.height/2);const d=Math.hypot(dx,dy);if(d>RAD){dx*=RAD/d;dy*=RAD/d}
+    K.style.transform='translate('+dx+'px,'+dy+'px)';if(hero)hero.joy={x:dx/RAD,y:dy/RAD}};
+  const end=()=>{id=null;K.style.transform='';J.classList.remove('on');if(hero)hero.joy=null};
+  J.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(!heroOn()||!started||state.over||paused)return;id=e.pointerId;J.classList.add('on');try{J.setPointerCapture(id)}catch(er){}set(e)});
+  J.addEventListener('pointermove',e=>{if(e.pointerId===id)set(e)});
+  J.addEventListener('pointerup',e=>{if(e.pointerId===id)end()});J.addEventListener('pointercancel',end);
+})();
 $('skill').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();heroSkill()});
 refreshHome();
 reset();fit();requestAnimationFrame(loop);
