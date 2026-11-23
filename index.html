@@ -217,6 +217,9 @@
   .rk li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rk li small{color:var(--gold)}
   .rk li.me{outline:2px solid var(--acc)}
+  .md{flex:1;padding:9px 4px;border-radius:12px;font-weight:700}
+  .md.cur{outline:2px solid var(--acc);background:#2c4a2a}
+  .md:disabled{opacity:.75}
   .slots4{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .team4 .tn{font-weight:800;font-size:13px;margin:0 0 4px}
   .team4 .slot{margin:0 0 6px}
@@ -1914,7 +1917,8 @@ async function createRoom(mode){
     showRoom({full:true});SFX.play('build');
   });
 }
-function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'||mp.pve?COOP_LEVEL:VS_LEVEL);if(mp.mode==='2v2'){mp.started=true;room4Announce()}mpSend({t:'start',mode:mp.mode,level:lv,names:mp.names,heroK:mp.heroK});mpBegin(lv)}
+function mpStartMatch(){let lv=mp.nextLv||(mp.mode==='coop'||mp.pve?COOP_LEVEL:VS_LEVEL);
+  endless=!!(mp.pve&&mp.endless);mapSeed=endless?1000+Math.floor(Math.random()*900000):null;if(endless)lv=1;if(mp.mode==='2v2'){mp.started=true;room4Announce()}mpSend({t:'start',mode:mp.mode,level:lv,names:mp.names,heroK:mp.heroK,endless,seed:mapSeed});mpBegin(lv)}
 function joinAsGuest(c,conn,mode,k,hostName){
   mp={mode,role:'guest',client:c,own:true,conn,opp:{},stT:0,k,oppName:hostName};mpWire();roomInfo=null;showRoom({mode,role:'guest',k:k||'?',full:true});
 }
@@ -1937,13 +1941,13 @@ function mpBegin(lv){
   $('menuLv').style.display='none';$('reset').style.display='none';$('mpLeave').style.display='';
   $('sendbar').style.display=(mp.mode==='vs'||mp.mode==='2v2')&&!mp.pve?'flex':'none';$('opp').style.display='block';
   fit();
-  if(mp.pve){toast('🤝 Tổ đội '+mp.names.filter(Boolean).length+' người! Quái đông và trâu hơn, cùng giữ lâu đài',3000);updateUI();return}
+  if(mp.pve){toast(endless?'♾️ Tổ đội Vô tận! Quái mạnh dần mãi, cả đội trụ càng lâu càng tốt':'🤝 Tổ đội '+mp.names.filter(Boolean).length+' người! Quái đông và trâu hơn, cùng giữ lâu đài',3000);updateUI();return}
   if(mp.mode==='2v2'){toast('Bạn ở '+TEAMN(myTeam())+' (nhà '+(myTeam()?'bên phải':'bên trái')+'). Lính hai nhà tràn sang phá nhau, giữ nhà mình!',3500);updateUI();return}
   toast(mp.mode==='coop'?'🤝 Hợp tác! Tháp chấm vàng là của chủ phòng, chấm xanh là của khách':'⚔️ Solo! Bỏ vàng gửi quái sang bên kia',3200);
   updateUI();
 }
 function mpCleanup(){
-  if(!mp)return;const m=mp;lastOpp=m.oppName||'Bạn kia';mp=null;clearInterval(m.iv);clearInterval(m.hb);
+  if(!mp)return;endless=false;mapSeed=null;const m=mp;lastOpp=m.oppName||'Bạn kia';mp=null;clearInterval(m.iv);clearInterval(m.hb);
   try{m.conn.close()}catch(e){};if(m.own&&m.client)setTimeout(()=>{try{m.client.end()}catch(e){}},400);
   $('menuLv').style.display='';$('reset').style.display='';$('mpLeave').style.display='none';
   $('sendbar').style.display='none';$('opp').style.display='none';$('menu').style.display='none';
@@ -2159,6 +2163,14 @@ const PVP_GOLD=120;
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
 function showPve(won){
+  if(endless){
+    let best=0;try{best=+(localStorage.getItem(pk('mctt-endless-team'))||0)}catch(e){}const w=state.wave,rec=w>best;if(rec)try{localStorage.setItem(pk('mctt-endless-team'),w)}catch(e){}
+    SFX.play(rec?'win':'lose');$('overT').textContent=rec?'🏆 Kỷ lục mới của đội!':'Hết mạng!';$('overStars').textContent='';
+    $('overS').innerHTML='♾️ Vô tận · cả đội trụ được <b>'+w+'</b> đợt<br>Kỷ lục tổ đội của bạn: '+Math.max(w,best)+' đợt';
+    $('overStats').innerHTML=stats4HTML();$('nextLv').style.display='none';$('again').style.display='none';$('overLv').textContent='Rời phòng';
+    const host=mp&&mp.role==='host';mp.lastWon=false;$('mpAgain').style.display=mp?'':'none';$('mpAgain').disabled=!host;
+    $('mpAgain').textContent=host?'Chơi lại (map mới) ▶':'Chờ chủ phòng bắt đầu…';$('over').style.display='flex';updateUI();return;
+  }
   SFX.play(won?'win':'lose');
   $('overT').textContent=won?'Cùng nhau qua màn '+level+'!':'Thua rồi!';$('overStars').textContent='';
   $('overS').textContent=won?'Còn '+state.lives+'/20 mạng':'Trụ được tới đợt '+state.wave+'/'+WAVES;
@@ -2204,7 +2216,8 @@ function showRoom4(){
   if(r.pve){$('rmSub').textContent='🤝 Tổ đội · 2–4 người cùng giữ một lâu đài';document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
     let hh='<div class="team4" style="grid-column:1/-1"><div class="tn" style="color:#8fe07a">🤝 Cả đội</div>';
     for(let i=0;i<4;i++){const n=r.names[i],hk=r.heroK&&r.heroK[i];hh+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div><b style="color:'+(n?PCOL[i]:'')+'">'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div></div>'}
-    hh+='</div><div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Nhân vật của bạn</div><div class="hgrid">'+HK.map(k=>'<button class="hb'+(k===((r.heroK&&r.heroK[r.idx])||heroK)?' cur':'')+'" data-hk="'+k+'"><b>'+HEROES[k].ico+'</b><small>'+HEROES[k].name+'</small></button>').join('')+'</div></div>';
+    hh+='</div><div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Chế độ'+(r.role==='host'?'':' (chủ phòng chọn)')+'</div><div class="mrow"><button class="md'+(r.endless?'':' cur')+'" data-md="lv"'+(r.role==='host'?'':' disabled')+'>🗺️ Theo màn</button><button class="md'+(r.endless?' cur':'')+'" data-md="inf"'+(r.role==='host'?'':' disabled')+'>♾️ Vô tận</button></div></div>';
+    hh+='<div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Nhân vật của bạn</div><div class="hgrid">'+HK.map(k=>'<button class="hb'+(k===((r.heroK&&r.heroK[r.idx])||heroK)?' cur':'')+'" data-hk="'+k+'"><b>'+HEROES[k].ico+'</b><small>'+HEROES[k].name+'</small></button>').join('')+'</div></div>';
     $('slots4').innerHTML=hh;const host=r.role==='host',cnt=r.names.filter(Boolean).length;
     $('rmStart').style.display=host?'':'none';$('rmStart').disabled=cnt<2;
     $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(cnt<2?'Chờ thêm người vào phòng…':'Có thể bắt đầu ('+cnt+'/4 người)'):'Chờ chủ phòng bấm Bắt đầu…';
@@ -2247,7 +2260,7 @@ function room4Announce(){
   if(mp.started)mqPub(mp.client,mp.topic,null,{retain:true,qos:1});
   else mqPub(mp.client,mp.topic,{mode:mp.pve?'coop':mp.cap===2?'vs':'2v2',k:mp.k,at:Date.now(),born:mp.born,name:myName,n,cap:mp.cap,full:n>=mp.cap},{retain:true,qos:1});
 }
-function roster4(){mp.conn.send({t:'roster',names:mp.names,heroK:mp.heroK});if(!started)showRoom4();room4Announce()}
+function roster4(){mp.conn.send({t:'roster',names:mp.names,heroK:mp.heroK,endless:!!mp.endless});if(!started)showRoom4();room4Announce()}
 function hostRecv4(d){
   if(!d||!d.from||!mp||mp.mode!=='2v2'||mp.role!=='host')return;
   const p=mp.peers.get(d.from);
@@ -2302,7 +2315,8 @@ function send4(fromTeam,o,by){
   mp.conn.send({t:'ev',k:o.k,n:o.n,side,by});ev4({k:o.k,n:o.n,side,by});
 }
 function ev4(d){toast('⚔️ '+d.by+' gửi '+d.n+' '+ETYPES[d.k].name+' sang '+(d.side===myTeam()?'đội bạn!':'đội kia'),2200)}
-$('slots4').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b||!mp||mp.mode!=='2v2')return;
+$('slots4').addEventListener('click',e=>{const m=e.target.closest('.md');if(m&&mp&&mp.role==='host'&&!m.disabled){mp.endless=m.dataset.md==='inf';SFX.play('click');roster4();return}
+  const b=e.target.closest('.hb');if(!b||!mp||mp.mode!=='2v2')return;
   heroK=b.dataset.hk;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}SFX.play('click');
   mp.heroK=mp.heroK||[];mp.heroK[mp.idx]=heroK;if(mp.role==='host')roster4();else{mpSend({t:'hero',k:heroK});showRoom4()}});
 function joinAsGuest4(c,link,d){
@@ -2315,8 +2329,8 @@ function guestRecv4(d){
   if(!d||!mp||mp.mode!=='2v2')return;
   if(d.to&&d.to!==mp.client.myId)return;
   switch(d.t){
-    case 'roster':mp.names=d.names;mp.heroK=d.heroK||mp.heroK;if(!started)showRoom4();break;
-    case 'start':mp.names=d.names||mp.names;mp.heroK=d.heroK||mp.heroK;mpBegin(d.level);break;
+    case 'roster':mp.names=d.names;mp.heroK=d.heroK||mp.heroK;mp.endless=!!d.endless;if(!started)showRoom4();break;
+    case 'start':mp.names=d.names||mp.names;mp.heroK=d.heroK||mp.heroK;endless=!!d.endless;mapSeed=d.seed??null;mpBegin(d.level);break;
     case 's':applySnap(d);break;
     case 'err':toast(d.m);break;
     case 'ev':ev4(d);break;
