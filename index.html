@@ -49,6 +49,11 @@
   #skill{position:absolute;right:6px;bottom:6px;width:62px;height:62px;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
     background:conic-gradient(#0009 var(--p,0deg),#2c4a2acc 0);border:2px solid #fffbe0aa;box-shadow:0 3px 10px #0008;touch-action:none}
   #skill.cd{border-color:#fffbe033}
+  #moveB{position:absolute;right:14px;bottom:74px;width:46px;height:46px;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;z-index:3;
+    background:#2c4a2acc;border:2px solid #fffbe066;box-shadow:0 3px 10px #0008;font-size:18px;line-height:1;touch-action:none}
+  #moveB small{font-size:9px;font-weight:800;color:#fffbe0;margin-top:1px}
+  #moveB.on{background:#e8c24a;border-color:#fff}
+  #moveB.on small{color:#1a1410}
   #skill #skI{font-size:22px;line-height:1}
   #skill #skT{font-size:9.5px;font-weight:800;color:#fffbe0;white-space:nowrap;margin-top:1px}
   #skill.cd #skT{font-size:15px}
@@ -210,6 +215,7 @@
   <div class="stage">
     <div class="wrap">
       <canvas id="cv"></canvas>
+      <button id="moveB">🏃<small>Đi</small></button>
       <button id="skill"><span id="skI"></span><span id="skT"></span></button>
       <div id="msg"></div>
       <div class="pop" id="pop"></div>
@@ -301,7 +307,7 @@
       <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
-        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Chạm vào nhân vật rồi chạm chỗ khác để dẫn nó đi. Nút tròn góc phải dưới là chiêu riêng.</li>
+        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Muốn dẫn nhân vật đi thì bấm nút 🏃 Đi rồi chạm chỗ muốn tới. Nút tròn to góc phải dưới là chiêu riêng.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
@@ -1962,7 +1968,6 @@ cv.addEventListener('pointerdown',ev=>{
   hideTip();hideEtip();toggleNext(false);
   if(!started||state.over||paused)return;
   if(heroOn()){const r=cv.getBoundingClientRect(),fx=(ev.clientX-r.left)/r.width*C,fy=(ev.clientY-r.top)/r.height*R;
-    if(Math.hypot(fx-hero.x,fy-(hero.y-.25))<.75){hero.sel=!hero.sel;if(selTower)closePop();SFX.play('click');return}
     if(hero.sel){hero.sel=false;if(fx>=0&&fy>=0&&fx<C&&fy<R){hero.jobs=[];hero.goto={x:fx,y:fy};hero.bt=0}return}}
   const c=cell(ev);
   if(!inB(c)){if(selTower)closePop();return}
@@ -2290,6 +2295,7 @@ function drawHero(){
 }
 function heroUI(){
   const b=$('skill');if(!b)return;
+  $('moveB').style.display=heroOn()&&started?'flex':'none';if(hero)$('moveB').classList.toggle('on',!!hero.sel);
   if(!heroOn()||!started){b.style.display='none';return}
   const h=hero,H=HEROES[h.k];b.style.display='flex';
   setText($('skI'),H.ico);
@@ -2305,6 +2311,7 @@ function heroPick(){
   setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
+$('moveB').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(!heroOn()||!started||state.over)return;hero.sel=!hero.sel;if(hero.sel){closePop();toast('Chạm vào chỗ muốn tới',1500)}SFX.play('click')});
 $('skill').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();heroSkill()});
 refreshHome();
 reset();fit();requestAnimationFrame(loop);
