@@ -1770,7 +1770,7 @@ async function mqConnect(will){
     const c=await new Promise(res=>{
       let done=false;const cl=mqtt.connect(url,{clientId:id,clean:true,connectTimeout:7000,reconnectPeriod:0,keepalive:20,will});
       const fin=v=>{if(done)return;done=true;if(!v){try{cl.end(true)}catch(_){}};res(v)};
-      cl.on('connect',()=>fin(cl));cl.on('error',()=>fin(null));setTimeout(()=>fin(null),8000);
+      cl.on('connect',()=>{if(!done){cl.options.reconnectPeriod=2000}fin(cl)});cl.on('error',()=>fin(null));setTimeout(()=>fin(null),8000);
     });
     if(c){c.myId=id;c.subs=new Map();c.on('message',(t,buf)=>{let d=null;try{d=buf.length?JSON.parse(buf.toString()):null}catch(e){return}
       const f=c.subs.get(t);if(f)f(d,t);else for(const [k,g] of c.subs)if(k.endsWith('/+')&&t.startsWith(k.slice(0,-1)))g(d,t)});
@@ -1783,6 +1783,8 @@ function mqUnsub(c,t){c.subs.delete(t);try{c.unsubscribe(t)}catch(e){}}
 function mqPub(c,t,o,opt){try{c.publish(t,o==null?'':JSON.stringify(o),Object.assign({qos:0},opt||{}))}catch(e){}}
 // ---- direct device-to-device channel (WebRTC). MQTT is only used to find rooms, to set this up, and as a fallback ----
 const ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];
+// how long a silent player is kept before being dropped (tab in background, phone locked, weak network)
+const LINK_TIMEOUT=25000;
 const FAST=t=>t==='s'||t==='joy'||t==='ping';
 function rtcOpen(sendSig,onMsg,initiator){
   if(typeof RTCPeerConnection==='undefined')return null;
@@ -1817,7 +1819,7 @@ function makeLink(c,pubT,subT,peerId){
     if(d.t==='bye'){shut();return}
     if(L.direct()&&!d.to&&d.t!=='ping')return; // the direct channel carries the game now
     if(d.t!=='ping')h.data.forEach(f=>f(d))});
-  L.iv=setInterval(()=>{if(!L.open)return;L.send({t:'ping'});if(Date.now()-L.last>10000||(!c.connected&&!L.direct()))shut()},2000);
+  L.iv=setInterval(()=>{if(!L.open)return;L.send({t:'ping'});if(Date.now()-L.last>LINK_TIMEOUT)shut()},2000);
   return L;
 }
 function mpStopSearch(){
@@ -2160,7 +2162,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=120;
-const APP_VER='mctt-v93'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v94'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2253,7 +2255,8 @@ async function createRoom4(cap,pve){
     close(){if(!this.open)return;this.send({t:'bye'});mqPub(c,gT,{t:'bye',from:c.myId},{qos:1});for(const p of my.peers.values())if(p.rtc)p.rtc.close();this.open=false;clearInterval(my.iv);clearInterval(my.hb);mqPub(c,topic,null,{retain:true,qos:1});mqUnsub(c,hT)}};
   room4Announce();my.hb=setInterval(room4Announce,15000);
   mqSub(c,hT,hostRecv4);
-  my.iv=setInterval(()=>{if(mp!==my)return;my.conn.send({t:'ping'});const t=Date.now();for(const [pid,p] of my.peers)if(t-p.last>10000)dropPeer4(pid)},2000);
+  my.iv=setInterval(()=>{if(mp!==my)return;my.conn.send({t:'ping'});const t=Date.now();for(const [pid,p] of my.peers)if(t-p.last>LINK_TIMEOUT)dropPeer4(pid)},2000);
+  c.on('connect',()=>{if(mp===my)room4Announce()}); // back after a dropped connection: list the room again
   showRoom4();
 }
 function room4Announce(){
