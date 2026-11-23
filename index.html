@@ -760,7 +760,7 @@ function upgrade(tw){
   const e=doUpgrade(tw,0);if(e)toast(e);
 }
 function doUpgrade(tw,owner){
-  if((tw.owner||0)!==owner)return 'Tháp của '+oppN();
+  if((tw.owner||0)!==owner)return 'Tháp của '+ownerName(tw);
   const nx=TYPES[tw.type].lv[tw.lvl+1];
   if(!nx)return 'Đã đạt cấp tối đa';
   if(goldOf(owner)<nx.cost)return 'Không đủ vàng';
@@ -785,7 +785,7 @@ function sellTower(tw){
   const e=doSell(tw,0);if(e)toast(e);
 }
 function doSell(tw,owner){
-  if((tw.owner||0)!==owner)return 'Tháp của '+oppN();
+  if((tw.owner||0)!==owner)return 'Tháp của '+ownerName(tw);
   addGold(owner,Math.floor(tw.spent*SELL_RATE));SFX.play('sell');
   grid[tw.y][tw.x]=null;
   burst(tw.x+.5,tw.y+.5,'#ffd166',10,2.4);
@@ -2616,11 +2616,12 @@ function heroXP(v){
   if(h.lv>=HERO_MAXLV)h.xp=0;
 }
 function heroOrder(x,y){const e=heroOrder2(x,y,selType,hero.owner||0);if(e)toast(e);else SFX.play('click')}
+function ownerName(tw){const n=mp&&mp.names&&mp.names[tw.owner||0];return n||oppN()}
 const jobCost=j=>{if(!j.up)return TYPES[j.type].lv[0].cost;const t=grid[j.y]&&grid[j.y][j.x],n=t&&!t.wall&&TYPES[t.type].lv[t.lvl+1];return n?n.cost:0};
 // is this queued job still possible? (cell still free / tower still there and upgradable)
 const jobOK=(j,owner)=>{const t=grid[j.y][j.x];return j.up?!!(t&&!t.wall&&(t.owner||0)===owner&&TYPES[t.type].lv[t.lvl+1]):!t};
 function heroUpOrder(tw,owner){
-  if((tw.owner||0)!==owner)return 'Tháp của '+oppN();
+  if((tw.owner||0)!==owner)return 'Tháp của '+ownerName(tw);
   const nx=TYPES[tw.type].lv[tw.lvl+1];if(!nx)return 'Đã đạt cấp tối đa';
   if(hero.jobs.some(j=>j.x===tw.x&&j.y===tw.y))return 'Tháp này đã có lệnh';
   if(hero.jobs.length>=6)return 'Tối đa 6 lệnh chờ';
