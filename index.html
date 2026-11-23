@@ -943,7 +943,7 @@ function update(dt){
   const born=[];
   state.time+=dt;
   // passive income for both players in any 2-player mode (much smaller than kill gold)
-  if(mp&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;if(mp.mode==='2v2'){state.gold++;for(let i=1;i<4;i++)state.goldP[i]++;for(const s of state.stats)s.g++}else{state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}}
+  if(mp&&!mp.pve&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;if(mp.mode==='2v2'){state.gold++;for(let i=1;i<4;i++)state.goldP[i]++;for(const s of state.stats)s.g++}else{state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}}
   spawnT-=dt;
   if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))*(SIDES?.5:1)}
   if(!queue.length){
@@ -2144,8 +2144,8 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=120;
-// team play: each extra player adds 30% monster HP and 35% more monsters per wave
-const TEAM_HP=.3,TEAM_MORE=.35;
+// team play: each extra player adds 45% monster HP and 45% more monsters per wave (no passive income in team play)
+const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
 function showPve(won){
   SFX.play(won?'win':'lose');
