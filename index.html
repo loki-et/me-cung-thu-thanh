@@ -1555,8 +1555,10 @@ function setPause(v){
   $('menu').style.display=v&&started&&!state.over?'flex':'none';
   if(state)updateUI();
 }
-$('pause').onclick=()=>{if(started&&!state.over)setPause(mp?$('menu').style.display!=='flex':!paused)};
-$('resume').onclick=()=>setPause(false);
+// after a level ends the ☰ menu swaps with the result screen
+function overMenu(show){$('menu').querySelector('h2').textContent='Menu';$('menu').style.display=show?'flex':'none';$('over').style.display=show?'none':'flex'}
+$('pause').onclick=()=>{if(started&&state.over){overMenu($('menu').style.display!=='flex');return}if(started)setPause(mp?$('menu').style.display!=='flex':!paused)};
+$('resume').onclick=()=>{if(started&&state.over){overMenu(false);return}setPause(false)};
 function showHelp(){$('homeBody').style.display='none';$('helpBody').style.display='';$('start').style.display='flex';$('start').querySelector('.card').scrollTop=0}
 function closeHelp(){$('helpBody').style.display='none';$('homeBody').style.display='';if(started){$('start').style.display='none'}}
 function showHome(){
