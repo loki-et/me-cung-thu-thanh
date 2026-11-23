@@ -836,7 +836,10 @@ function startWave(){
   const n=state.wave,{hpm,spm}=waveMul(n),list=[];
   for(const [k,c] of waveComp(n))for(let i=0;i<c;i++)list.push(k);
   for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
-  if(SIDES){const f=sd=>sideMul(sd);for(const k of list)for(const side of [0,1])queue.push({k,hpm:hpm*f(side),spm,n,side})}
+  if(SIDES){
+    const per=[0,1].map(sd=>{const l=list.slice();if(sideN(sd)>=2){const extra=Math.round(list.length*(SIDE_MORE-1));const pool=list.filter(k=>k!=='boss');for(let i=0;i<extra&&pool.length;i++)l.splice(Math.floor(Math.random()*(l.length+1)),0,pool[Math.floor(Math.random()*pool.length)])}return l});
+    for(let i=0;i<Math.max(per[0].length,per[1].length);i++)for(const side of [0,1])if(per[side][i])queue.push({k:per[side][i],hpm:hpm*sideMul(side),spm,n,side});
+  }
   else for(const k of list)queue.push({k,hpm,spm,n});
   if(n%10===0)toast('👑 Trùm xuất hiện! Trùm triệu hồi thêm lính',2500);
   else setTimeout(warnNewType,2600);
@@ -2048,7 +2051,10 @@ function genMap2(){
   buildGrid();
 }
 // a side defended by 2 players gets tougher troops; heroes add a bit too
-function sideMul(sd){const n=mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;return (n>=2?COOP_HP:1)*HERO_HP}
+const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
+// 2 defenders: ~60% more troops (a bit tougher too); 1 defender: normal wave
+function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
+const SIDE_MORE=1.6;
 const PVP_GOLD=120;
 const TEAMN=t=>t?'Đội Đỏ':'Đội Xanh';
 function end2v2(wt){
