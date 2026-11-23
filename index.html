@@ -2172,7 +2172,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=120;
-const APP_VER='mctt-v96'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v97'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2659,7 +2659,7 @@ function makeHero(){
 const HERO_BASE=.6,HERO_MAXLV=10,HERO_HP=1.35,xpNeed=lv=>40+35*(lv-1);
 function heroMul(){const w=Math.max(1,state.wave);return (.3+.7*waveMul(w).hpm/waveMul(1).hpm)*HERO_BASE*(1+.12*((hero&&hero.lv||1)-1))*(1+.07*hUp(hero,'dmg'))}
 // gold upgrades: power (no cap, rising price), agility and cooldown (5 steps each)
-const HUPS={dmg:{i:'⚔️',n:'Sức mạnh',d:'+7% sát thương mọi đòn',c:80,f:1.5,max:99},spd:{i:'👟',n:'Nhanh nhẹn',d:'+6% tốc đánh, +4% tốc chạy',c:70,f:1.6,max:5},cd:{i:'⏱️',n:'Hồi chiêu',d:'E và Q hồi nhanh hơn 6%',c:90,f:1.6,max:5}};
+const HUPS={dmg:{i:'⚔️',n:'Sức mạnh',d:'+7% sát thương mọi đòn',c:250,f:1.45,max:99},spd:{i:'👟',n:'Nhanh nhẹn',d:'+6% tốc đánh, +4% tốc chạy',c:300,f:1.5,max:5},cd:{i:'⏱️',n:'Hồi chiêu',d:'E và Q hồi nhanh hơn 6%',c:300,f:1.5,max:5}};
 const hUp=(h,k)=>(h&&h.up&&h.up[k])||0;
 const hUpCost=(h,k)=>Math.round(HUPS[k].c*Math.pow(HUPS[k].f,hUp(h,k)));
 const hAtkCd=h=>HEROES[h.k].cd/(1+.06*hUp(h,'spd')),hSp=h=>HEROES[h.k].sp*(1+.04*hUp(h,'spd')),hSkCd=(h,base)=>base*(1-.06*hUp(h,'cd'));
