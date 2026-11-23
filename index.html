@@ -34,6 +34,8 @@
   #wave{flex:1.5}
   #pause,#sndq{flex:none;width:44px;height:44px;padding:0;font-size:20px}
   #sndq{font-size:18px}
+  #app.wide{max-width:1500px}
+  #app.wide .hud,#app.wide .dock,#app.wide #sendbar,#app.wide .nextw,#app.wide .msgbar{width:100%;max-width:640px;margin-left:auto;margin-right:auto;box-sizing:border-box}
   @media (max-width:400px){
     .hud{gap:4px;padding:6px 6px}
     .st{gap:3px;padding:4px 6px;border-radius:10px}
@@ -201,6 +203,9 @@
   .rk li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rk li small{color:var(--gold)}
   .rk li.me{outline:2px solid var(--acc)}
+  .slots4{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .team4 .tn{font-weight:800;font-size:13px;margin:0 0 4px}
+  .team4 .slot{margin:0 0 6px}
   .namerow{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:18px}
   .namerow input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--txt);background:#0004;border:1px solid var(--line);border-radius:12px;padding:10px 12px;outline:none}
   .namerow input:focus{border-color:var(--acc)}
@@ -257,19 +262,20 @@
       <div class="slot on" id="slot1"><span class="av">👑</span><div><b id="slot1n">Bạn</b><small id="slot1s">Chủ phòng</small></div><span class="ck">✓</span></div>
       <div class="slot" id="slot2"><span class="av" id="slot2a">⏳</span><div><b id="slot2n">Đang chờ người chơi 2…</b><small id="slot2s">Phòng sẽ hiện trong danh sách cho người khác vào</small></div><span class="ck" id="slot2c"></span></div>
     </div>
+    <div id="slots4" class="slots4" style="display:none"></div>
     <div class="mph" id="rmHint" style="margin-top:12px"></div>
     <div class="prow" style="margin-top:8px"><button id="rmLeave">← Rời phòng</button><button class="go" id="rmStart" disabled>▶ Bắt đầu</button></div>
   </div></div>
   <div id="levels">
     <div class="card">
-      <h1>Chọn màn</h1>
+      <div style="display:flex;align-items:center;justify-content:space-between"><h1>Chọn màn</h1><button id="lvRank" title="Bảng xếp hạng" aria-label="Bảng xếp hạng" style="display:none;padding:6px 10px">🏆</button></div>
       <div class="sub" id="lvSub"></div>
       <div class="lvgrid" id="lvGrid"></div>
       <div class="best" id="lvInfo" style="margin:10px 0 2px;color:var(--mut)"></div>
  <div class="mph" style="text-align:left;margin-top:12px">Nhân vật</div>
       <div class="hgrid" id="heroGrid"></div>
       <div class="hinfo" id="heroInfo"></div>
-      <button id="lvRank" style="width:100%;margin-top:6px;display:none">🏆 Bảng xếp hạng màn này</button>
+
       <div class="prow" style="margin-top:8px"><button id="lvHelp">← Quay lại</button><button class="go" id="lvGo">▶ Chơi</button></div>
     </div>
   </div>
@@ -307,6 +313,7 @@
       <button class="go" id="go">👤 Chơi 1 mình</button>
       <button class="go" id="go2" style="margin-top:8px">🤝 Hợp tác</button>
       <button class="go" id="go3" style="margin-top:8px">⚔️ Solo 1vs1</button>
+      <button class="go" id="go4" style="margin-top:8px">👥 2vs2</button>
       <div class="best" id="bestT" style="margin:10px 0 0"></div>
       </div>
       <div id="helpBody" style="display:none">
@@ -349,15 +356,24 @@
 </div>
 <script>
 (()=>{
-const C=12,R=18,S=36;
+let C=12,R=18;const S=36;
 const DPR=Math.min(2,window.devicePixelRatio||1);
 const $=id=>document.getElementById(id);
 const cv=$('cv'),g=cv.getContext('2d');
 cv.width=C*S*DPR;cv.height=R*S*DPR;
-const SP={x:Math.floor((C-1)/2),y:0},EX={x:Math.floor((C-1)/2),y:R-1};
+let SP={x:Math.floor((C-1)/2),y:0},EX={x:Math.floor((C-1)/2),y:R-1};
+// 2vs2: SIDES holds one spawn/exit per team; the map is two mirrored halves split by a rock column at DIVX
+let SIDES=null;const DIVX=12;
+const sideOf=x=>SIDES&&x>=DIVX?1:0;
+const gates=()=>SIDES||[{sp:SP,ex:EX}];
+const isGate=(x,y)=>gates().some(s=>(x===s.sp.x&&y===s.sp.y)||(x===s.ex.x&&y===s.ex.y));
+const teamOf=i=>(i||0)%2;
+const myTeam=()=>mp&&mp.mode==='2v2'?teamOf(mp.idx):0;
+const PCOL=['#5ab0ff','#ff6b6b','#7de3ff','#ffa07a'];
+function setDims(c,r){C=c;R=r;$('app').classList.toggle('wide',C>12);cv.width=C*S*DPR;cv.height=R*S*DPR;terrain.width=C*S*DPR;terrain.height=R*S*DPR;try{fit()}catch(e){}}
 const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
-const isRes=(x,y)=>x===SP.x&&y===SP.y+1;
+const isRes=(x,y)=>gates().some(s=>x===s.sp.x&&y===s.sp.y+1);
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
 const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=150,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=15,RAGE_ATK=2;
 const TYPES={
@@ -418,9 +434,9 @@ let lastOpp='Bạn kia';
 const oppN=()=>(mp&&mp.oppName)||'Bạn kia';
 const fmtT=t=>{t=Math.round(t);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
 const myId=()=>mp&&mp.role==='guest'?1:0;
-const coopGuest=()=>mp&&mp.mode==='coop'&&mp.role==='guest';
-const goldOf=o=>o===1&&mp&&mp.mode==='coop'&&mp.role==='host'?state.gold2:state.gold;
-function addGold(o,v){if(o===1&&mp&&mp.mode==='coop'&&mp.role==='host')state.gold2+=v;else state.gold+=v}
+const coopGuest=()=>mp&&(mp.mode==='coop'||mp.mode==='2v2')&&mp.role==='guest';
+const goldOf=o=>mp&&mp.mode==='2v2'&&mp.role==='host'?(o?state.goldP[o]:state.gold):o===1&&mp&&mp.mode==='coop'&&mp.role==='host'?state.gold2:state.gold;
+function addGold(o,v){if(mp&&mp.mode==='2v2'&&mp.role==='host'){if(o)state.goldP[o]+=v;else state.gold+=v;return}if(o===1&&mp&&mp.mode==='coop'&&mp.role==='host')state.gold2+=v;else state.gold+=v}
 // progress is kept per account: guests use 'mctt-stars'/'mctt-times', signed-in players get keys suffixed with their uid
 let user=null;
 const pk=k=>k+(user?'-'+user.uid:'');
@@ -481,7 +497,7 @@ function setText(el,s,html){if(txtCache.get(el)===s)return;txtCache.set(el,s);ht
 /* ---------- map generation ---------- */
 function buildGrid(){
   grid=Array.from({length:R},()=>Array(C).fill(null));
-  grid[SP.y][SP.x-1]=WALL;grid[SP.y][SP.x+1]=WALL;
+  for(const s of gates()){grid[s.sp.y][s.sp.x-1]=WALL;grid[s.sp.y][s.sp.x+1]=WALL}
   for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(terr[y][x]===ROCK)grid[y][x]=ROCKC;
 }
 function genMap(){
@@ -653,9 +669,12 @@ function waterCellsExist(){return terr.some(r=>r.includes(WATER))}
 
 /* ---------- game logic ---------- */
 function reset(){
-  genMap();buildTerrain();
+  if(mp&&mp.mode==='2v2')genMap2();
+  else{if(SIDES||C!==12){SIDES=null;setDims(12,18)}SP={x:5,y:0};EX={x:5,y:17};genMap()}
+  buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
   state={time:0,stats:[{k:0,g:0},{k:0,g:0}],gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
+  if(mp&&mp.mode==='2v2'){state.livesT=[20,20];state.goldP=[0,1,2,3].map(()=>state.gold);state.stats=[0,1,2,3].map(()=>({k:0,g:0}))}
   $('over').style.display='none';
   setPause(false);makeHero();
   recompute();updateUI();
@@ -665,7 +684,7 @@ function reset(){
 const TOWER_STEP=1000;
 function bfs(block,mode){
   const d=Array.from({length:R},()=>Array(C).fill(Infinity)),done=Array.from({length:R},()=>Array(C).fill(false));
-  d[EX.y][EX.x]=0;const open=[[0,EX.x,EX.y]];
+  const open=[];for(const s of gates()){d[s.ex.y][s.ex.x]=0;open.push([0,s.ex.x,s.ex.y])}
   while(open.length){
     let bi=0;for(let i=1;i<open.length;i++)if(open[i][0]<open[bi][0])bi=i;
     const [c,x,y]=open[bi];open[bi]=open[open.length-1];open.pop();
@@ -684,9 +703,10 @@ function bfs(block,mode){
 }
 function recompute(){distG=bfs(null,'g');distS=bfs(null,'s');hoverKey=''}
 const cellOf=e=>[Math.min(R-1,Math.max(0,Math.floor(e.y))),Math.min(C-1,Math.max(0,Math.floor(e.x)))];
-function canPlace(x,y){
+function canPlace(x,y,owner){
   if(x<0||y<0||x>=C||y>=R)return 'Ngoài bản đồ';
-  if((x===SP.x&&y===SP.y)||(x===EX.x&&y===EX.y))return 'Không xây ở cổng vào/ra';
+  if(SIDES&&mp&&mp.mode==='2v2'&&sideOf(x)!==teamOf(owner??mp.idx))return 'Chỉ xây được bên đất của đội mình';
+  if(isGate(x,y))return 'Không xây ở cổng vào/ra';
   if(isRes(x,y))return 'Ô ngay dưới cổng phải để trống cho lính đi';
   if(terr[y][x]===ROCK)return 'Núi đá, không xây được';
   if(terr[y][x]===WATER)return 'Mặt nước, không xây được';
@@ -704,7 +724,7 @@ function place(x,y){
 }
 function doPlace(x,y,owner,type){
   const t={...TYPES[type].lv[0],color:TYPES[type].color};
-  const err=canPlace(x,y);
+  const err=canPlace(x,y,owner);
   if(err)return err;
   if(goldOf(owner)<t.cost)return 'Không đủ vàng';
   addGold(owner,-t.cost);
@@ -753,7 +773,7 @@ function doSell(tw,owner){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&(mp.mode==='coop'||mp.mode==='2v2')?COOP_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+Math.round(1.3*n)]];
   if(n>=3)o.push(['runner',2+Math.round(.7*n)]);
@@ -808,7 +828,8 @@ function startWave(){
   const n=state.wave,{hpm,spm}=waveMul(n),list=[];
   for(const [k,c] of waveComp(n))for(let i=0;i<c;i++)list.push(k);
   for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
-  for(const k of list)queue.push({k,hpm,spm,n});
+  if(SIDES){for(const k of list)for(const side of [0,1])queue.push({k,hpm,spm,n,side})}
+  else for(const k of list)queue.push({k,hpm,spm,n});
   if(n%10===0)toast('👑 Trùm xuất hiện! Trùm triệu hồi thêm lính',2500);
   else setTimeout(warnNewType,2600);
   updateUI();
@@ -819,8 +840,9 @@ function mkEnemy(k,x,y,tx,ty,hpm,spm,n){
   return e;
 }
 function spawn(q){
-  enemies.push(mkEnemy(q.k,SP.x+.5,SP.y+.5,SP.x,SP.y,q.hpm,q.spm,q.n));
-  burst(SP.x+.5,SP.y+.5,'#7dffb0',4,1.2);
+  const sd=SIDES?SIDES[q.side||0]:{sp:SP,ex:EX},e=mkEnemy(q.k,sd.sp.x+.5,sd.sp.y+.5,sd.sp.x,sd.sp.y,q.hpm,q.spm,q.n);
+  e.side=q.side||0;e.ex=sd.ex;enemies.push(e);
+  burst(sd.sp.x+.5,sd.sp.y+.5,'#7dffb0',4,1.2);
 }
 function toast(m,ms){
   const el=$('msg');el.textContent=m;el.style.opacity=1;
@@ -834,7 +856,7 @@ function burst(x,y,c,n,sp){
 }
 function prog(e){
   const m=ETYPES[e.k].move;
-  if(m==='f')return Math.hypot(EX.x+.5-e.x,EX.y+.5-e.y);
+  if(m==='f'){const X=e.ex||EX;return Math.hypot(X.x+.5-e.x,X.y+.5-e.y)}
   // remaining path: distance of the cell it is walking into + how far it still is from that cell's centre
   const D=m==='s'?distS:distG,tx=Math.min(C-1,Math.max(0,e.tx)),ty=Math.min(R-1,Math.max(0,e.ty));
   return D[ty][tx]+Math.hypot(e.x-(tx+.5),e.y-(ty+.5));
@@ -846,7 +868,7 @@ function hurt(e,d,raw,zap){
   if(dm<=0)return;
   const a=raw?0:(ETYPES[e.k].armor||0);e.hp-=Math.max(dm*.2,dm-a);e.hit=.1;
 }
-function around(x,y,r){return enemies.filter(e=>e.hp>0&&Math.hypot(e.x-x,e.y-y)<=r)}
+function around(x,y,r){const sd=sideOf(x);return enemies.filter(e=>e.hp>0&&Math.hypot(e.x-x,e.y-y)<=r&&(!SIDES||(e.side||0)===sd))}
 function impact(s,tx,ty){
   dmgBy=s.owner||0;
   const L=s.L,t=s.t;
@@ -879,7 +901,7 @@ function zap(tw,first,L){
   let cur=first;
   while(hit.length<L.chain){
     let nb=null,bd=1.8;
-    for(const e of enemies){if(e.hp<=0||hit.includes(e))continue;const d=Math.hypot(e.x-cur.x,e.y-cur.y);if(d<bd){bd=d;nb=e}}
+    for(const e of enemies){if(e.hp<=0||hit.includes(e)||(SIDES&&(e.side||0)!==(first.side||0)))continue;const d=Math.hypot(e.x-cur.x,e.y-cur.y);if(d<bd){bd=d;nb=e}}
     if(!nb)break;hit.push(nb);cur=nb;
   }
   let d=L.dmg;
@@ -891,11 +913,11 @@ function update(dt){
   const born=[];
   state.time+=dt;
   // passive income for both players in any 2-player mode (much smaller than kill gold)
-  if(mp&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}
+  if(mp&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;if(mp.mode==='2v2'){state.gold++;for(let i=1;i<4;i++)state.goldP[i]++;for(const s of state.stats)s.g++}else{state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}}
   spawnT-=dt;
-  if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))}
+  if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))*(SIDES?.5:1)}
   if(!queue.length){
-    if(state.wave>=WAVES){if(!enemies.length&&state.lives>0){winLevel();return}}
+    if(state.wave>=WAVES){if(!enemies.length&&(SIDES||state.lives>0)){if(SIDES){const a=state.livesT[0],b=state.livesT[1];end2v2(a>b?0:b>a?1:-1)}else winLevel();return}}
     else{state.nextT-=dt;if(state.nextT<=0)startWave()}
   }
   for(const e of enemies){
@@ -916,7 +938,7 @@ function update(dt){
     if(e.stun>0){e.stun-=dt;continue}
     let step=T.sp*e.spm*(e.slow>0?1-(e.slowAmt||.5):1)*dt;
     if(T.move==='f'){
-      const dx=EX.x+.5-e.x,dy=EX.y+.5-e.y,dl=Math.hypot(dx,dy);
+      const X=e.ex||EX,dx=X.x+.5-e.x,dy=X.y+.5-e.y,dl=Math.hypot(dx,dy);
       if(dl<=step+.02)e.done=true;
       else{e.x+=dx/dl*step;e.y+=dy/dl*step;e.fa=Math.atan2(dy,dx)}
       continue;
@@ -953,18 +975,19 @@ function update(dt){
     if(tw.hp<=0)destroyTower(tw);
   }
   for(const tw of towers)if(tw.hurt>0)tw.hurt-=dt;
-  for(const e of enemies)if(e.done&&(!state.taunt||state.taunt.t<.9)){
+  for(const e of enemies)if(e.done&&!SIDES&&(!state.taunt||state.taunt.t<.9)){
     let t;do{t=TAUNTS[Math.floor(Math.random()*TAUNTS.length)]}while(state.taunt&&t===state.taunt.txt&&TAUNTS.length>1);
     state.taunt={txt:t,t:2.2,k:e.k};
   }
   if(state.taunt){state.taunt.t-=dt;if(state.taunt.t<=0)state.taunt=null}
-  for(const e of enemies)if(e.done){SFX.play('leak');state.lives--;e.hp=-1;e.leaked=true;state.flash=.45;burst(e.x,e.y,'#ff6b6b',12,2.5)}
+  for(const e of enemies)if(e.done){SFX.play('leak');if(SIDES){state.livesT[e.side||0]--;state.lives=state.livesT[myTeam()]}else state.lives--;e.hp=-1;e.leaked=true;state.flash=.45;burst(e.x,e.y,'#ff6b6b',12,2.5)}
   for(const tw of towers){
     const L=st(tw);
     tw.cd-=dt;tw.rec=Math.max(0,tw.rec-dt*5);
     const inR=[];
     for(const e of enemies){
       if(e.hp<=0)continue;
+      if(SIDES&&(e.side||0)!==sideOf(tw.x))continue;
       if(Math.hypot(e.x-(tw.x+.5),e.y-(tw.y+.5))>L.range)continue;
       inR.push([prog(e),e]);
     }
@@ -1000,18 +1023,20 @@ function update(dt){
   for(const e of enemies)if(e.hp<=0&&!e.leaked){
     const T=ETYPES[e.k];
     if(e.byHero&&heroOn())heroXP(T.gold);
-    addGold(e.lastBy||0,T.gold);{const sv=state.stats[e.lastBy?1:0];sv.k++;sv.g+=T.gold}
+    addGold(e.lastBy||0,T.gold);{const sv=state.stats[mp&&mp.mode==='2v2'?(e.lastBy||0):(e.lastBy?1:0)];sv.k++;sv.g+=T.gold}
     burst(e.x,e.y,T.col,e.k==='boss'?30:10,e.k==='boss'?4:2.6);SFX.play(e.k==='boss'?'boom':'coin');
     texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold,c:mp&&mp.mode==='coop'&&(e.lastBy||0)!==myId()?'#8fd3ff':null});
     if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n))}burst(e.x,e.y,'#8fe05f',12,2.2)}
   }
+  for(const b of born)if(b.side==null){b.side=sideOf(b.x);b.ex=SIDES?SIDES[b.side].ex:EX}
   enemies=enemies.filter(e=>e.hp>0).concat(born);
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.93;p.vy*=.93;p.life-=dt}
   parts=parts.filter(p=>p.life>0);
   for(const f of fx)f.t-=dt;fx=fx.filter(f=>f.t>0);
   for(const t of texts){t.t-=dt;t.y-=dt*.7}texts=texts.filter(t=>t.t>0);
   state.flash=Math.max(0,state.flash-dt);
-  if(state.lives<=0){
+  if(SIDES){const a=state.livesT[0],b=state.livesT[1];if(a<=0||b<=0){state.livesT=[Math.max(0,a),Math.max(0,b)];end2v2(a<=0&&b<=0?-1:a<=0?1:0);return}}
+  else if(state.lives<=0){
     state.lives=0;state.over=true;selTower=null;
     if(mp){mpEnd(false);return}
     showEnd(false);
@@ -1259,6 +1284,9 @@ function drawWater(){
   g.globalAlpha=1;
 }
 function drawGates(){
+  if(SIDES){const s0=SP,e0=EX;for(const sd of SIDES){SP=sd.sp;EX=sd.ex;drawGate1()}SP=s0;EX=e0}else drawGate1();
+}
+function drawGate1(){
   for(const gx of [SP.x-1,SP.x+1]){
     const wx=gx*S,wyp=SP.y*S;
     g.fillStyle='rgba(0,0,0,.3)';g.beginPath();g.ellipse(wx+S/2+2,wyp+S-4,S*.4,5,0,0,7);g.fill();
@@ -1289,6 +1317,10 @@ function draw(){
   g.setTransform(DPR,0,0,DPR,0,0);
   g.clearRect(0,0,C*S,R*S);
   g.drawImage(terrain,0,0,C*S,R*S);
+  if(SIDES){const ot=1-myTeam(),x0=ot?(DIVX+1)*S:0;g.fillStyle='rgba(255,40,40,.07)';g.fillRect(x0,0,DIVX*S,R*S);
+    g.font='bold 12px system-ui';g.textAlign='center';g.textBaseline='top';
+    for(const t of [0,1]){const lb=(t===myTeam()?'ĐỘI BẠN · ':'ĐỘI KIA · ')+(t?'ĐỎ':'XANH');
+      g.fillStyle='#000a';const w=g.measureText(lb).width+14,lx=(t?DIVX+1:0)*S+4;rr(g,lx,R*S-22,w,18,9);g.fill();g.fillStyle=t?'#ff8a8a':'#8fd0ff';g.fillText(lb,lx+w/2,R*S-19)}}
   drawWater();
   drawGates();
   const live=started&&!state.over&&!paused;
@@ -1302,7 +1334,7 @@ function draw(){
   }
   if(live&&hover&&!selTower&&hover.x>=0&&hover.y>=0&&hover.x<C&&hover.y<R&&!grid[hover.y][hover.x]){
     const x0=hover.x*S,y0=hover.y*S;
-    const bad=(hover.x===SP.x&&hover.y===SP.y)||(hover.x===EX.x&&hover.y===EX.y)||isRes(hover.x,hover.y)||terr[hover.y][hover.x]!==GRASS;
+    const bad=isGate(hover.x,hover.y)||isRes(hover.x,hover.y)||terr[hover.y][hover.x]!==GRASS;
     if(bad)markBad(x0,y0);
     else{
       const k=hover.x+','+hover.y+','+enemies.length+','+towers.length;
@@ -1322,7 +1354,7 @@ function draw(){
     if(tw.hurt>0){g.translate((Math.random()-.5)*2.5,(Math.random()-.5)*2.5)}
     drawTower(g,tw.type,cx,cy,tw.ang,tw.rec,1,now,tw.lvl);
     g.restore();
-    if(mp&&mp.mode==='coop'){g.fillStyle=tw.owner?'#5ab0ff':'#ffd166';g.strokeStyle='#000a';g.lineWidth=1.2;g.beginPath();g.arc(tw.x*S+5,tw.y*S+5,3.6,0,7);g.fill();g.stroke()}
+    if(mp&&(mp.mode==='coop'||mp.mode==='2v2')){g.fillStyle=mp.mode==='2v2'?PCOL[tw.owner||0]:tw.owner?'#5ab0ff':'#ffd166';g.strokeStyle='#000a';g.lineWidth=1.2;g.beginPath();g.arc(tw.x*S+5,tw.y*S+5,3.6,0,7);g.fill();g.stroke()}
     if(tw.hp<tw.maxhp){
       const f=Math.max(0,tw.hp/tw.maxhp),w=S*.8,bx=cx-w/2,by=tw.y*S+1;
       rr(g,bx-1,by-1,w+2,6,3);g.fillStyle='rgba(0,0,0,.7)';g.fill();
@@ -1508,7 +1540,7 @@ function hideEtip(){clearTimeout(etipT);$('etip').classList.remove('on')}
   nx.addEventListener('pointerout',e=>{const b=e.target.closest('.ec');if(b&&e.pointerType==='mouse'&&!b.contains(e.relatedTarget))hideEtip()});
 })();
 function closePop(){selTower=null;tchoice=null;updateUI()}
-function openTower(tw){selTower=tw;tchoice=null;updateUI()}
+function openTower(tw){if(mp&&mp.mode==='2v2'&&teamOf(tw.owner||0)!==myTeam()){toast('Tháp của đội kia');return}selTower=tw;tchoice=null;updateUI()}
 function popHTML(){
   if(!selTower)return '';
   const T=TYPES[selTower.type],L=st(selTower),nx=T.lv[selTower.lvl+1],v=Math.floor(selTower.spent*SELL_RATE);
@@ -1627,7 +1659,7 @@ $('nmCancel').onclick=()=>{$('nameBox').style.display='none'};
 $('nmOk').onclick=()=>{const n=cleanName($('pname').value);if(!n){toast('Nhập tên trước nhé',1800);return}setName(n);$('nameBox').style.display='none';if(user)cloudSave()};
 $('pname').addEventListener('keydown',e=>{if(e.key==='Enter')$('nmOk').click()});
 function goOnline(m){if(!myName){openName();return}setLbMode(m);$('start').style.display='none';openLobby()}
-$('go2').onclick=()=>goOnline('coop');$('go3').onclick=()=>goOnline('vs');
+$('go2').onclick=()=>goOnline('coop');$('go3').onclick=()=>goOnline('vs');$('go4').onclick=()=>goOnline('2v2');
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
 $('again').onclick=reset;
@@ -1675,10 +1707,10 @@ function mpStopSearch(){
   if(m.client&&!m.paired){mqPub(m.client,m.topic,null,{retain:true,qos:1});setTimeout(()=>{try{m.client.end()}catch(e){}},300)}
 }
 function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
-const modeName=m=>m==='coop'?'🤝 Hợp tác':'⚔️ Solo';
+const modeName=m=>m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo';
 let lobby=null,lbMode='coop';
-const MODE_DESC={coop:'Hai người cùng giữ một lâu đài, mỗi người xây tháp bằng vàng riêng. Qua màn cùng nhau.',vs:'Mỗi người một bản đồ. Bỏ vàng gửi quái sang bên kia, ai hết mạng trước thì thua.'};
-function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Hợp tác':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
+const MODE_DESC={coop:'Hai người cùng giữ một lâu đài, mỗi người xây tháp bằng vàng riêng. Qua màn cùng nhau.',vs:'Mỗi người một bản đồ. Bỏ vàng gửi quái sang bên kia, ai hết mạng trước thì thua.','2v2':'Hai đội, mỗi đội giữ một nửa bản đồ lớn. Bỏ vàng gửi quái sang đội kia, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
+function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
 function lobbyMsg(m){setText($('roomList'),'<div class="empty">'+m+'</div>',true)}
 async function openLobby(){
   $('levels').style.display='none';$('lobby').style.display='flex';
@@ -1700,9 +1732,9 @@ function closeLobby(keepClient){
 function renderRooms(){
   if(!lobby)return;
   const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode).sort((a,b)=>a.k-b.k);
-  setText($('lbCount'),'Phòng '+(lbMode==='coop'?'Hợp tác':'Solo')+' đang chờ ('+list.length+')');
-  if(!list.length)return lobbyMsg('Chưa có phòng '+(lbMode==='coop'?'Hợp tác':'Solo')+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
-  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
+  setText($('lbCount'),'Phòng '+({coop:'Hợp tác',vs:'Solo','2v2':'2vs2'}[lbMode])+' đang chờ ('+list.length+')');
+  if(!list.length)return lobbyMsg('Chưa có phòng '+({coop:'Hợp tác',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
+  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'?' · '+(r.n||1)+'/4':'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
 }
 function toggleNext(force){
   const nx=$('next'),open=force!=null?force:!nx.classList.contains('open');
@@ -1723,7 +1755,8 @@ function joinRoom(id){
   const to=setTimeout(()=>fail('Phòng đã đóng, chọn phòng khác nhé'),7000);
   mqSub(c,gT,d=>{if(ok||!d||d.to!==c.myId)return;
     if(d.t==='welcome'){ok=true;clearTimeout(to);mqUnsub(c,gT);closeLobby(true);
-      const link=makeLink(c,hT,gT,d.from);joinAsGuest(c,link,d.mode,d.k||info.k,cleanName(d.name)||cleanName(info.name)||'Chủ phòng')}
+      const link=makeLink(c,hT,gT,d.from);
+      if(d.mode==='2v2')joinAsGuest4(c,link,d);else joinAsGuest(c,link,d.mode,d.k||info.k,cleanName(d.name)||cleanName(info.name)||'Chủ phòng')}
     else if(d.t==='full')fail('Phòng đã đủ người');});
   setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName},{qos:1}),150);
 }
@@ -1731,6 +1764,7 @@ let roomInfo=null;
 function showRoom(o){
   roomInfo=Object.assign(roomInfo||{},o);const r=roomInfo,host=r.role==='host',full=!!r.full;
   $('lobby').style.display='none';$('mpwait').style.display='none';$('room').style.display='flex';
+  document.querySelector('#room .slots').style.display='';$('slots4').style.display='none';
   $('rmTitle').textContent=r.k?'Phòng '+r.k:'Đang tạo phòng…';
   $('rmSub').textContent=modeName(r.mode)+(r.mode==='coop'?' · hai người cùng giữ một lâu đài':' · mỗi người một bản đồ, gửi quái sang nhau');
   $('slot1n').textContent=host?myName+' (bạn)':oppN();$('slot1s').textContent=host?'Chủ phòng':'Đã ở trong phòng';
@@ -1765,7 +1799,7 @@ async function createRoom(mode){
     showRoom({full:true});SFX.play('build');
   });
 }
-function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'?COOP_LEVEL:VS_LEVEL);mpSend({t:'start',mode:mp.mode,level:lv});mpBegin(lv)}
+function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'?COOP_LEVEL:VS_LEVEL);if(mp.mode==='2v2'){mp.started=true;room4Announce()}mpSend({t:'start',mode:mp.mode,level:lv,names:mp.names});mpBegin(lv)}
 function joinAsGuest(c,conn,mode,k,hostName){
   mp={mode,role:'guest',client:c,own:true,conn,opp:{},stT:0,k,oppName:hostName};mpWire();roomInfo=null;showRoom({mode,role:'guest',k:k||'?',full:true});
 }
@@ -1785,13 +1819,14 @@ function mpBegin(lv){
   level=lv;$('mpwait').style.display='none';$('levels').style.display='none';$('start').style.display='none';
   started=true;reset();
   $('menuLv').style.display='none';$('reset').style.display='none';$('mpLeave').style.display='';
-  $('sendbar').style.display=mp.mode==='vs'?'flex':'none';$('opp').style.display='block';
+  $('sendbar').style.display=mp.mode==='vs'||mp.mode==='2v2'?'flex':'none';$('opp').style.display='block';
   fit();
+  if(mp.mode==='2v2'){toast('👥 2vs2! Bạn ở '+TEAMN(myTeam())+' ('+(myTeam()?'bên phải':'bên trái')+'). Gửi quái sang đội kia!',3500);updateUI();return}
   toast(mp.mode==='coop'?'🤝 Hợp tác! Tháp chấm vàng là của chủ phòng, chấm xanh là của khách':'⚔️ Solo! Bỏ vàng gửi quái sang bên kia',3200);
   updateUI();
 }
 function mpCleanup(){
-  if(!mp)return;const m=mp;lastOpp=m.oppName||'Bạn kia';mp=null;
+  if(!mp)return;const m=mp;lastOpp=m.oppName||'Bạn kia';mp=null;clearInterval(m.iv);clearInterval(m.hb);
   try{m.conn.close()}catch(e){};if(m.own&&m.client)setTimeout(()=>{try{m.client.end()}catch(e){}},400);
   $('menuLv').style.display='';$('reset').style.display='';$('mpLeave').style.display='none';
   $('sendbar').style.display='none';$('opp').style.display='none';$('menu').style.display='none';
@@ -1849,8 +1884,9 @@ function buildSendbar(){
   $('sendbar').innerHTML='<span style="align-self:center;font-size:12px;color:var(--mut);white-space:nowrap">⚔️ Gửi:</span>'+SENDS.map((o,i)=>'<button data-i="'+i+'" aria-label="Gửi '+ETYPES[o.k].name+'"><img src="'+EICON[o.k]+'" alt="">×'+o.n+' <small>'+o.cost+'</small></button>').join('');
 }
 $('sendbar').addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b||!mp||mp.mode!=='vs'||state.over)return;
+  const b=e.target.closest('button');if(!b||!mp||(mp.mode!=='vs'&&mp.mode!=='2v2')||state.over)return;
   const o=SENDS[+b.dataset.i];
+  if(mp.mode==='2v2'){if(state.gold<o.cost)return toast('Không đủ vàng');if(mp.role==='host'){state.gold-=o.cost;send4(myTeam(),o,myName||'Chủ phòng');updateUI()}else mpSend({t:'send',k:o.k});return}
   if(state.gold<o.cost)return toast('Không đủ vàng');
   state.gold-=o.cost;mpSend({t:'send',k:o.k,n:o.n});toast('Đã gửi '+o.n+' '+ETYPES[o.k].name+' sang bên kia!');updateUI();
 });
@@ -1864,27 +1900,31 @@ function receiveSend(d){
 function mpTick(dt){
   if(!mp||!mp.conn)return;
   mp.stT-=dt;
+  if(mp.mode==='2v2'){if(mp.role==='host'&&started){mp.snapT-=dt;if(mp.snapT<=0){mp.snapT=.18;mpSend(makeSnap())}}updateOpp();return}
   if(mp.stT<=0){mp.stT=.5;mpSend({t:'st',l:state.lives,w:state.wave,g:state.gold,sk:state.stats[0].k,sg:state.stats[0].g})}
   if(mp.mode==='coop'&&mp.role==='host'){mp.snapT-=dt;if(mp.snapT<=0){mp.snapT=.15;mpSend(makeSnap())}}
   updateOpp();
 }
 function updateOpp(){
   const o=mp.opp;let h;
-  if(mp.mode==='vs')h='🆚 '+esc(oppN())+': <b>❤️ '+(o.l??20)+'</b> · đợt <b>'+(o.w??0)+'</b>';
+  if(mp.mode==='2v2'){const L=state.livesT||[20,20],t=myTeam();h=(t?'🔴':'🔵')+' Đội bạn: <b>❤️ '+L[t]+'</b> · '+(t?'🔵':'🔴')+' Đội kia: <b>❤️ '+L[1-t]+'</b>'}
+  else if(mp.mode==='vs')h='🆚 '+esc(oppN())+': <b>❤️ '+(o.l??20)+'</b> · đợt <b>'+(o.w??0)+'</b>';
   else h='🤝 '+esc(oppN())+': <b>🪙 '+(mp.role==='host'?state.gold2:(o.g??0))+'</b>';
   setText($('opp'),h,true);
   for(const b of $('sendbar').querySelectorAll('button'))b.classList.toggle('poor',state.gold<SENDS[+b.dataset.i].cost);
 }
 const r2=v=>Math.round(v*100)/100;
 function makeSnap(){
-  return {t:'s',sx:[state.stats[0].k,state.stats[0].g,state.stats[1].k,state.stats[1].g],g:[state.gold,state.gold2],l:state.lives,w:state.wave,q:queue.length,nt:r2(state.nextT),ov:state.over?1:0,wn:state.won?1:0,fl:r2(state.flash),
+  const x2=mp.mode==='2v2'?{sx:state.stats.flatMap(o=>[o.k,o.g]),g:[state.gold,...state.goldP.slice(1)],lt:state.livesT,wt:state.wt??-2}:{sx:[state.stats[0].k,state.stats[0].g,state.stats[1].k,state.stats[1].g],g:[state.gold,state.gold2]};
+  return {t:'s',...x2,l:state.lives,w:state.wave,q:queue.length,nt:r2(state.nextT),ov:state.over?1:0,wn:state.won?1:0,fl:r2(state.flash),
     ta:state.taunt?[state.taunt.txt,r2(state.taunt.t),state.taunt.k]:0,
     tw:towers.map(t=>[t.x,t.y,TK.indexOf(t.type),t.lvl,t.owner||0,Math.ceil(t.hp),t.maxhp,r2(t.ang),r2(t.rec),t.hurt>0?1:0]),
     en:enemies.map(e=>[e.id,EK.indexOf(e.k),r2(e.x),r2(e.y),Math.round(e.hp),Math.round(e.max),r2(e.fa),(e.slow>0?1:0)|(e.burn>0?2:0)|(e.stun>0?4:0)|(e.atkT?8:0)|(e.hit>0?16:0),e.tx,e.ty,e.shieldMax?r2(e.shield/e.shieldMax):0]),
     sh:shots.map(x=>[TK.indexOf(x.type),r2(x.x),r2(x.y),r2(x.ang)])};
 }
 function applySnap(d){
-  state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l;
+  if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt[myTeam()];state.stats=[0,1,2,3].map(i=>({k:d.sx[i*2]||0,g:d.sx[i*2+1]||0}))}
+  else{state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l}
   if(d.w!==state.wave)state.wave=d.w;
   queue.length=d.q;state.nextT=d.nt;state.flash=Math.max(state.flash,d.fl);
   state.taunt=d.ta?{txt:d.ta[0],t:d.ta[1],k:d.ta[2]}:null;
@@ -1909,10 +1949,11 @@ function applySnap(d){
     Object.assign(e,{nx:x,ny:y,hp,max,fa,tx,ty,slow:fl&1?1:0,burn:fl&2?1:0,shield:sh||0,shieldMax:sh!=null?1:0,stun:fl&4?.5:0,stunMax:1,atkT:fl&8?1:null,hit:fl&16?.1:0});
     next.push(e);
   }
-  for(const e of byId.values()){const T=ETYPES[e.k];burst(e.x,e.y,T.col,8,2.4);if(Math.hypot(e.x-EX.x-.5,e.y-EX.y-.5)>.8){SFX.play('coin');texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold})}else SFX.play('leak')}
+  for(const e of byId.values()){const T=ETYPES[e.k];burst(e.x,e.y,T.col,8,2.4);if(gates().every(s=>Math.hypot(e.x-s.ex.x-.5,e.y-s.ex.y-.5)>.8)){SFX.play('coin');texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold})}else SFX.play('leak')}
   enemies=next;
   if(d.sh.length>shots.length&&d.sh.length)SFX.play(TK[d.sh[d.sh.length-1][0]]);
   shots=d.sh.map(a=>({type:TK[a[0]],x:a[1],y:a[2],ang:a[3]}));
+  if(d.ov&&!state.over&&mp.mode==='2v2'){state.over=true;show2v2(d.wt)}
   if(d.ov&&!state.over){state.over=true;mpShow(d.wn?'Cùng nhau qua màn '+level+'!':'Thua rồi!',d.wn?'Còn '+d.l+'/20 mạng':'Trụ được tới đợt '+d.w+'/'+WAVES,!!d.wn)}
 }
 function guestStep(dt){
@@ -1926,13 +1967,150 @@ function guestStep(dt){
   state.flash=Math.max(0,state.flash-dt);
   updateUI();
 }
-$('mkRoom').onclick=()=>createRoom(lbMode);
+// ---- 2vs2: two mirrored halves, Đội Xanh (left, players 0 & 2) vs Đội Đỏ (right, players 1 & 3) ----
+// The host runs the whole match; guests send commands and mirror the host's snapshots.
+function genMap2(){
+  SIDES=null;setDims(12,18);SP={x:5,y:0};EX={x:5,y:17};genMap();
+  const half=terr;
+  setDims(DIVX*2+1,18);
+  terr=half.map(row=>[...row,ROCK,...row.slice().reverse()]);
+  SIDES=[{sp:{x:5,y:0},ex:{x:5,y:17}},{sp:{x:C-1-5,y:0},ex:{x:C-1-5,y:17}}];
+  SP=SIDES[0].sp;EX=SIDES[0].ex;
+  buildGrid();
+}
+const TEAMN=t=>t?'Đội Đỏ':'Đội Xanh';
+function end2v2(wt){
+  state.over=true;state.wt=wt;selTower=null;
+  show2v2(wt);
+}
+function show2v2(wt){
+  const myT=myTeam(),L=state.livesT||[0,0];
+  const t=wt<0?'Hòa!':wt===myT?'Đội bạn thắng! 🏆':'Đội bạn thua!';
+  SFX.play(wt===myT?'win':wt<0?'click':'lose');
+  $('overT').textContent=t;$('overStars').textContent='';
+  $('overS').textContent='Mạng còn lại: đội bạn '+L[myT]+' · đội kia '+L[1-myT];
+  $('overStats').innerHTML=stats4HTML();
+  $('nextLv').style.display='none';$('again').style.display='none';$('overLv').textContent='Rời phòng';
+  const host=mp&&mp.role==='host';
+  $('mpAgain').style.display=mp?'':'none';$('mpAgain').disabled=!host;
+  $('mpAgain').textContent=host?'Ván mới (bản đồ khác) ▶':'Chờ chủ phòng mở ván mới…';
+  $('over').style.display='flex';updateUI();
+}
+function stats4HTML(){
+  const st=state.stats||[],names=(mp&&mp.names)||[];
+  let best=-1,bk=-1;for(let i=0;i<4;i++)if(names[i]&&st[i]&&st[i].k>bk){bk=st[i].k;best=i}
+  let h='<table class="stt"><tr><th></th><th>⚔️ Quái hạ</th><th>💰 Vàng</th></tr>';
+  for(const t of [0,1])for(const i of [t,t+2]){if(!names[i])continue;const s=st[i]||{k:0,g:0};
+    h+='<tr><td style="color:'+PCOL[i]+';text-align:left">'+(t?'🔴 ':'🔵 ')+esc(names[i])+(mp&&i===mp.idx?' (bạn)':'')+(i===best?' <span class="mvp">👑</span>':'')+'</td><td><b>'+s.k+'</b></td><td><b>'+s.g+'</b></td></tr>'}
+  return h+'</table>';
+}
+// ---- room screen with 4 slots ----
+function showRoom4(){
+  const r=mp;if(!r)return;
+  $('lobby').style.display='none';$('mpwait').style.display='none';$('room').style.display='flex';
+  $('rmTitle').textContent=r.k?'Phòng '+r.k:'Đang tạo phòng…';
+  $('rmSub').textContent='👥 2vs2 · hai đội, mỗi đội giữ một nửa bản đồ';
+  document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
+  let h='';
+  for(const t of [0,1]){h+='<div class="team4"><div class="tn" style="color:'+(t?'#ff8a8a':'#8fd0ff')+'">'+(t?'🔴 ':'🔵 ')+TEAMN(t)+'</div>';
+    for(const i of [t,t+2]){const n=r.names[i];h+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(i===0?'👑':'🙂'):'⏳')+'</span><div><b>'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b></div></div>'}
+    h+='</div>'}
+  $('slots4').innerHTML=h;
+  const host=r.role==='host',cnt=r.names.filter(Boolean).length;
+  $('rmStart').style.display=host?'':'none';$('rmStart').disabled=!r.names[1];
+  $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(r.names[1]?'Có thể bắt đầu ('+cnt+'/4 người). Đủ 4 người thì vui hơn!':'Cần ít nhất 1 người bên Đội Đỏ để bắt đầu'):'Chờ chủ phòng bấm Bắt đầu…';
+}
+async function createRoom4(){
+  closeLobby();mpStopSearch();
+  const id=rid(8),k=100+Math.floor(Math.random()*900),topic=NS+'rooms/'+id,hT=NS+'r/'+id+'/h',gT=NS+'r/'+id+'/g';
+  roomInfo=null;
+  mp={mode:'2v2',role:'host',idx:0,k:0,names:[myName,null,null,null],peers:new Map(),snapT:0,stT:0,opp:{},topic,hT,gT,born:Date.now()};
+  const my=mp;showRoom4();
+  const c=await mqConnect({topic,payload:'',retain:true,qos:1});
+  if(mp!==my){c&&c.end();return}
+  if(!c){mp=null;return mpFail('Không kết nối được máy chủ, thử lại sau nhé')}
+  mp.client=c;mp.own=true;mp.k=k;
+  mp.conn={open:true,send(o){if(this.open)mqPub(c,gT,Object.assign({},o,{from:c.myId}),o.t==='s'||o.t==='ping'?{}:{qos:1})},
+    close(){if(!this.open)return;this.send({t:'bye'});this.open=false;clearInterval(my.iv);clearInterval(my.hb);mqPub(c,topic,null,{retain:true,qos:1});mqUnsub(c,hT)}};
+  room4Announce();my.hb=setInterval(room4Announce,15000);
+  mqSub(c,hT,hostRecv4);
+  my.iv=setInterval(()=>{if(mp!==my)return;my.conn.send({t:'ping'});const t=Date.now();for(const [pid,p] of my.peers)if(t-p.last>10000)dropPeer4(pid)},2000);
+  showRoom4();
+}
+function room4Announce(){
+  if(!mp||mp.mode!=='2v2'||mp.role!=='host'||!mp.client)return;
+  const n=mp.names.filter(Boolean).length;
+  if(mp.started)mqPub(mp.client,mp.topic,null,{retain:true,qos:1});
+  else mqPub(mp.client,mp.topic,{mode:'2v2',k:mp.k,at:Date.now(),born:mp.born,name:myName,n,full:n>=4},{retain:true,qos:1});
+}
+function roster4(){mp.conn.send({t:'roster',names:mp.names});if(!started)showRoom4();room4Announce()}
+function hostRecv4(d){
+  if(!d||!d.from||!mp||mp.mode!=='2v2'||mp.role!=='host')return;
+  const p=mp.peers.get(d.from);
+  if(d.t==='hello'){
+    if(p)return;
+    const idx=[1,2,3].find(i=>!mp.names[i]);
+    if(mp.started||idx==null){mqPub(mp.client,mp.gT,{t:'full',to:d.from,from:mp.client.myId},{qos:1});return}
+    const name=cleanName(d.name)||'Người chơi '+(idx+1);
+    mp.peers.set(d.from,{idx,name,last:Date.now()});mp.names[idx]=name;
+    mp.conn.send({t:'welcome',to:d.from,mode:'2v2',k:mp.k,name:myName,idx,names:mp.names});
+    roster4();SFX.play('build');return;
+  }
+  if(!p)return;p.last=Date.now();
+  if(d.t==='ping')return;
+  if(d.t==='bye'){dropPeer4(d.from);return}
+  hostCmd4(d,p,d.from);
+}
+function dropPeer4(pid){
+  const p=mp.peers.get(pid);if(!p)return;
+  mp.peers.delete(pid);mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
+}
+function hostCmd4(d,p,pid){
+  const err=m=>m&&mp.conn.send({t:'err',to:pid,m});
+  if(d.t==='place'||d.t==='up'||d.t==='sell'){
+    if(!started||state.over)return;
+    if(d.t==='place')return err(TYPES[d.k]?doPlace(d.x,d.y,p.idx,d.k):'?');
+    const tw=grid[d.y]&&grid[d.y][d.x];if(!tw||tw.wall)return err('Không có tháp');
+    return err(d.t==='up'?doUpgrade(tw,p.idx):doSell(tw,p.idx));
+  }
+  if(d.t==='send'){
+    if(!started||state.over)return;
+    const o=SENDS.find(x=>x.k===d.k);if(!o)return;
+    if(goldOf(p.idx)<o.cost)return err('Không đủ vàng');
+    addGold(p.idx,-o.cost);send4(teamOf(p.idx),o,p.name);
+  }
+}
+// queue monsters on the other team's side and tell everyone
+function send4(fromTeam,o,by){
+  const side=1-fromTeam,n=Math.max(1,state.wave),{hpm,spm}=waveMul(n);
+  for(let i=0;i<o.n;i++)queue.unshift({k:o.k,hpm,spm,n,side});
+  mp.conn.send({t:'ev',k:o.k,n:o.n,side,by});ev4({k:o.k,n:o.n,side,by});
+}
+function ev4(d){toast('⚔️ '+d.by+' gửi '+d.n+' '+ETYPES[d.k].name+' sang '+(d.side===myTeam()?'đội bạn!':'đội kia'),2200)}
+function joinAsGuest4(c,link,d){
+  mp={mode:'2v2',role:'guest',client:c,own:true,conn:link,idx:d.idx,k:d.k,names:d.names||[cleanName(d.name),null,null,null],opp:{},stT:0};
+  link.on('data',guestRecv4);
+  link.on('close',()=>{if(!mp||mp.conn!==link)return;mpCleanup();hideRoom();started=false;$('over').style.display='none';$('mpwait').style.display='none';toast('Chủ phòng đã rời phòng',3000);openLobby()});
+  showRoom4();
+}
+function guestRecv4(d){
+  if(!d||!mp||mp.mode!=='2v2')return;
+  if(d.to&&d.to!==mp.client.myId)return;
+  switch(d.t){
+    case 'roster':mp.names=d.names;if(!started)showRoom4();break;
+    case 'start':mp.names=d.names||mp.names;mpBegin(d.level);break;
+    case 's':applySnap(d);break;
+    case 'err':toast(d.m);break;
+    case 'ev':ev4(d);break;
+  }
+}
+$('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4():createRoom(lbMode);
 setLbMode('coop');
 $('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
 $('rmLeave').onclick=()=>{mpStopSearch();if(mp)mpCleanup();hideRoom();openLobby()};
 $('lbRefresh').onclick=()=>{if(lobby&&lobby.client.connected){lobbyMsg('Đang tải…');try{lobby.client.subscribe(NS+'rooms/+',{qos:1})}catch(e){};setTimeout(renderRooms,1200)}else{lobby=null;openLobby()}};
 $('lbBack').onclick=showHome;
-$('mpAgain').onclick=()=>{if(!mp||mp.ready)return;mp.ready=true;mpSend({t:'again'});$('mpAgain').disabled=true;$('mpAgain').textContent='Đang chờ '+oppN()+'…';if(mp.oppReady&&mp.role==='host')mpStartMatch()};
+$('mpAgain').onclick=()=>{if(mp&&mp.mode==='2v2'){if(mp.role==='host'){mp.nextLv=(level%LEVELS)+1;mpStartMatch()}return}if(!mp||mp.ready)return;mp.ready=true;mpSend({t:'again'});$('mpAgain').disabled=true;$('mpAgain').textContent='Đang chờ '+oppN()+'…';if(mp.oppReady&&mp.role==='host')mpStartMatch()};
 $('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.display='none';openLobby()};
 $('mpLeave').onclick=mpLeave;
 function startLevel(n){
