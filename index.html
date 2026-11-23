@@ -49,11 +49,6 @@
   #skill{position:absolute;right:6px;bottom:6px;width:62px;height:62px;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
     background:conic-gradient(#0009 var(--p,0deg),#2c4a2acc 0);border:2px solid #fffbe0aa;box-shadow:0 3px 10px #0008;touch-action:none}
   #skill.cd{border-color:#fffbe033}
-  #moveB{position:absolute;right:14px;bottom:74px;width:46px;height:46px;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;z-index:3;
-    background:#2c4a2acc;border:2px solid #fffbe066;box-shadow:0 3px 10px #0008;font-size:18px;line-height:1;touch-action:none}
-  #moveB small{font-size:9px;font-weight:800;color:#fffbe0;margin-top:1px}
-  #moveB.on{background:#e8c24a;border-color:#fff}
-  #moveB.on small{color:#1a1410}
   #skill #skI{font-size:22px;line-height:1}
   #skill #skT{font-size:9.5px;font-weight:800;color:#fffbe0;white-space:nowrap;margin-top:1px}
   #skill.cd #skT{font-size:15px}
@@ -215,7 +210,6 @@
   <div class="stage">
     <div class="wrap">
       <canvas id="cv"></canvas>
-      <button id="moveB">🏃<small>Đi</small></button>
       <button id="skill"><span id="skI"></span><span id="skT"></span></button>
       <div id="msg"></div>
       <div class="pop" id="pop"></div>
@@ -307,7 +301,7 @@
       <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
-        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Muốn dẫn nhân vật đi thì bấm nút 🏃 Đi rồi chạm chỗ muốn tới. Nút tròn to góc phải dưới là chiêu riêng.</li>
+        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Muốn dẫn nhân vật đi thì giữ ngón tay trên nhân vật rồi kéo tới chỗ muốn tới. Nút tròn to góc phải dưới là chiêu riêng.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
@@ -1959,7 +1953,10 @@ function cell(ev){
 }
 let drag=null;
 const inB=c=>c.x>=0&&c.y>=0&&c.x<C&&c.y<R;
+const fpos=ev=>{const r=cv.getBoundingClientRect();return {x:(ev.clientX-r.left)/r.width*C,y:(ev.clientY-r.top)/r.height*R}};
+let hdrag=null;
 cv.addEventListener('pointermove',ev=>{
+  if(hdrag&&ev.pointerId===hdrag.id){const p=fpos(ev);hdrag.x=p.x;hdrag.y=p.y;return}
   if(drag&&ev.pointerId===drag.id){const c=cell(ev);drag.c=c;hover=inB(c)?c:null;return}
   if(ev.pointerType==='mouse')hover=cell(ev);
 });
@@ -1967,8 +1964,8 @@ cv.addEventListener('pointerleave',ev=>{if(ev.pointerType==='mouse'&&!drag)hover
 cv.addEventListener('pointerdown',ev=>{
   hideTip();hideEtip();toggleNext(false);
   if(!started||state.over||paused)return;
-  if(heroOn()){const r=cv.getBoundingClientRect(),fx=(ev.clientX-r.left)/r.width*C,fy=(ev.clientY-r.top)/r.height*R;
-    if(hero.sel){hero.sel=false;if(fx>=0&&fy>=0&&fx<C&&fy<R){hero.jobs=[];hero.goto={x:fx,y:fy};hero.bt=0}return}}
+  // press on the hero and drag to send it somewhere; a plain tap still builds on that cell
+  if(heroOn()){const p=fpos(ev);if(Math.hypot(p.x-hero.x,p.y-(hero.y-.3))<.75){hdrag={id:ev.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y};try{cv.setPointerCapture(ev.pointerId)}catch(e){}return}}
   const c=cell(ev);
   if(!inB(c)){if(selTower)closePop();return}
   const tw=grid[c.y][c.x];
@@ -1984,13 +1981,22 @@ cv.addEventListener('pointerdown',ev=>{
   try{cv.setPointerCapture(ev.pointerId)}catch(e){}
 });
 cv.addEventListener('pointerup',ev=>{
+  if(hdrag&&ev.pointerId===hdrag.id){
+    const d=hdrag;hdrag=null;
+    if(!heroOn()||!started||state.over||paused)return;
+    if(Math.hypot(d.x-d.sx,d.y-d.sy)>.5){hero.jobs=[];hero.bt=0;hero.goto={x:Math.max(.3,Math.min(C-.3,d.x)),y:Math.max(.3,Math.min(R-.3,d.y))};SFX.play('click');return}
+    const c={x:Math.floor(d.sx),y:Math.floor(d.sy)};if(!inB(c))return;
+    const tw=grid[c.y][c.x];if(tw){if(!tw.wall)openTower(tw);return}
+    const ji=hero.jobs.findIndex(j=>j.x===c.x&&j.y===c.y);if(ji>=0){hero.jobs.splice(ji,1);toast('Đã hủy lệnh xây');return}
+    place(c.x,c.y);return;
+  }
   if(!drag||ev.pointerId!==drag.id)return;
   const c=drag.c;drag=null;
   if(ev.pointerType!=='mouse')hover=null;
   if(!started||state.over||paused||!inB(c)||grid[c.y][c.x])return;
   place(c.x,c.y);
 });
-cv.addEventListener('pointercancel',()=>{drag=null;hover=null});
+cv.addEventListener('pointercancel',()=>{drag=null;hover=null;hdrag=null});
 addEventListener('keydown',e=>{
   const k=Object.keys(TYPES)[+e.key-1];
   if(k){pickType(k);showTip(k,2000)}
@@ -2250,13 +2256,15 @@ function drawHero(){
   for(const f of h.fx){
     if(f.ice){g.save();g.globalAlpha=Math.min(.35,f.t*.3);g.fillStyle='#bfe9ff';g.beginPath();g.arc(f.x*S,f.y*S,f.r*S,0,7);g.fill();g.restore()}
   }
-  if(h.sel){g.save();g.strokeStyle='rgba(255,251,224,.35)';g.setLineDash([4,4]);g.beginPath();g.arc(px,py,H.range*S,0,7);g.stroke();g.restore()}
+  if(hdrag&&Math.hypot(hdrag.x-hdrag.sx,hdrag.y-hdrag.sy)>.5){g.save();g.setLineDash([5,5]);g.strokeStyle='#fffbe0';g.lineWidth=2;g.beginPath();g.moveTo(px,py);g.lineTo(hdrag.x*S,hdrag.y*S);g.stroke();
+    g.setLineDash([]);g.globalAlpha=.25;g.fillStyle=H.col;g.beginPath();g.arc(hdrag.x*S,hdrag.y*S,H.range*S,0,7);g.fill();g.globalAlpha=1;g.strokeStyle=H.col;g.beginPath();g.arc(hdrag.x*S,hdrag.y*S,8,0,7);g.stroke();g.restore()}
+  if(h.sel||hdrag){g.save();g.strokeStyle='rgba(255,251,224,.35)';g.setLineDash([4,4]);g.beginPath();g.arc(px,py,H.range*S,0,7);g.stroke();g.restore()}
   g.save();
   // drawn a bit bigger than a tower, scaled around the feet
   g.translate(px,py+S*.28);g.scale(HERO_SC,HERO_SC);g.translate(-px,-py-S*.28);
   // shadow + ring
   g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(px,py+S*.28,S*.26,S*.09,0,0,7);g.fill();
-  g.strokeStyle=h.sel?'#fffbe0':H.col;g.lineWidth=h.sel?2.5:1.8;g.beginPath();g.ellipse(px,py+S*.28,S*.33,S*.13,0,0,7);g.stroke();
+  g.strokeStyle=hdrag?'#fffbe0':H.col;g.lineWidth=hdrag?2.5:1.8;g.beginPath();g.ellipse(px,py+S*.28,S*.33,S*.13,0,0,7);g.stroke();
   const y=py-bob,face=Math.cos(h.fa)>=0?1:-1;
   // legs
   g.strokeStyle='#2b2520';g.lineWidth=3;g.lineCap='round';const lg=moving?Math.sin(h.walk)*3:0;
@@ -2295,7 +2303,6 @@ function drawHero(){
 }
 function heroUI(){
   const b=$('skill');if(!b)return;
-  $('moveB').style.display=heroOn()&&started?'flex':'none';if(hero)$('moveB').classList.toggle('on',!!hero.sel);
   if(!heroOn()||!started){b.style.display='none';return}
   const h=hero,H=HEROES[h.k];b.style.display='flex';
   setText($('skI'),H.ico);
@@ -2311,7 +2318,6 @@ function heroPick(){
   setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
-$('moveB').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(!heroOn()||!started||state.over)return;hero.sel=!hero.sel;if(hero.sel){closePop();toast('Chạm vào chỗ muốn tới',1500)}SFX.play('click')});
 $('skill').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();heroSkill()});
 refreshHome();
 reset();fit();requestAnimationFrame(loop);
