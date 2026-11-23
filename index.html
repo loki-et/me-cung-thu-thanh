@@ -754,7 +754,9 @@ function doPlace(x,y,owner,type){
 }
 const towerMaxHp=spent=>Math.round(60+spent*1.5);
 function upgrade(tw){
-  if(coopGuest()){mpSend({t:'up',x:tw.x,y:tw.y});return}
+  if(coopGuest()){mpSend({t:'up',x:tw.x,y:tw.y});if(myHero())toast('Nhân vật đang chạy tới nâng cấp',1400);return}
+  // with a hero, upgrading is an order: the hero walks to the tower first
+  if(heroOn()){const e=heroUpOrder(tw,hero.owner||0);if(e)toast(e);else{SFX.play('click');toast('Nhân vật đang chạy tới nâng cấp',1400)}return}
   const e=doUpgrade(tw,0);if(e)toast(e);
 }
 function doUpgrade(tw,owner){
@@ -2027,7 +2029,7 @@ function noteShot(x){if(mpHost())mp.newSh.push([TK.indexOf(x.type),r2(x.x),r2(x.
 // snapshots stay small: towers only when they change, new shots/bolts as events, host time for smooth motion
 function makeSnap(){
   const x2=mp.mode==='2v2'?{sx:state.stats.flatMap(o=>[o.k,o.g]),g:[state.gold,...state.goldP.slice(1)],lt:state.livesT,wt:state.wt??-2}:{sx:[state.stats[0].k,state.stats[0].g,state.stats[1].k,state.stats[1].g],g:[state.gold,state.gold2]};
-  if(mp.mode==='2v2')x2.hs=heroes.map(h=>h?[HK.indexOf(h.k),r2(h.x),r2(h.y),r2(h.fa),h.lv,Math.round(h.xp),r2(h.cdE),r2(h.cdQ),r2(h.atk),h.jobs.flatMap(j=>[j.x,j.y,TK.indexOf(j.type)]),
+  if(mp.mode==='2v2')x2.hs=heroes.map(h=>h?[HK.indexOf(h.k),r2(h.x),r2(h.y),r2(h.fa),h.lv,Math.round(h.xp),r2(h.cdE),r2(h.cdQ),r2(h.atk),h.jobs.flatMap(j=>[j.x,j.y,j.up?99:TK.indexOf(j.type)]),
     h.fx.map(f=>{const o={};for(const k in f)o[k]=typeof f[k]==='number'?r2(f[k]):f[k];return o}),h.rain?[r2(h.rain.x),r2(h.rain.y),r2(h.rain.t),h.rain.r||1.5]:0,h.bt>0?1:0]:0);
   const sig=towers.map(t=>t.x+','+t.y+','+t.type+','+t.lvl+','+(t.owner||0)+','+Math.ceil(t.hp/4)).join(';');
   mp.snapN=(mp.snapN||0)+1;
@@ -2049,7 +2051,7 @@ function applySnap(d){
       snapVel(h,x,y,dtS);
       Object.assign(h,{k:HK[ki],lv,xp,cdE:ce,cdQ:cq,atk,fx:hf,rain:rn?{x:rn[0],y:rn[1],t:rn[2],r:rn[3]}:null,bt});
       if(i!==mp.idx||!mp.myV)h.fa=fa;
-      const js=[];for(let q=0;q<jb.length;q+=3)js.push({x:jb[q],y:jb[q+1],type:TK[jb[q+2]]});h.jobs=js});hero=heroes[mp.idx]||null}
+      const js=[];for(let q=0;q<jb.length;q+=3)js.push(jb[q+2]===99?{x:jb[q],y:jb[q+1],up:true,type:(grid[jb[q+1]][jb[q]]||{}).type}:{x:jb[q],y:jb[q+1],type:TK[jb[q+2]]});h.jobs=js});hero=heroes[mp.idx]||null}
   if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt?d.lt[myTeam()]:d.l;state.stats=[0,1,2,3].map(i=>({k:d.sx[i*2]||0,g:d.sx[i*2+1]||0}))}
   else{state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l}
   if(d.w!==state.wave)state.wave=d.w;
@@ -2266,6 +2268,7 @@ function hostCmd4(d,p,pid){
     if(!started||state.over)return;
     if(d.t==='place')return err(!TYPES[d.k]?'?':heroes[p.idx]?withHero(heroes[p.idx],()=>heroOrder2(d.x,d.y,d.k,p.idx)):doPlace(d.x,d.y,p.idx,d.k));
     const tw=grid[d.y]&&grid[d.y][d.x];if(!tw||tw.wall)return err('Không có tháp');
+    if(d.t==='up'&&heroes[p.idx])return err(withHero(heroes[p.idx],()=>heroUpOrder(tw,p.idx)));
     return err(d.t==='up'?doUpgrade(tw,p.idx):doSell(tw,p.idx));
   }
   if(d.t==='hero'){if(HEROES[d.k]&&!mp.started){mp.heroK[p.idx]=d.k;roster4()}return}
@@ -2613,11 +2616,23 @@ function heroXP(v){
   if(h.lv>=HERO_MAXLV)h.xp=0;
 }
 function heroOrder(x,y){const e=heroOrder2(x,y,selType,hero.owner||0);if(e)toast(e);else SFX.play('click')}
+const jobCost=j=>{if(!j.up)return TYPES[j.type].lv[0].cost;const t=grid[j.y]&&grid[j.y][j.x],n=t&&!t.wall&&TYPES[t.type].lv[t.lvl+1];return n?n.cost:0};
+// is this queued job still possible? (cell still free / tower still there and upgradable)
+const jobOK=(j,owner)=>{const t=grid[j.y][j.x];return j.up?!!(t&&!t.wall&&(t.owner||0)===owner&&TYPES[t.type].lv[t.lvl+1]):!t};
+function heroUpOrder(tw,owner){
+  if((tw.owner||0)!==owner)return 'Tháp của '+oppN();
+  const nx=TYPES[tw.type].lv[tw.lvl+1];if(!nx)return 'Đã đạt cấp tối đa';
+  if(hero.jobs.some(j=>j.x===tw.x&&j.y===tw.y))return 'Tháp này đã có lệnh';
+  if(hero.jobs.length>=6)return 'Tối đa 6 lệnh chờ';
+  const queued=hero.jobs.reduce((s,j)=>s+jobCost(j),0);
+  if(goldOf(owner)<queued+nx.cost)return 'Không đủ vàng';
+  hero.jobs.push({x:tw.x,y:tw.y,type:tw.type,up:true});hero.goto=null;return null;
+}
 function heroOrder2(x,y,type,owner){
   if(!TYPES[type])return '?';
   const err=canPlace(x,y,owner);if(err)return err;
   const T=TYPES[type].lv[0];
-  const queued=hero.jobs.reduce((s,j)=>s+TYPES[j.type].lv[0].cost,0);
+  const queued=hero.jobs.reduce((s,j)=>s+jobCost(j),0);
   if(goldOf(owner)<queued+T.cost)return 'Không đủ vàng';
   if(hero.jobs.some(j=>j.x===x&&j.y===y))return 'Ô này đã có lệnh xây';
   if(hero.jobs.length>=6)return 'Tối đa 6 lệnh xây chờ';
@@ -2715,7 +2730,7 @@ function heroStep_(dt){
   h.cd-=dt;h.cdE=Math.max(0,h.cdE-dt);h.cdQ=Math.max(0,h.cdQ-dt);h.atk=Math.max(0,h.atk-dt);
   for(const f of h.fx)f.t-=dt;h.fx=h.fx.filter(f=>f.t>0);
   // drop build orders that can no longer happen (cell taken meanwhile)
-  while(h.jobs.length&&grid[h.jobs[0].y][h.jobs[0].x]){h.jobs.shift();h.bt=0}
+  while(h.jobs.length&&!jobOK(h.jobs[0],h.owner||0)){h.jobs.shift();h.bt=0}
   // joystick steering wins over everything; queued builds resume when it is released
   // WASD / arrow keys on PC act like the joystick
   const kx=h===myHero()?(KEYS.d?1:0)-(KEYS.a?1:0):0,ky=h===myHero()?(KEYS.s?1:0)-(KEYS.w?1:0):0;
@@ -2731,7 +2746,7 @@ function heroStep_(dt){
   if(tgt){
     const dx=tgt.x-h.x,dy=tgt.y-h.y,dl=Math.hypot(dx,dy),step=H.sp*dt;
     if(dl<=step){h.x=tgt.x;h.y=tgt.y;
-      if(job){h.fa=Math.atan2(job.y+.5-h.y,job.x+.5-h.x);h.bt+=dt;if(h.bt>=.3){h.jobs.shift();h.bt=0;const e=doPlace(job.x,job.y,h.owner||0,job.type);if(e)heroErr(h,e)}}
+      if(job){h.fa=Math.atan2(job.y+.5-h.y,job.x+.5-h.x);h.bt+=dt;if(h.bt>=.3){h.jobs.shift();h.bt=0;const e=job.up?doUpgrade(grid[job.y][job.x],h.owner||0):doPlace(job.x,job.y,h.owner||0,job.type);if(e)heroErr(h,e)}}
       else h.goto=null}
     else{h.x+=dx/dl*step;h.y+=dy/dl*step;h.fa=Math.atan2(dy,dx);h.walk+=dt*10;h.bt=0}
   }
@@ -2758,8 +2773,9 @@ function drawHeroJobs(){
   if(!heroOn())return;
   hero.jobs.forEach((j,i)=>{
     const x0=j.x*S,y0=j.y*S;
-    g.save();g.setLineDash([4,3]);g.strokeStyle='#fffbe0aa';g.lineWidth=1.5;rr(g,x0+2,y0+2,S-4,S-4,7);g.stroke();g.restore();
-    drawTower(g,j.type,x0+S/2,y0+S/2,0,0,.35,now);
+    g.save();g.setLineDash([4,3]);g.strokeStyle=j.up?'#ffd166':'#fffbe0aa';g.lineWidth=j.up?2:1.5;rr(g,x0+2,y0+2,S-4,S-4,7);g.stroke();g.restore();
+    if(j.up){g.fillStyle='#ffd166';g.font='bold 14px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText('⬆',x0+S/2,y0+S/2-12+Math.sin(now*6)*2)}
+    else drawTower(g,j.type,x0+S/2,y0+S/2,0,0,.35,now);
     g.fillStyle='#000a';g.beginPath();g.arc(x0+S-7,y0+7,6,0,7);g.fill();
     g.fillStyle='#fff';g.font='bold 9px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText(i+1,x0+S-7,y0+7.5);
   });
