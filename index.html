@@ -2436,17 +2436,20 @@ function loadScript(src){return new Promise((ok,no)=>{const s=document.createEle
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 async function initFB(){
   if(!location.protocol.startsWith('http'))return;
+  // accounts only exist on the real website (GitHub Pages) or local testing, not in previews
+  if(!/github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname))return;
   // sign-in comes first: new visitors see it straight away unless they chose to play as a guest
   if(!lsGet('mctt-uid')&&!lsGet('mctt-guest'))openAuth();
   try{
-    for(const f of ['app','auth','firestore'])await loadScript('fb/firebase-'+f+'-compat.js');
+    for(const f of ['app','auth','firestore']){fbStep='tải '+f;await loadScript('fb/firebase-'+f+'-compat.js')}
+    fbStep='khởi động';
     firebase.initializeApp(FB_CFG);
     fbAuth=firebase.auth();fbDb=firebase.firestore();
     const emu=new URLSearchParams(location.search).get('fbemu'); // local testing only
     if(emu){fbAuth.useEmulator('http://'+emu+':9099');fbDb.useEmulator(emu,8080)}
     fbAuth.onAuthStateChanged(onUser);
     fbAuth.getRedirectResult().catch(e=>authErr(e));
-  }catch(e){fbAuth=null;fbDb=null;fbFailed=true}
+  }catch(e){fbAuth=null;fbDb=null;fbFailed=(fbStep||'')+(e&&e.message?': '+e.message:'')||'?'}
   refreshHome();
 }
 const AERR={'auth/invalid-email':'Email không hợp lệ','auth/missing-password':'Nhập mật khẩu','auth/weak-password':'Mật khẩu cần ít nhất 6 ký tự','auth/email-already-in-use':'Email này đã có tài khoản, bấm Đăng nhập',
@@ -2456,11 +2459,11 @@ function authErr(e){const m=e&&e.code in AERR?AERR[e.code]:'Không đăng nhập
 function openAuth(){$('aErr').textContent='';$('auth').style.display='flex'}
 function closeAuth(){$('auth').style.display='none'}
 // never leave the buttons silent: say when accounts are still loading, show progress, give up after 25 s
-let fbFailed=false;
+let fbFailed=false,fbStep='';
 function authBusyUI(on){for(const id of ['aGoogle','aLogin','aSignup'])$(id).disabled=on;$('aErr').style.color=on?'var(--mut)':''}
 async function authRun(fn){
   if(authBusy)return;
-  if(!fbAuth){$('aErr').style.color='';$('aErr').textContent=fbFailed?'Không tải được hệ thống tài khoản. Kiểm tra mạng rồi tải lại trang nhé':'Đang tải hệ thống tài khoản, thử lại sau vài giây…';return}
+  if(!fbAuth){$('aErr').style.color='';$('aErr').textContent=fbFailed?'Không tải được hệ thống tài khoản ('+fbFailed+'). Kiểm tra mạng rồi tải lại trang nhé':'Đang tải hệ thống tài khoản, thử lại sau vài giây…';return}
   authBusy=true;authBusyUI(true);$('aErr').textContent='Đang đăng nhập…';
   let done=false;const to=setTimeout(()=>{if(done)return;done=true;authBusy=false;authBusyUI(false);$('aErr').textContent='Lâu quá không thấy phản hồi. Bấm lại để thử lần nữa (nếu dùng Google, xem cửa sổ đăng nhập có bị chặn không)'},25000);
   try{await fn();if(!done)closeAuth()}catch(e){if(!done){authBusyUI(false);authErr(e)}}
