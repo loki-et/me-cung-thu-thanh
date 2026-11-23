@@ -266,7 +266,7 @@
   <div class="dock" id="dock"><div class="tip" id="tip"></div></div>
   <div id="mpwait"><div class="card"><div class="spin"></div><div id="mpMsg" style="margin-bottom:14px"></div><button id="mpCancel" style="width:100%">Hủy</button></div></div>
   <div id="lobby"><div class="card">
-    <h1 id="lbTitle">Hợp tác</h1>
+    <h1 id="lbTitle">Tổ đội</h1>
     <div class="sub" id="lbDesc" style="margin:8px 0 10px"></div>
     <div class="mph" style="text-align:left;display:flex;align-items:center;justify-content:space-between"><span id="lbCount">Phòng đang chờ</span><button id="lbRefresh" style="padding:3px 10px;font-size:13px">↻ Làm mới</button></div>
     <div id="roomList" class="rooms"></div>
@@ -329,10 +329,8 @@
       <div class="topb"><button id="meBtn">👤 <b id="meName"></b> ✏️</button><span style="display:flex;gap:6px"><button id="helpBtn" title="Cách chơi" aria-label="Cách chơi">📖</button><button id="acctB" style="display:none"></button></span></div>
       <h1>Mê Cung Thủ Thành</h1>
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
-      <div class="mgrp"><div class="mh">🧟 Đánh quái</div>
-        <div class="mrow"><button class="go" id="go">👤 1 mình</button><button class="go" id="go2">🤝 Hợp tác</button></div></div>
-      <div class="mgrp"><div class="mh">⚔️ Đấu người</div>
-        <div class="mrow"><button class="go pvp" id="go3">1 vs 1</button><button class="go pvp" id="go4">2 vs 2</button></div></div>
+      <div class="mgrp"><div class="mrow"><button class="go" id="go">👤 Chơi 1 mình</button></div>
+        <div class="mrow" style="margin-top:8px"><button class="go" id="go2">🤝 Tổ đội (2–4 người)</button></div></div>
       <div class="best" id="bestT" style="margin:10px 0 0"></div>
       </div>
       <div id="helpBody" style="display:none">
@@ -794,7 +792,7 @@ function doSell(tw,owner){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(mp&&mp.pve?(1+.45*(Math.max(1,(mp.names||[]).filter(Boolean).length)-1))*HERO_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(mp&&mp.pve?(1+TEAM_HP*(teamN()-1))*HERO_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+Math.round(1.3*n)]];
   if(n>=3)o.push(['runner',2+Math.round(.7*n)]);
@@ -853,7 +851,11 @@ function startWave(){
     const per=[0,1].map(sd=>{const l=list.slice();if(sideN(sd)>=2){const extra=Math.round(list.length*(SIDE_MORE-1));const pool=list.filter(k=>k!=='boss');for(let i=0;i<extra&&pool.length;i++)l.splice(Math.floor(Math.random()*(l.length+1)),0,pool[Math.floor(Math.random()*pool.length)])}return l});
     for(let i=0;i<Math.max(per[0].length,per[1].length);i++)for(const side of [0,1])if(per[side][i])queue.push({k:per[side][i],hpm:hpm*sideMul(side),spm,n,side});
   }
-  else for(const k of list)queue.push({k,hpm,spm,n});
+  else{
+    if(mp&&mp.pve&&teamN()>1){const pool=list.filter(k=>k!=='boss'),extra=Math.round(list.length*TEAM_MORE*(teamN()-1));
+      for(let i=0;i<extra&&pool.length;i++)list.splice(Math.floor(Math.random()*(list.length+1)),0,pool[Math.floor(Math.random()*pool.length)])}
+    for(const k of list)queue.push({k,hpm,spm,n});
+  }
   if(n%10===0)toast('👑 Trùm xuất hiện! Trùm triệu hồi thêm lính',2500);
   else setTimeout(warnNewType,2600);
   updateUI();
@@ -1729,7 +1731,7 @@ $('nmCancel').onclick=()=>{$('nameBox').style.display='none'};
 $('nmOk').onclick=()=>{const n=cleanName($('pname').value);if(!n){toast('Nhập tên trước nhé',1800);return}setName(n);$('nameBox').style.display='none';if(user)cloudSave()};
 $('pname').addEventListener('keydown',e=>{if(e.key==='Enter')$('nmOk').click()});
 function goOnline(m){if(!myName){openName();return}setLbMode(m);$('start').style.display='none';openLobby()}
-$('go2').onclick=()=>goOnline('coop');$('go3').onclick=()=>goOnline('vs');$('go4').onclick=()=>goOnline('2v2');
+$('go2').onclick=()=>goOnline('coop');
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
 $('again').onclick=reset;
@@ -1809,10 +1811,10 @@ function mpStopSearch(){
   if(m.client&&!m.paired){mqPub(m.client,m.topic,null,{retain:true,qos:1});setTimeout(()=>{try{m.client.end()}catch(e){}},300)}
 }
 function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
-const modeName=m=>m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo';
+const modeName=m=>m==='coop'?'🤝 Tổ đội':m==='2v2'?'👥 2vs2':'⚔️ Solo';
 let lobby=null,lbMode='coop';
-const MODE_DESC={vs:'Quân hai bên tràn sang đánh lâu đài nhau. Mỗi người giữ một nửa bản đồ, ai hết mạng trước thì thua. Nên chơi trên máy tính.',coop:'2–4 người cùng giữ một lâu đài, mỗi người một nhân vật và vàng riêng. Qua màn cùng nhau.','2v2':'Quân hai đội tràn sang đánh lâu đài nhau. Mỗi đội 2 người giữ một nửa bản đồ, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
-function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
+const MODE_DESC={vs:'Quân hai bên tràn sang đánh lâu đài nhau. Mỗi người giữ một nửa bản đồ, ai hết mạng trước thì thua. Nên chơi trên máy tính.',coop:'2–4 người cùng giữ một lâu đài, mỗi người một nhân vật và vàng riêng. Càng đông người quái càng đông và trâu. Qua màn cùng nhau.','2v2':'Quân hai đội tràn sang đánh lâu đài nhau. Mỗi đội 2 người giữ một nửa bản đồ, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
+function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Tổ đội':m==='2v2'?'👥 2vs2':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
 function lobbyMsg(m){setText($('roomList'),'<div class="empty">'+m+'</div>',true)}
 async function openLobby(){
   $('levels').style.display='none';$('lobby').style.display='flex';
@@ -1834,8 +1836,8 @@ function closeLobby(keepClient){
 function renderRooms(){
   if(!lobby)return;
   const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode).sort((a,b)=>a.k-b.k);
-  setText($('lbCount'),'Phòng '+({coop:'Hợp tác',vs:'Solo','2v2':'2vs2'}[lbMode])+' đang chờ ('+list.length+')');
-  if(!list.length)return lobbyMsg('Chưa có phòng '+({coop:'Hợp tác',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
+  setText($('lbCount'),'Phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' đang chờ ('+list.length+')');
+  if(!list.length)return lobbyMsg('Chưa có phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
   setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'||r.cap?' · '+(r.n||1)+'/'+(r.cap||4):'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
 }
 function toggleNext(force){
@@ -1924,7 +1926,7 @@ function mpBegin(lv){
   $('menuLv').style.display='none';$('reset').style.display='none';$('mpLeave').style.display='';
   $('sendbar').style.display=(mp.mode==='vs'||mp.mode==='2v2')&&!mp.pve?'flex':'none';$('opp').style.display='block';
   fit();
-  if(mp.pve){toast('🤝 Hợp tác '+mp.names.filter(Boolean).length+' người! Cùng giữ lâu đài',3000);updateUI();return}
+  if(mp.pve){toast('🤝 Tổ đội '+mp.names.filter(Boolean).length+' người! Quái đông và trâu hơn, cùng giữ lâu đài',3000);updateUI();return}
   if(mp.mode==='2v2'){toast('Bạn ở '+TEAMN(myTeam())+' (nhà '+(myTeam()?'bên phải':'bên trái')+'). Lính hai nhà tràn sang phá nhau, giữ nhà mình!',3500);updateUI();return}
   toast(mp.mode==='coop'?'🤝 Hợp tác! Tháp chấm vàng là của chủ phòng, chấm xanh là của khách':'⚔️ Solo! Bỏ vàng gửi quái sang bên kia',3200);
   updateUI();
@@ -2142,6 +2144,9 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=120;
+// team play: each extra player adds 30% monster HP and 35% more monsters per wave
+const TEAM_HP=.3,TEAM_MORE=.35;
+const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
 function showPve(won){
   SFX.play(won?'win':'lose');
   $('overT').textContent=won?'Cùng nhau qua màn '+level+'!':'Thua rồi!';$('overStars').textContent='';
@@ -2185,7 +2190,7 @@ function showRoom4(){
   $('lobby').style.display='none';$('mpwait').style.display='none';$('room').style.display='flex';
   $('rmTitle').textContent=r.k?'Phòng '+r.k:'Đang tạo phòng…';
   const one=r.cap===2;
-  if(r.pve){$('rmSub').textContent='🤝 Hợp tác · 2–4 người cùng giữ một lâu đài';document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
+  if(r.pve){$('rmSub').textContent='🤝 Tổ đội · 2–4 người cùng giữ một lâu đài';document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
     let hh='<div class="team4" style="grid-column:1/-1"><div class="tn" style="color:#8fe07a">🤝 Cả đội</div>';
     for(let i=0;i<4;i++){const n=r.names[i],hk=r.heroK&&r.heroK[i];hh+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div><b style="color:'+(n?PCOL[i]:'')+'">'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div></div>'}
     hh+='</div><div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Nhân vật của bạn</div><div class="hgrid">'+HK.map(k=>'<button class="hb'+(k===((r.heroK&&r.heroK[r.idx])||heroK)?' cur':'')+'" data-hk="'+k+'"><b>'+HEROES[k].ico+'</b><small>'+HEROES[k].name+'</small></button>').join('')+'</div></div>';
