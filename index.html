@@ -393,7 +393,7 @@ const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
 const isRes=(x,y)=>gates().some(s=>x===s.sp.x+s.dir.x&&y===s.sp.y+s.dir.y);
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
-const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=120,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=15,RAGE_ATK=2;
+const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=120,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=0,RAGE_ATK=2;
 const TYPES={
   arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu',lv:[
     {cost:30,range:3.4,dmg:8,cd:.35},
