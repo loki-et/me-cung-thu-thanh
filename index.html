@@ -1423,7 +1423,7 @@ function draw(){
       for(const [bx,by] of f.bolt){const gg=g.createRadialGradient(bx*S,by*S,0,bx*S,by*S,10);gg.addColorStop(0,'rgba(255,255,255,.9)');gg.addColorStop(1,'rgba('+(f.hero||'201,162,255')+',0)');g.fillStyle=gg;g.beginPath();g.arc(bx*S,by*S,f.hero?14:10,0,7);g.fill()}
       g.globalAlpha=1;continue;
     }
-    const k=1-f.t/.3;
+    const k=Math.max(0,1-f.t/.3);
     g.globalAlpha=Math.max(0,1-k);g.strokeStyle=f.c;g.lineWidth=3;
     g.beginPath();g.arc(f.x*S,f.y*S,f.r*S*(.3+k*.8),0,7);g.stroke();
     const eg=g.createRadialGradient(f.x*S,f.y*S,0,f.x*S,f.y*S,f.r*S*(.3+k*.8));eg.addColorStop(0,'#fff6d0');eg.addColorStop(1,f.c+'00');
@@ -2163,13 +2163,13 @@ const HEROES={
     q:{n:'Chém xoáy',i:'🌀',cd:20,d:'chém mọi quái trong 2 ô quanh mình, làm choáng 1.5 giây'}},
   archer:{name:'Cung thủ',ico:'🏹',col:'#5fc46a',sp:4,range:3.4,dmg:9,cd:.4,desc:'Bắn xa, nhanh',
     e:{n:'Tên xuyên',i:'➶',cd:6,d:'bắn một mũi tên xuyên thẳng qua mọi quái trên đường bay'},
-    q:{n:'Mưa tên',i:'🌧️',cd:22,d:'trút mưa tên 4 giây xuống chỗ quái đông nhất'}},
+    q:{n:'Mưa tên',i:'🌧️',cd:22,d:'trút mưa tên 4 giây xuống chỗ quái đông nhất trong 5 ô quanh mình'}},
   mage:{name:'Pháp sư',ico:'🔮',col:'#9a7bff',sp:4,range:2.8,dmg:18,cd:1,chain:3,desc:'Phép sét lan sang 3 quái',
     e:{n:'Cầu lửa',i:'☄️',cd:7,d:'ném cầu lửa nổ lan vào chỗ quái đông gần mình, đốt cháy 3 giây'},
-    q:{n:'Băng giá',i:'❄️',cd:24,d:'đóng băng cả vùng quái đông nhất 3 giây'}},
+    q:{n:'Băng giá',i:'❄️',cd:24,d:'đóng băng 3 giây vùng quái đông nhất trong 5 ô quanh mình'}},
   assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,desc:'Đâm cực đau, xuyên giáp, chạy nhanh',
     e:{n:'Phi tiêu',i:'✴️',cd:5,d:'phóng 3 phi tiêu vào 3 quái gần nhất trong 4 ô, xuyên giáp'},
-    q:{n:'Ám sát',i:'💀',cd:20,d:'lướt tới con quái trâu nhất bản đồ và đâm một nhát chí mạng'}}
+    q:{n:'Ám sát',i:'💀',cd:20,d:'lướt tới con quái gần nhất trong 5 ô và đâm một nhát chí mạng'}}
 };
 const HK=Object.keys(HEROES),HERO_SC=1.3;
 const hrgb=k=>HPAL[k][1].match(/\w\w/g).map(x=>parseInt(x,16)).join(',');
@@ -2212,9 +2212,11 @@ function heroTarget(H,px,py){
   return best;
 }
 // the point with the most monsters around it (for area skills)
+// the most crowded spot within `reach` cells of the hero (skills never fly off across the map)
+const SK_REACH=5;
 function crowdSpot(r){
-  let best=null,bn=0;
-  for(const e of enemies){if(e.hp<=0)continue;const n=around(e.x,e.y,r).length;if(n>bn){bn=n;best=e}}
+  let best=null,bn=0,bd=0;
+  for(const e of enemies){if(e.hp<=0)continue;const d=Math.hypot(e.x-hero.x,e.y-hero.y);if(d>SK_REACH)continue;const n=around(e.x,e.y,r).length;if(n>bn||(n===bn&&d<bd)){bn=n;best=e;bd=d}}
   return best&&{x:best.x,y:best.y};
 }
 const nearest=(x,y,r)=>{let b=null,bd=r;for(const e of enemies){if(e.hp<=0)continue;const d=Math.hypot(e.x-x,e.y-y);if(d<bd){bd=d;b=e}}return b};
@@ -2226,26 +2228,26 @@ function heroE(){
   if(h.cdE>0)return;
   dmgBy=0;
   if(h.k==='warrior'){
-    const t=nearest(h.x,h.y,4);if(!t){toast('Không có quái gần');return}
+    const t=nearest(h.x,h.y,4);if(!t){toast('Không có quái trong tầm');return}
     const sx=h.x,sy=h.y,a=Math.atan2(t.y-sy,t.x-sx),L=Math.hypot(t.x-sx,t.y-sy);
     for(const e of enemies){if(e.hp<=0)continue;const ux=e.x-sx,uy=e.y-sy,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
       if(along>-.3&&along<L+.6&&off<.6){hurt(e,40*m);stunE(e,.6)}}
     h.fx.push({dash:1,x0:sx,y0:sy,x1:t.x,y1:t.y,t:.3});h.x=t.x-Math.cos(a)*.35;h.y=t.y-Math.sin(a)*.35;h.fa=a;h.goto=null;
     burst(t.x,t.y,'#ffd27a',12,2.8);SFX.play('cannon');
   }else if(h.k==='archer'){
-    const t=nearest(h.x,h.y,6);if(!t){toast('Không có quái gần');return}
+    const t=nearest(h.x,h.y,6);if(!t){toast('Không có quái trong tầm');return}
     const a=Math.atan2(t.y-h.y,t.x-h.x);h.fa=a;
     for(const e of enemies){if(e.hp<=0)continue;const ux=e.x-h.x,uy=e.y-h.y,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
       if(along>0&&along<7&&off<.45)hurt(e,45*m)}
     h.fx.push({beam:1,x0:h.x,y0:h.y-.1,x1:h.x+Math.cos(a)*7,y1:h.y-.1+Math.sin(a)*7,t:.35});SFX.play('arrow');
   }else if(h.k==='mage'){
     let best=null,bn=0;for(const e of enemies){if(e.hp<=0||Math.hypot(e.x-h.x,e.y-h.y)>4)continue;const n=around(e.x,e.y,1.2).length;if(n>bn){bn=n;best=e}}
-    if(!best){toast('Không có quái gần');return}
+    if(!best){toast('Không có quái trong tầm');return}
     for(const e of around(best.x,best.y,1.2)){hurt(e,40*m);e.burnBy=0;e.burnDps=Math.max(e.burnDps||0,10*m);e.burn=Math.max(e.burn||0,3)}
-    fx.push({x:best.x,y:best.y,r:1.2,t:.35,c:'#ff8a3d'});burst(best.x,best.y,'#ffb347',22,3.4);h.fx.push({ball:1,x0:h.x,y0:h.y-.4,x1:best.x,y1:best.y,t:.25});SFX.play('cannon');
+    fx.push({x:best.x,y:best.y,r:1.2,t:.3,c:'#ff8a3d'});burst(best.x,best.y,'#ffb347',22,3.4);h.fx.push({ball:1,x0:h.x,y0:h.y-.4,x1:best.x,y1:best.y,t:.25});SFX.play('cannon');
   }else{
     const ts=enemies.filter(e=>e.hp>0&&Math.hypot(e.x-h.x,e.y-h.y)<=4).sort((a,b)=>Math.hypot(a.x-h.x,a.y-h.y)-Math.hypot(b.x-h.x,b.y-h.y)).slice(0,3);
-    if(!ts.length){toast('Không có quái gần');return}
+    if(!ts.length){toast('Không có quái trong tầm');return}
     for(const t of ts){hurt(t,35*m,true);h.fx.push({star:1,x0:h.x,y0:h.y-.2,x1:t.x,y1:t.y,t:.25});burst(t.x,t.y,'#ff6b81',6,2)}SFX.play('arrow');
   }
   h.cdE=H.e.cd;
@@ -2257,18 +2259,19 @@ function heroQ(){
   if(h.cdQ>0)return;
   dmgBy=0;
   if(h.k==='warrior'){
-    for(const e of around(h.x,h.y,2.1)){hurt(e,90*m);stunE(e,1.5)}
+    const hit=around(h.x,h.y,2.1);if(!hit.length){toast('Không có quái quanh mình');return}
+    for(const e of hit){hurt(e,90*m);stunE(e,1.5)}
     h.fx.push({spin:1,x:h.x,y:h.y,t:.45,r:2.1});burst(h.x,h.y,'#ffd27a',24,3.8);SFX.play('boom');
   }else if(h.k==='archer'){
-    const p=crowdSpot(1.7);if(!p){toast('Chưa có quái');return}
+    const p=crowdSpot(1.7);if(!p){toast('Không có quái trong '+SK_REACH+' ô');return}
     h.rain={x:p.x,y:p.y,t:4,tick:0,r:1.7};SFX.play('arrow');
   }else if(h.k==='mage'){
-    const p=crowdSpot(2);if(!p){toast('Chưa có quái');return}
+    const p=crowdSpot(2);if(!p){toast('Không có quái trong '+SK_REACH+' ô');return}
     for(const e of around(p.x,p.y,2)){hurt(e,40*m);stunE(e,3)}
-    fx.push({x:p.x,y:p.y,r:2,t:.5,c:'#bfe9ff'});burst(p.x,p.y,'#e6f7ff',28,3.2);h.fx.push({ice:1,x:p.x,y:p.y,t:3,r:2});SFX.play('frost');
+    fx.push({x:p.x,y:p.y,r:2,t:.3,c:'#bfe9ff'});burst(p.x,p.y,'#e6f7ff',28,3.2);h.fx.push({ice:1,x:p.x,y:p.y,t:3,r:2});SFX.play('frost');
   }else{
-    let tgt=null;for(const e of enemies)if(e.hp>0&&(!tgt||e.hp>tgt.hp))tgt=e;
-    if(!tgt){toast('Chưa có quái');return}
+    const tgt=nearest(h.x,h.y,SK_REACH);
+    if(!tgt){toast('Không có quái trong '+SK_REACH+' ô');return}
     burst(h.x,h.y,'#5a2a3a',12,2.4);h.x=tgt.x;h.y=tgt.y-.15;h.goto=null;
     hurt(tgt,400*m,true);h.fx.push({slash:1,x:tgt.x,y:tgt.y,a:-.6,t:.35,c:'#ff2d55',big:1});burst(tgt.x,tgt.y,'#ff4d6d',24,3.4);SFX.play('cannon');
   }
