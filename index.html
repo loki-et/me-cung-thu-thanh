@@ -160,6 +160,23 @@
   .legend span:nth-child(odd){font-size:18px;text-align:center}
   .card .go{width:100%;font-size:17px;padding:12px}
   .card .best{color:var(--gold);font-size:13px;text-align:center;margin-top:8px}
+  #auth,#rank{position:absolute;inset:0;z-index:11;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
+  .acct{display:none;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--mut);background:#0003;border-radius:12px;padding:8px 10px;margin:-4px 0 12px}
+  .acct button{padding:5px 10px;font-size:13px;white-space:nowrap}
+  .acct span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ain{display:block;width:100%;font:inherit;font-size:16px;color:var(--txt);background:#0004;border:1px solid var(--line);border-radius:12px;padding:10px 12px;outline:none;margin:0 0 8px}
+  .ain:focus{border-color:var(--acc)}
+  .gbtn{width:100%;background:#fff;color:#222;font-weight:700;padding:11px;font-size:15px;display:flex;align-items:center;justify-content:center;gap:10px}
+  .gbtn i{font-style:normal;font-weight:900;color:#4285f4;font-size:18px}
+  .aor{text-align:center;color:var(--mut);font-size:12px;margin:12px 0}
+  .aerr{color:#ff8a80;font-size:13px;min-height:18px;margin:2px 0 6px;text-align:center}
+  .alink{background:none;border:none;box-shadow:none;color:var(--mut);text-decoration:underline;font-size:13px;padding:6px;width:100%}
+  .rk{list-style:none;padding:0!important;margin:10px 0!important}
+  .rk li{display:flex;gap:8px;align-items:center;padding:7px 10px;border-radius:10px;background:#0003;margin:4px 0!important;font-size:14px}
+  .rk li b{width:22px;text-align:center}
+  .rk li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rk li small{color:var(--gold)}
+  .rk li.me{outline:2px solid var(--acc)}
   .namerow{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:18px}
   .namerow input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--txt);background:#0004;border:1px solid var(--line);border-radius:12px;padding:10px 12px;outline:none}
   .namerow input:focus{border-color:var(--acc)}
@@ -222,15 +239,36 @@
       <div class="sub" id="lvSub"></div>
       <div class="lvgrid" id="lvGrid"></div>
       <div class="best" id="lvInfo" style="margin:10px 0 2px;color:var(--mut)"></div>
+      <button id="lvRank" style="width:100%;margin-top:6px;display:none">🏆 Bảng xếp hạng màn này</button>
       <div class="prow" style="margin-top:8px"><button id="lvHelp">← Quay lại</button><button class="go" id="lvGo">▶ Chơi</button></div>
     </div>
   </div>
+  <div id="auth"><div class="card">
+    <h1>Tài khoản</h1>
+    <div class="sub">Đăng nhập để lưu tiến độ và lên bảng xếp hạng.</div>
+    <button class="gbtn" id="aGoogle"><i>G</i>Đăng nhập bằng Google</button>
+    <div class="aor">hoặc dùng email</div>
+    <input class="ain" id="aEmail" type="email" placeholder="Email" autocomplete="email">
+    <input class="ain" id="aPass" type="password" placeholder="Mật khẩu (ít nhất 6 ký tự)" autocomplete="current-password">
+    <div class="aerr" id="aErr"></div>
+    <div class="prow"><button id="aSignup">Tạo tài khoản</button><button class="go" id="aLogin">Đăng nhập</button></div>
+    <button class="alink" id="aForgot">Quên mật khẩu?</button>
+    <button id="aBack" style="width:100%;margin-top:4px">← Quay lại</button>
+  </div></div>
+  <div id="rank"><div class="card">
+    <h1 id="rkTitle">🏆 Bảng xếp hạng</h1>
+    <div class="sub">Qua màn nhanh nhất khi chơi 1 mình</div>
+    <ul class="rk" id="rkList"></ul>
+    <div class="sub" id="rkMe" style="text-align:center"></div>
+    <button id="rkBack" style="width:100%">← Quay lại</button>
+  </div></div>
   <div id="start">
     <div class="card">
       <div id="homeBody">
       <h1>Mê Cung Thủ Thành</h1>
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
       <label class="namerow">👤<input id="pname" maxlength="14" placeholder="Nhập tên của bạn" autocomplete="nickname"></label>
+      <div class="acct" id="acct"><span id="acctT"></span><button id="acctB"></button></div>
       <button class="go" id="go">👤 Chơi 1 mình</button>
       <button class="go" id="go2" style="margin-top:8px">🤝 Hợp tác</button>
       <button class="go" id="go3" style="margin-top:8px">⚔️ Solo 1vs1</button>
@@ -343,15 +381,28 @@ const esc=t=>String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const cleanName=t=>String(t||'').replace(/[<>\n\r\t]/g,'').trim().slice(0,14);
 let lastOpp='Bạn kia';
 const oppN=()=>(mp&&mp.oppName)||'Bạn kia';
-try{bestT=JSON.parse(localStorage.getItem('mctt-times')||'{}')||{}}catch(e){bestT={}}
 const fmtT=t=>{t=Math.round(t);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
 const myId=()=>mp&&mp.role==='guest'?1:0;
 const coopGuest=()=>mp&&mp.mode==='coop'&&mp.role==='guest';
 const goldOf=o=>o===1&&mp&&mp.mode==='coop'&&mp.role==='host'?state.gold2:state.gold;
 function addGold(o,v){if(o===1&&mp&&mp.mode==='coop'&&mp.role==='host')state.gold2+=v;else state.gold+=v}
-try{const v=JSON.parse(localStorage.getItem('mctt-stars')||'[]');if(Array.isArray(v))v.forEach((x,i)=>{if(i<=LEVELS)stars[i]=+x||0})}catch(e){}
+// progress is kept per account: guests use 'mctt-stars'/'mctt-times', signed-in players get keys suffixed with their uid
+let user=null;
+const pk=k=>k+(user?'-'+user.uid:'');
+function readProg(sk,tk){
+  const st=Array(LEVELS+1).fill(0);let t={};
+  try{const v=JSON.parse(localStorage.getItem(sk)||'[]');if(Array.isArray(v))v.forEach((x,i)=>{if(i<=LEVELS)st[i]=+x||0})}catch(e){}
+  try{t=JSON.parse(localStorage.getItem(tk)||'{}')||{}}catch(e){t={}}
+  return {st,t};
+}
 // progress only counts levels cleared in order from level 1 (drops stars saved by older versions from 2-player wins)
-for(let n=2,ok=stars[1]>0;n<=LEVELS;n++){if(!ok)stars[n]=0;ok=ok&&stars[n]>0}
+function sanitizeStars(){for(let n=2,ok=stars[1]>0;n<=LEVELS;n++){if(!ok)stars[n]=0;ok=ok&&stars[n]>0}}
+function loadProgress(){const p=readProg(pk('mctt-stars'),pk('mctt-times'));stars=p.st;bestT=p.t;sanitizeStars()}
+loadProgress();
+function saveProgress(){
+  try{localStorage.setItem(pk('mctt-stars'),JSON.stringify(stars));localStorage.setItem(pk('mctt-times'),JSON.stringify(bestT))}catch(e){}
+  if(typeof cloudSave==='function')cloudSave();
+}
 const cleared=()=>stars.filter(x=>x>0).length;
 const unlocked=n=>n===1||stars[n-1]>0;
 
@@ -686,10 +737,10 @@ const FIRST={};for(let n=1;n<60;n++)for(const [k] of waveComp(n))if(!FIRST[k])FI
 function winLevel(){
   state.over=true;state.won=true;selTower=null;
   const st=state.lives>=18?3:state.lives>=10?2:1;
-  if(!mp&&st>stars[level]){stars[level]=st;try{localStorage.setItem('mctt-stars',JSON.stringify(stars))}catch(e){}}
+  if(!mp&&st>stars[level]){stars[level]=st;saveProgress()}
   if(mp){mpEnd(true);return}
   const prev=bestT[level];state.newBest=!prev||state.time<prev;
-  if(state.newBest){bestT[level]=Math.round(state.time);try{localStorage.setItem('mctt-times',JSON.stringify(bestT))}catch(e){}}
+  if(state.newBest){bestT[level]=Math.round(state.time);saveProgress();submitRun(level)}
   showEnd(true,st);
 }
 function statsHTML(){
@@ -1507,6 +1558,7 @@ function showHome(){
   $('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
   $('helpBody').style.display='none';$('homeBody').style.display='';$('start').style.display='flex';
   started=false;
+  if(typeof refreshHome==='function')refreshHome();
 }
 $('howto').onclick=showHelp;
 const sndLabel=()=>{$('snd').textContent=SFX.isMuted()?'🔇 Âm thanh: Tắt':'🔊 Âm thanh: Bật';$('sndq').textContent=SFX.isMuted()?'🔇':'🔊'};sndLabel();
@@ -1519,7 +1571,7 @@ $('go').onclick=()=>{$('start').style.display='none';showLevels()};
 $('helpBtn').onclick=showHelp;
 $('helpBack').onclick=closeHelp;
 $('pname').value=myName;
-$('pname').addEventListener('input',()=>{myName=cleanName($('pname').value);try{localStorage.setItem('mctt-name',myName)}catch(e){}});
+$('pname').addEventListener('input',()=>{myName=cleanName($('pname').value);try{localStorage.setItem('mctt-name',myName)}catch(e){}if(user)cloudSave()});
 function goOnline(m){if(!myName){toast('Đặt tên trước khi chơi online nhé',2200);$('pname').focus();return}setLbMode(m);$('start').style.display='none';openLobby()}
 $('go2').onclick=()=>goOnline('coop');$('go3').onclick=()=>goOnline('vs');
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
@@ -1853,6 +1905,7 @@ function lvPickInfo(){
   const n=pickLv,st=stars[n];
   setText($('lvInfo'),'Màn '+n+(st?' · '+'★'.repeat(st)+'☆'.repeat(3-st)+(bestT[n]?' · kỷ lục ⏱ '+fmtT(bestT[n]):''):' · chưa qua'));
   setText($('lvGo'),'▶ Chơi màn '+n);
+  $('lvRank').style.display=fbDb?'':'none';
 }
 $('lvGrid').addEventListener('click',e=>{const b=e.target.closest('.lv');if(!b||b.disabled)return;
   pickLv=+b.dataset.n;for(const x of $('lvGrid').querySelectorAll('.lv'))x.classList.toggle('cur',x===b);lvPickInfo()});
@@ -1917,7 +1970,117 @@ function loop(ts){
   if(mp)mpTick(dt);
   draw();requestAnimationFrame(loop);
 }
-$('bestT').textContent=cleared()?'Đã qua '+cleared()+'/'+LEVELS+' màn':'';
+// ---- accounts (Firebase Auth + Firestore). Loaded after the page; the game works without it (offline / preview). ----
+const FB_CFG={apiKey:"AIzaSyAymxoZ0wbNCSnPsdauOLOdHbusIrdIBJ4",authDomain:"me-cung-thu-thanh.firebaseapp.com",projectId:"me-cung-thu-thanh",storageBucket:"me-cung-thu-thanh.firebasestorage.app",messagingSenderId:"270629514677",appId:"1:270629514677:web:7765cee3793578e874bdfc"};
+const MIN_RUN=300; // a level takes ~7+ minutes; matches the Firestore rule
+let fbAuth=null,fbDb=null,cloudTimer=0,authBusy=false;
+function refreshHome(){
+  $('bestT').textContent=cleared()?'Đã qua '+cleared()+'/'+LEVELS+' màn':'';
+  if(!fbAuth){$('acct').style.display='none';return}
+  $('acct').style.display='flex';
+  if(user){setText($('acctT'),'✅ '+esc(user.email||user.displayName||'Đã đăng nhập'),true);$('acctB').textContent='Đăng xuất'}
+  else{$('acctT').textContent='Đăng nhập để lưu tiến độ';$('acctB').textContent='🔑 Đăng nhập'}
+}
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+async function initFB(){
+  if(!location.protocol.startsWith('http'))return;
+  try{
+    for(const f of ['app','auth','firestore'])await loadScript('fb/firebase-'+f+'-compat.js');
+    firebase.initializeApp(FB_CFG);
+    fbAuth=firebase.auth();fbDb=firebase.firestore();
+    const emu=new URLSearchParams(location.search).get('fbemu'); // local testing only
+    if(emu){fbAuth.useEmulator('http://'+emu+':9099');fbDb.useEmulator(emu,8080)}
+    fbAuth.onAuthStateChanged(onUser);
+    fbAuth.getRedirectResult().catch(e=>authErr(e));
+  }catch(e){fbAuth=null;fbDb=null}
+  refreshHome();
+}
+const AERR={'auth/invalid-email':'Email không hợp lệ','auth/missing-password':'Nhập mật khẩu','auth/weak-password':'Mật khẩu cần ít nhất 6 ký tự','auth/email-already-in-use':'Email này đã có tài khoản, bấm Đăng nhập',
+  'auth/invalid-credential':'Sai email hoặc mật khẩu','auth/wrong-password':'Sai email hoặc mật khẩu','auth/user-not-found':'Sai email hoặc mật khẩu','auth/too-many-requests':'Thử sai nhiều quá, đợi một lát rồi thử lại',
+  'auth/network-request-failed':'Mất mạng, kiểm tra kết nối','auth/popup-closed-by-user':'','auth/cancelled-popup-request':'','auth/unauthorized-domain':'Trang này chưa được phép đăng nhập (thiếu Authorized domain)'};
+function authErr(e){const m=e&&e.code in AERR?AERR[e.code]:'Không đăng nhập được'+(e&&e.code?' ('+e.code+')':'');$('aErr').textContent=m}
+function openAuth(){$('aErr').textContent='';$('auth').style.display='flex'}
+function closeAuth(){$('auth').style.display='none'}
+async function authRun(fn){
+  if(authBusy||!fbAuth)return;authBusy=true;$('aErr').textContent='';
+  try{await fn();closeAuth()}catch(e){authErr(e)}
+  authBusy=false;
+}
+const aEmail=()=>$('aEmail').value.trim();
+$('acctB').onclick=()=>{if(user){fbAuth.signOut();toast('Đã đăng xuất',1800)}else openAuth()};
+$('aBack').onclick=closeAuth;
+$('aLogin').onclick=()=>authRun(()=>fbAuth.signInWithEmailAndPassword(aEmail(),$('aPass').value));
+$('aSignup').onclick=()=>authRun(()=>fbAuth.createUserWithEmailAndPassword(aEmail(),$('aPass').value));
+$('aPass').addEventListener('keydown',e=>{if(e.key==='Enter')$('aLogin').click()});
+$('aGoogle').onclick=()=>authRun(async()=>{
+  const pr=new firebase.auth.GoogleAuthProvider();
+  try{await fbAuth.signInWithPopup(pr)}
+  catch(e){if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment')await fbAuth.signInWithRedirect(pr);else throw e}
+});
+$('aForgot').onclick=async()=>{
+  if(!aEmail()){$('aErr').textContent='Nhập email trước, rồi bấm Quên mật khẩu';return}
+  try{await fbAuth.sendPasswordResetEmail(aEmail());$('aErr').textContent='';toast('Đã gửi thư đặt lại mật khẩu, xem hộp thư nhé',3000)}catch(e){authErr(e)}
+};
+const userDoc=()=>fbDb.collection('users').doc(user.uid);
+function cloudSave(now){
+  if(!user||!fbDb)return;
+  clearTimeout(cloudTimer);
+  const go=()=>{const times={};for(const k in bestT)if(+bestT[k]>0)times[k]=Math.round(+bestT[k]);
+    return userDoc().set({name:myName,stars:stars.map(x=>+x||0),times,at:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{})};
+  if(now)return go();
+  cloudTimer=setTimeout(go,1200);
+}
+function submitRun(n){
+  if(!user||!fbDb||mp)return;
+  const t=Math.round(+bestT[n]||0);if(t<MIN_RUN||!stars[n])return;
+  fbDb.collection('lb').doc(String(n)).collection('runs').doc(user.uid)
+    .set({name:myName||'Ẩn danh',t,st:stars[n],at:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{}); // the rule rejects slower times
+}
+async function onUser(u){
+  user=u||null;loadProgress();
+  if(user){
+    // first sign-in on this device: carry the guest progress into the account
+    let carried='';try{carried=localStorage.getItem('mctt-carried')||''}catch(e){}
+    if(!carried){const g=readProg('mctt-stars','mctt-times');mergeProg(g.st,g.t);try{localStorage.setItem('mctt-carried',user.uid)}catch(e){}}
+    try{
+      const d=await userDoc().get();
+      if(user&&user.uid===u.uid&&d.exists){const v=d.data()||{};
+        if(Array.isArray(v.stars))mergeProg(v.stars,v.times||{});
+        if(v.name){myName=cleanName(v.name);$('pname').value=myName;try{localStorage.setItem('mctt-name',myName)}catch(e){}}}
+    }catch(e){}
+    if(user!==u)return;
+    if(!myName&&u.displayName){myName=cleanName(u.displayName);$('pname').value=myName;try{localStorage.setItem('mctt-name',myName)}catch(e){}}
+    sanitizeStars();
+    try{localStorage.setItem(pk('mctt-stars'),JSON.stringify(stars));localStorage.setItem(pk('mctt-times'),JSON.stringify(bestT))}catch(e){}
+    await cloudSave(true);
+    for(let n=1;n<=LEVELS;n++)if(bestT[n])submitRun(n);
+    toast('Xin chào '+(myName||'bạn')+'!',2000);
+  }
+  refreshHome();
+  if($('levels').style.display==='flex')showLevels();
+}
+function mergeProg(st,t){
+  for(let i=1;i<=LEVELS;i++)stars[i]=Math.max(+stars[i]||0,Math.min(3,+st[i]||0));
+  for(const k in t){const v=Math.round(+t[k]);if(v>0&&+k>=1&&+k<=LEVELS&&(!bestT[k]||v<bestT[k]))bestT[k]=v}
+}
+// leaderboard
+async function openRank(n){
+  if(!fbDb)return;
+  $('rkTitle').textContent='🏆 Màn '+n;$('rkMe').textContent='';
+  $('rkList').innerHTML='<li><span>Đang tải…</span></li>';$('rank').style.display='flex';
+  try{
+    const q=await fbDb.collection('lb').doc(String(n)).collection('runs').orderBy('t').limit(10).get();
+    let h='',i=0,meIn=false;
+    q.forEach(d=>{const v=d.data();i++;const me=user&&d.id===user.uid;meIn=meIn||me;
+      h+='<li'+(me?' class="me"':'')+'><b>'+(i<4?['🥇','🥈','🥉'][i-1]:i)+'</b><span>'+esc(v.name||'Ẩn danh')+'</span><small>'+'★'.repeat(+v.st||0)+'</small> ⏱ '+fmtT(+v.t||0)+'</li>'});
+    $('rkList').innerHTML=h||'<li><span>Chưa ai qua màn này. Hãy là người đầu tiên!</span></li>';
+    $('rkMe').textContent=!user?'Đăng nhập để có tên trên bảng':meIn?'':bestT[n]?'Kỷ lục của bạn: ⏱ '+fmtT(bestT[n]):'';
+  }catch(e){$('rkList').innerHTML='<li><span>Không tải được bảng xếp hạng</span></li>'}
+}
+$('lvRank').onclick=()=>openRank(pickLv);
+$('rkBack').onclick=()=>{$('rank').style.display='none'};
+if(document.readyState==='complete')initFB();else addEventListener('load',initFB);
+refreshHome();
 reset();fit();requestAnimationFrame(loop);
 })();
 </script>
