@@ -301,7 +301,7 @@
       <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
-        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Muốn dẫn nhân vật đi thì giữ ngón tay trên nhân vật rồi kéo tới chỗ muốn tới. Nút tròn to góc phải dưới là chiêu riêng.</li>
+        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Muốn dẫn nhân vật đi thì giữ ngón tay trên nhân vật rồi kéo tới chỗ muốn tới (trên máy tính: bấm chuột phải vào chỗ muốn tới). Nút tròn to góc phải dưới là chiêu riêng.</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
@@ -1964,6 +1964,8 @@ cv.addEventListener('pointerleave',ev=>{if(ev.pointerType==='mouse'&&!drag)hover
 cv.addEventListener('pointerdown',ev=>{
   hideTip();hideEtip();toggleNext(false);
   if(!started||state.over||paused)return;
+  // right mouse button: send the hero there (PC)
+  if(ev.button===2){if(heroOn()){const p=fpos(ev);if(p.x>=0&&p.y>=0&&p.x<C&&p.y<R){hero.jobs=[];hero.bt=0;hero.goto={x:Math.max(.3,Math.min(C-.3,p.x)),y:Math.max(.3,Math.min(R-.3,p.y))};fx.push({x:p.x,y:p.y,r:.35,t:.3,c:'#fffbe0'});SFX.play('click')}}return}
   // press on the hero and drag to send it somewhere; a plain tap still builds on that cell
   if(heroOn()){const p=fpos(ev);if(Math.hypot(p.x-hero.x,p.y-(hero.y-.3))<.75){hdrag={id:ev.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y};try{cv.setPointerCapture(ev.pointerId)}catch(e){}return}}
   const c=cell(ev);
@@ -1996,6 +1998,7 @@ cv.addEventListener('pointerup',ev=>{
   if(!started||state.over||paused||!inB(c)||grid[c.y][c.x])return;
   place(c.x,c.y);
 });
+cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointercancel',()=>{drag=null;hover=null;hdrag=null});
 addEventListener('keydown',e=>{
   const k=Object.keys(TYPES)[+e.key-1];
