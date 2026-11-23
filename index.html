@@ -852,7 +852,10 @@ function mkEnemy(k,x,y,tx,ty,hpm,spm,n){
 }
 function spawn(q){
   const sd=SIDES?SIDES[q.side||0]:{sp:SP,ex:EX},e=mkEnemy(q.k,sd.sp.x+.5,sd.sp.y+.5,sd.sp.x,sd.sp.y,q.hpm,q.spm,q.n);
-  e.side=q.side||0;e.ex=sd.ex;enemies.push(e);
+  e.side=q.side||0;e.ex=sd.ex;
+  // PvP troops walk as a loose crowd instead of a single file
+  if(SIDES){e.ox=(Math.random()-.5)*.62;e.oy=(Math.random()-.5)*.62;e.x+=e.ox;e.y+=e.oy}
+  enemies.push(e);
   burst(sd.sp.x+.5,sd.sp.y+.5,'#7dffb0',4,1.2);
 }
 function toast(m,ms){
@@ -956,7 +959,7 @@ function update(dt){
     }
     const D=dmap(e,T.move);
     while(step>0){
-      const cx=e.tx+.5,cy=e.ty+.5;
+      const cx=e.tx+.5+(e.ox||0),cy=e.ty+.5+(e.oy||0);
       const dx=cx-e.x,dy=cy-e.y,dl=Math.hypot(dx,dy);
       if(dl>step){e.x+=dx/dl*step;e.y+=dy/dl*step;e.fa=Math.atan2(dy,dx);step=0}
       else{
@@ -1040,6 +1043,7 @@ function update(dt){
     texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold,c:mp&&mp.mode==='coop'&&(e.lastBy||0)!==myId()?'#8fd3ff':null});
     if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(Object.assign(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n),{side:e.side,ex:e.ex}))}burst(e.x,e.y,'#8fe05f',12,2.2)}
   }
+  for(const b of born){if(SIDES&&b.ox==null){b.ox=(Math.random()-.5)*.62;b.oy=(Math.random()-.5)*.62}}
   for(const b of born)if(b.side==null){b.side=sideOf(b.x);b.ex=SIDES?SIDES[b.side].ex:EX}
   enemies=enemies.filter(e=>e.hp>0).concat(born);
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.93;p.vy*=.93;p.life-=dt}
