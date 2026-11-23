@@ -371,7 +371,8 @@ let SP={x:Math.floor((C-1)/2),y:0},EX={x:Math.floor((C-1)/2),y:R-1};
 // 2vs2: SIDES holds one spawn/exit per team; the map is two mirrored halves split by a rock column at DIVX
 let SIDES=null;const DIVX=12;
 const sideOf=x=>SIDES&&x>=DIVX?1:0;
-const gates=()=>SIDES||[{sp:SP,ex:EX}];
+const gates=()=>SIDES||[{sp:SP,ex:EX,dir:{x:0,y:1}}];
+const gateWalls=s=>s.open?[]:s.dir.y?[[s.sp.x-1,s.sp.y],[s.sp.x+1,s.sp.y]]:[[s.sp.x,s.sp.y-1],[s.sp.x,s.sp.y+1]];
 const isGate=(x,y)=>gates().some(s=>(x===s.sp.x&&y===s.sp.y)||(x===s.ex.x&&y===s.ex.y));
 const teamOf=i=>(i||0)%2;
 const myTeam=()=>mp&&mp.mode==='2v2'?teamOf(mp.idx):0;
@@ -379,9 +380,9 @@ const PCOL=['#5ab0ff','#ff6b6b','#7de3ff','#ffa07a'];
 function setDims(c,r){C=c;R=r;$('app').classList.toggle('wide',C>12);cv.width=C*S*DPR;cv.height=R*S*DPR;terrain.width=C*S*DPR;terrain.height=R*S*DPR;try{fit()}catch(e){}}
 const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
-const isRes=(x,y)=>gates().some(s=>x===s.sp.x&&y===s.sp.y+1);
+const isRes=(x,y)=>gates().some(s=>x===s.sp.x+s.dir.x&&y===s.sp.y+s.dir.y);
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
-const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=150,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=15,RAGE_ATK=2;
+const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=120,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=15,RAGE_ATK=2;
 const TYPES={
   arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu',lv:[
     {cost:30,range:3.4,dmg:8,cd:.35},
@@ -503,12 +504,12 @@ function setText(el,s,html){if(txtCache.get(el)===s)return;txtCache.set(el,s);ht
 /* ---------- map generation ---------- */
 function buildGrid(){
   grid=Array.from({length:R},()=>Array(C).fill(null));
-  for(const s of gates()){grid[s.sp.y][s.sp.x-1]=WALL;grid[s.sp.y][s.sp.x+1]=WALL}
+  for(const s of gates())for(const [x,y] of gateWalls(s))if(grid[y]&&x>=0&&x<C)grid[y][x]=WALL;
   for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(terr[y][x]===ROCK)grid[y][x]=ROCKC;
 }
 function genMap(){
   for(let tries=0;tries<300;tries++){
-    const rnd=mulberry(level*100003+tries*7919+17);
+    const rnd=mulberry(level*100003+tries*7919+17),ly0=R>=18?5:2;
     terr=Array.from({length:R},()=>Array(C).fill(GRASS));
     // lakes: ground units must walk around, swimmers cut straight through
     const lakes=[];
@@ -517,14 +518,14 @@ function genMap(){
       for(let i=0;cells.length<size&&i<size*20;i++){
         const [x,y]=cells[Math.floor(rnd()*cells.length)],d=DIRS[Math.floor(rnd()*4)];
         const nx=x+d[0],ny=y+d[1];
-        if(nx<2||nx>C-3||ny<5||ny>R-6||terr[ny][nx]===WATER)continue;
+        if(nx<2||nx>C-3||ny<ly0||ny>R-ly0-1||terr[ny][nx]===WATER)continue;
         terr[ny][nx]=WATER;cells.push([nx,ny]);
       }
     };
-    lake(3+Math.floor(rnd()*(C-6)),5+Math.floor(rnd()*(R-10)),11+Math.floor(rnd()*7));
-    if(rnd()<.45)lake(2+Math.floor(rnd()*(C-4)),5+Math.floor(rnd()*(R-10)),5+Math.floor(rnd()*3));
+    lake(3+Math.floor(rnd()*(C-6)),ly0+Math.floor(rnd()*(R-2*ly0)),11+Math.floor(rnd()*7));
+    if(rnd()<.45)lake(2+Math.floor(rnd()*(C-4)),ly0+Math.floor(rnd()*(R-2*ly0)),5+Math.floor(rnd()*3));
     // smooth: fill grass pockets mostly surrounded by water
-    for(let y=5;y<=R-6;y++)for(let x=2;x<=C-3;x++){
+    for(let y=ly0;y<=R-ly0-1;y++)for(let x=2;x<=C-3;x++){
       if(terr[y][x]!==GRASS)continue;
       let n=0;for(const [dx,dy] of DIRS)if(terr[y+dy][x+dx]===WATER)n++;
       if(n>=3)terr[y][x]=WATER;
@@ -680,7 +681,7 @@ function reset(){
   buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
   state={time:0,stats:[{k:0,g:0},{k:0,g:0}],gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
-  if(mp&&mp.mode==='2v2'){state.livesT=[20,20];state.goldP=[0,1,2,3].map(()=>state.gold);state.stats=[0,1,2,3].map(()=>({k:0,g:0}))}
+  if(mp&&mp.mode==='2v2'){state.gold=PVP_GOLD;state.livesT=[20,20];state.goldP=[0,1,2,3].map(()=>state.gold);state.stats=[0,1,2,3].map(()=>({k:0,g:0}))}
   $('over').style.display='none';
   setPause(false);makeHero();
   recompute();updateUI();
@@ -688,14 +689,14 @@ function reset(){
 // Distance to the castle. Rocks/gate walls are impassable; a tower costs TOWER_STEP extra,
 // so enemies prefer any open route, and when fully blocked they pick the route through the fewest buildings.
 const TOWER_STEP=1000;
-function bfs(block,mode){
+function bfs(block,mode,side){
   const d=Array.from({length:R},()=>Array(C).fill(Infinity)),done=Array.from({length:R},()=>Array(C).fill(false));
-  const open=[];for(const s of gates()){d[s.ex.y][s.ex.x]=0;open.push([0,s.ex.x,s.ex.y])}
+  const open=[];for(const s of (side!=null?[SIDES[side]]:gates())){d[s.ex.y][s.ex.x]=0;open.push([0,s.ex.x,s.ex.y])}
   while(open.length){
     let bi=0;for(let i=1;i<open.length;i++)if(open[i][0]<open[bi][0])bi=i;
     const [c,x,y]=open[bi];open[bi]=open[open.length-1];open.pop();
     if(done[y][x])continue;done[y][x]=true;
-    const here=grid[y][x],w=1+(here&&!here.wall?TOWER_STEP:0);
+    const here=grid[y][x],w=1+(here&&!here.wall&&(side==null||teamOf(here.owner||0)===side)?TOWER_STEP:0);
     for(const [dx,dy] of DIRS){
       const nx=x+dx,ny=y+dy;
       if(nx<0||ny<0||nx>=C||ny>=R)continue;
@@ -707,7 +708,8 @@ function bfs(block,mode){
   }
   return d;
 }
-function recompute(){distG=bfs(null,'g');distS=bfs(null,'s');hoverKey=''}
+function recompute(){if(SIDES){distG=[bfs(null,'g',0),bfs(null,'g',1)];distS=[bfs(null,'s',0),bfs(null,'s',1)]}else{distG=bfs(null,'g');distS=bfs(null,'s')}hoverKey=''}
+const dmap=(e,m)=>{const D=m==='s'?distS:distG;return SIDES?D[e.side||0]:D};
 const cellOf=e=>[Math.min(R-1,Math.max(0,Math.floor(e.y))),Math.min(C-1,Math.max(0,Math.floor(e.x)))];
 function canPlace(x,y,owner){
   if(x<0||y<0||x>=C||y>=R)return 'Ngoài bản đồ';
@@ -724,7 +726,7 @@ function canPlace(x,y,owner){
   return null;
 }
 function place(x,y){
-  if(heroOn()){heroOrder(x,y);return}
+  if(heroOn()&&!coopGuest()){heroOrder(x,y);return}
   if(coopGuest()){mpSend({t:'place',x,y,k:selType});return}
   const e=doPlace(x,y,0,selType);if(e)toast(e);
 }
@@ -779,7 +781,7 @@ function doSell(tw,owner){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&(mp.mode==='coop'||mp.mode==='2v2')?COOP_HP:1)*(typeof heroOn==='function'&&heroOn()?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+Math.round(1.3*n)]];
   if(n>=3)o.push(['runner',2+Math.round(.7*n)]);
@@ -834,7 +836,7 @@ function startWave(){
   const n=state.wave,{hpm,spm}=waveMul(n),list=[];
   for(const [k,c] of waveComp(n))for(let i=0;i<c;i++)list.push(k);
   for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
-  if(SIDES){for(const k of list)for(const side of [0,1])queue.push({k,hpm,spm,n,side})}
+  if(SIDES){const f=sd=>sideMul(sd);for(const k of list)for(const side of [0,1])queue.push({k,hpm:hpm*f(side),spm,n,side})}
   else for(const k of list)queue.push({k,hpm,spm,n});
   if(n%10===0)toast('👑 Trùm xuất hiện! Trùm triệu hồi thêm lính',2500);
   else setTimeout(warnNewType,2600);
@@ -864,7 +866,7 @@ function prog(e){
   const m=ETYPES[e.k].move;
   if(m==='f'){const X=e.ex||EX;return Math.hypot(X.x+.5-e.x,X.y+.5-e.y)}
   // remaining path: distance of the cell it is walking into + how far it still is from that cell's centre
-  const D=m==='s'?distS:distG,tx=Math.min(C-1,Math.max(0,e.tx)),ty=Math.min(R-1,Math.max(0,e.ty));
+  const D=dmap(e,m),tx=Math.min(C-1,Math.max(0,e.tx)),ty=Math.min(R-1,Math.max(0,e.ty));
   return D[ty][tx]+Math.hypot(e.x-(tx+.5),e.y-(ty+.5));
 }
 let dmgBy=0,HD=false; // HD: damage currently dealt by the hero (for its XP)
@@ -874,7 +876,7 @@ function hurt(e,d,raw,zap){
   if(dm<=0)return;
   const a=raw?0:(ETYPES[e.k].armor||0);e.hp-=Math.max(dm*.2,dm-a);e.hit=.1;
 }
-function around(x,y,r){const sd=sideOf(x);return enemies.filter(e=>e.hp>0&&Math.hypot(e.x-x,e.y-y)<=r&&(!SIDES||(e.side||0)===sd))}
+function around(x,y,r){const sd=teamOf(dmgBy);return enemies.filter(e=>e.hp>0&&Math.hypot(e.x-x,e.y-y)<=r&&(!SIDES||(e.side||0)===sd))}
 function impact(s,tx,ty){
   dmgBy=s.owner||0;
   const L=s.L,t=s.t;
@@ -939,7 +941,7 @@ function update(dt){
       for(const o of enemies)if(o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<=T.healR){o.hp=Math.min(o.max,o.hp+o.max*T.heal);parts.push({x:o.x,y:o.y-.2,vx:0,vy:-.9,life:.6,max:.6,c:'#7dff8a',r:2.4})}
       fx.push({heal:1,x:e.x,y:e.y,t:.6,r:T.healR})}}
     if(e.k==='boss'){e.sumCd=(e.sumCd??5)-dt;if(e.sumCd<=0){e.sumCd=6;
-      for(let i=0;i<2;i++)born.push(mkEnemy('grunt',e.x+(Math.random()-.5)*.4,e.y+(Math.random()-.5)*.4,e.tx,e.ty,(e.hpm||1)*.6,e.spm,e.n));
+      for(let i=0;i<2;i++)born.push(Object.assign(mkEnemy('grunt',e.x+(Math.random()-.5)*.4,e.y+(Math.random()-.5)*.4,e.tx,e.ty,(e.hpm||1)*.6,e.spm,e.n),{side:e.side,ex:e.ex}));
       fx.push({x:e.x,y:e.y,r:1,t:.3,c:'#b06bff'});burst(e.x,e.y,'#c9a2ff',14,2.6)}}
     if(e.stun>0){e.stun-=dt;continue}
     let step=T.sp*e.spm*(e.slow>0?1-(e.slowAmt||.5):1)*dt;
@@ -949,7 +951,7 @@ function update(dt){
       else{e.x+=dx/dl*step;e.y+=dy/dl*step;e.fa=Math.atan2(dy,dx)}
       continue;
     }
-    const D=T.move==='s'?distS:distG;
+    const D=dmap(e,T.move);
     while(step>0){
       const cx=e.tx+.5,cy=e.ty+.5;
       const dx=cx-e.x,dy=cy-e.y,dl=Math.hypot(dx,dy);
@@ -962,12 +964,13 @@ function update(dt){
           const nx=e.tx+ox,ny=e.ty+oy;
           if(nx<0||ny<0||nx>=C||ny>=R)continue;
           const gc=grid[ny][nx];if(gc&&gc.wall)continue;
-          const cost=D[ny][nx]+(gc?TOWER_STEP:0);
+          const dfd=gc&&(!SIDES||teamOf(gc.owner||0)===(e.side||0));
+          const cost=D[ny][nx]+(dfd?TOWER_STEP:0);
           if(cost<bd){bd=cost;b=[nx,ny]}
         }
         if(!b){step=0;break}
         const blk=grid[b[1]][b[0]];
-        if(blk){e.atkT=blk;e.fa=Math.atan2(b[1]-e.ty,b[0]-e.tx);step=0;break}
+        if(blk&&(!SIDES||teamOf(blk.owner||0)===(e.side||0))){e.atkT=blk;e.fa=Math.atan2(b[1]-e.ty,b[0]-e.tx);step=0;break}
         e.atkT=null;
         e.tx=b[0];e.ty=b[1];
       }
@@ -993,7 +996,7 @@ function update(dt){
     const inR=[];
     for(const e of enemies){
       if(e.hp<=0)continue;
-      if(SIDES&&(e.side||0)!==sideOf(tw.x))continue;
+      if(SIDES&&(e.side||0)!==teamOf(tw.owner||0))continue;
       if(Math.hypot(e.x-(tw.x+.5),e.y-(tw.y+.5))>L.range)continue;
       inR.push([prog(e),e]);
     }
@@ -1012,7 +1015,7 @@ function update(dt){
       fx.push({mz:1,x:tw.x+.5+Math.cos(a)*.42,y:tw.y+.5+Math.sin(a)*.42,a,t:.12,c:TYPES[tw.type].color});
     }
   }
-  if(heroOn())heroStep(dt);
+  if(heroOn()||heroes.length)eachHero(()=>heroStep(dt));
   for(const s of shots){
     const tx=s.t.hp>0?s.t.x:(s.lx??s.x),ty=s.t.hp>0?s.t.y:(s.ly??s.y);
     s.lx=tx;s.ly=ty;
@@ -1022,17 +1025,17 @@ function update(dt){
     if(s.type==='fire'&&Math.random()<.6)parts.push({x:s.x,y:s.y,vx:(Math.random()-.5)*.6,vy:-.8-Math.random()*.6,life:.35,max:.35,c:Math.random()<.5?'#ffcf5a':'#ff6a2a',r:1.4+Math.random()*1.6});
     if(s.type==='cannon'&&Math.random()<.5)parts.push({x:s.x,y:s.y,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,life:.45,max:.45,c:'rgba(150,150,155,.8)',r:2.5+Math.random()*2});
     if(s.type==='frost'&&Math.random()<.5)parts.push({x:s.x,y:s.y,vx:(Math.random()-.5)*.5,vy:(Math.random()-.5)*.5,life:.3,max:.3,c:'#e9f8ff',r:1.2});
-    if(dl<=stp){s.dead=true;HD=!!s.hero;impact(s,tx,ty);HD=false}
+    if(dl<=stp){s.dead=true;HD=s.hm||0;impact(s,tx,ty);HD=false}
     else{s.x+=dx/dl*stp;s.y+=dy/dl*stp}
   }
   shots=shots.filter(s=>!s.dead);
   for(const e of enemies)if(e.hp<=0&&!e.leaked){
     const T=ETYPES[e.k];
-    if(e.byHero&&heroOn())heroXP(T.gold);
+    if(e.byHero&&heroOn()){const hh=heroByMark(e.byHero);if(hh)withHero(hh,()=>heroXP(T.gold))}
     addGold(e.lastBy||0,T.gold);{const sv=state.stats[mp&&mp.mode==='2v2'?(e.lastBy||0):(e.lastBy?1:0)];sv.k++;sv.g+=T.gold}
     burst(e.x,e.y,T.col,e.k==='boss'?30:10,e.k==='boss'?4:2.6);SFX.play(e.k==='boss'?'boom':'coin');
     texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold,c:mp&&mp.mode==='coop'&&(e.lastBy||0)!==myId()?'#8fd3ff':null});
-    if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n))}burst(e.x,e.y,'#8fe05f',12,2.2)}
+    if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(Object.assign(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n),{side:e.side,ex:e.ex}))}burst(e.x,e.y,'#8fe05f',12,2.2)}
   }
   for(const b of born)if(b.side==null){b.side=sideOf(b.x);b.ex=SIDES?SIDES[b.side].ex:EX}
   enemies=enemies.filter(e=>e.hp>0).concat(born);
@@ -1290,11 +1293,43 @@ function drawWater(){
   g.globalAlpha=1;
 }
 function drawGates(){
-  if(SIDES){const s0=SP,e0=EX;for(const sd of SIDES){SP=sd.sp;EX=sd.ex;drawGate1()}SP=s0;EX=e0}else drawGate1();
+  if(SIDES){for(const t of [0,1])drawBase(t)}else drawGate1(gates()[0]);
 }
-function drawGate1(){
-  for(const gx of [SP.x-1,SP.x+1]){
-    const wx=gx*S,wyp=SP.y*S;
+// a team's base: one building that sends out troops; its HP bar is the team's lives
+function drawBase(t){
+  const b=SIDES[t].ex,cx=b.x*S+S/2,by=b.y*S+S,w=S*1.5,h=S*1.35,col=t?['#ff7a7a','#c93a3a','#7a1a1a']:['#7ac0ff','#3a7ac9','#1a3a7a'];
+  g.save();
+  g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(cx,by-2,w*.55,7,0,0,7);g.fill();
+  // stone body
+  const sg=g.createLinearGradient(0,by-h,0,by);sg.addColorStop(0,'#d4d8de');sg.addColorStop(1,'#8a909b');
+  g.fillStyle=sg;rr(g,cx-w/2,by-h*.72,w,h*.72,6);g.fill();g.strokeStyle='#4a505b';g.lineWidth=1.5;g.stroke();
+  g.strokeStyle='rgba(0,0,0,.18)';g.lineWidth=1;for(let i=1;i<3;i++){g.beginPath();g.moveTo(cx-w/2+3,by-h*.72+i*h*.22);g.lineTo(cx+w/2-3,by-h*.72+i*h*.22);g.stroke()}
+  // roof in team colour
+  const rg=g.createLinearGradient(0,by-h*1.3,0,by-h*.7);rg.addColorStop(0,col[0]);rg.addColorStop(1,col[1]);
+  g.fillStyle=rg;g.beginPath();g.moveTo(cx-w*.62,by-h*.7);g.lineTo(cx,by-h*1.32);g.lineTo(cx+w*.62,by-h*.7);g.closePath();g.fill();g.strokeStyle=col[2];g.lineWidth=1.5;g.stroke();
+  // glowing doorway (troops come out of here)
+  const dx=cx+(t?-1:1)*w*.08,gl=.55+.35*Math.sin(now*4+t);
+  const dg=g.createRadialGradient(dx,by-h*.22,1,dx,by-h*.22,S*.42);dg.addColorStop(0,'rgba(255,255,255,'+gl+')');dg.addColorStop(.45,'rgba('+(t?'255,140,120':'130,200,255')+','+gl+')');dg.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle='#2a2018';g.beginPath();g.moveTo(dx-8,by-1);g.lineTo(dx-8,by-h*.3);g.arc(dx,by-h*.3,8,Math.PI,0);g.lineTo(dx+8,by-1);g.closePath();g.fill();
+  g.fillStyle=dg;g.beginPath();g.arc(dx,by-h*.22,S*.42,0,7);g.fill();
+  // banner
+  const fx_=cx+w*.05,fy=by-h*1.32,wv=Math.sin(now*5+t)*1.5;
+  g.strokeStyle='#5a4630';g.lineWidth=1.5;g.beginPath();g.moveTo(fx_,fy);g.lineTo(fx_,fy-12);g.stroke();
+  g.fillStyle=col[0];g.beginPath();g.moveTo(fx_,fy-12);g.lineTo(fx_+(t?-11:11),fy-9+wv);g.lineTo(fx_,fy-6);g.closePath();g.fill();
+  // HP bar = team lives
+  const L=(state&&state.livesT?state.livesT[t]:20)/20,bw=w*1.05,bx=cx-bw/2,byy=by-h*1.32-20;
+  g.fillStyle='#000b';rr(g,bx-1,byy-1,bw+2,7,3);g.fill();g.fillStyle=L>.5?'#6fe07a':L>.25?'#ffd166':'#ff6b6b';rr(g,bx,byy,Math.max(0,bw*L),5,2.5);g.fill();
+  g.restore();
+}
+function drawBridges(){
+  for(let y=0;y<R;y++)for(const x of [DIVX-1,DIVX]){if(terr[y][x]!==GRASS)continue;const up=terr[y-1]&&terr[y-1][x]===WATER,dn=terr[y+1]&&terr[y+1][x]===WATER;if(!up&&!dn)continue;
+    const x0=x*S,y0=y*S;g.fillStyle='#8a5a32';g.fillRect(x0,y0+2,S,S-4);g.strokeStyle='#5a3a1c';g.lineWidth=1;
+    for(let i=0;i<=S;i+=7){g.beginPath();g.moveTo(x0+i,y0+2);g.lineTo(x0+i,y0+S-2);g.stroke()}
+    g.fillStyle='#6b4424';if(up)g.fillRect(x0,y0+1,S,3);if(dn)g.fillRect(x0,y0+S-4,S,3)}
+}
+function drawGate1(gt){
+  for(const [gx,gy] of gateWalls(gt)){
+    const wx=gx*S,wyp=gy*S;
     g.fillStyle='rgba(0,0,0,.3)';g.beginPath();g.ellipse(wx+S/2+2,wyp+S-4,S*.4,5,0,0,7);g.fill();
     const wg=g.createLinearGradient(0,wyp,0,wyp+S);wg.addColorStop(0,'#b5bcc6');wg.addColorStop(1,'#6f7683');
     rr(g,wx+2,wyp+2,S-4,S-4,6);g.fillStyle=wg;g.fill();g.strokeStyle='#4a505b';g.lineWidth=1.5;g.stroke();
@@ -1323,10 +1358,10 @@ function draw(){
   g.setTransform(DPR,0,0,DPR,0,0);
   g.clearRect(0,0,C*S,R*S);
   g.drawImage(terrain,0,0,C*S,R*S);
-  if(SIDES){const ot=1-myTeam(),x0=ot?(DIVX+1)*S:0;g.fillStyle='rgba(255,40,40,.07)';g.fillRect(x0,0,DIVX*S,R*S);
+  if(SIDES){drawBridges();const ot=1-myTeam(),x0=ot?(DIVX+1)*S:0;g.fillStyle='rgba(255,40,40,.05)';g.fillRect(x0,0,(DIVX-1)*S,R*S);
     g.font='bold 12px system-ui';g.textAlign='center';g.textBaseline='top';
     for(const t of [0,1]){const lb=(t===myTeam()?'ĐỘI BẠN · ':'ĐỘI KIA · ')+(t?'ĐỎ':'XANH');
-      g.fillStyle='#000a';const w=g.measureText(lb).width+14,lx=(t?DIVX+1:0)*S+4;rr(g,lx,R*S-22,w,18,9);g.fill();g.fillStyle=t?'#ff8a8a':'#8fd0ff';g.fillText(lb,lx+w/2,R*S-19)}}
+      g.fillStyle='#000a';const w=g.measureText(lb).width+14,lx=(t?DIVX:0)*S+4;rr(g,lx,R*S-22,w,18,9);g.fill();g.fillStyle=t?'#ff8a8a':'#8fd0ff';g.fillText(lb,lx+w/2,R*S-19)}}
   drawWater();
   drawGates();
   const live=started&&!state.over&&!paused;
@@ -1380,9 +1415,11 @@ function draw(){
     g.fillStyle=pc;rr(g,lx,ly,tw2,13,6);g.fill();g.fillStyle='#10200f';g.textAlign='left';g.textBaseline='middle';g.fillText(onm,lx+5,ly+7);
   }
   const isFly=e=>ETYPES[e.k].move==='f';
-  drawHeroJobs();
+  eachHero(drawHeroJobs);
+  // 2vs2/1vs1: a ring under each monster in the colour of the team that sent it
+  if(SIDES)for(const e of enemies){const t=1-(e.side||0);g.strokeStyle=t?'rgba(255,80,80,.95)':'rgba(80,170,255,.95)';g.lineWidth=2.5;g.beginPath();g.ellipse(e.x*S,e.y*S+S*.2,S*.36,S*.14,0,0,7);g.stroke()}
   for(const e of enemies.filter(e=>!isFly(e)).sort((a,b)=>a.y-b.y))drawEnemy(e);
-  drawHero();
+  eachHero(drawHero);
   for(const e of enemies.filter(isFly).sort((a,b)=>a.y-b.y))drawEnemy(e);
   for(const s of shots){
     if(s.tr&&s.tr.length>1){
@@ -1723,7 +1760,7 @@ function mpStopSearch(){
 function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
 const modeName=m=>m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo';
 let lobby=null,lbMode='coop';
-const MODE_DESC={coop:'Hai người cùng giữ một lâu đài, mỗi người xây tháp bằng vàng riêng. Qua màn cùng nhau.',vs:'Mỗi người một bản đồ. Bỏ vàng gửi quái sang bên kia, ai hết mạng trước thì thua.','2v2':'Hai đội, mỗi đội giữ một nửa bản đồ lớn. Bỏ vàng gửi quái sang đội kia, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
+const MODE_DESC={coop:'Hai người cùng giữ một lâu đài, mỗi người xây tháp bằng vàng riêng. Qua màn cùng nhau.',vs:'Quân hai bên tràn sang đánh lâu đài nhau. Mỗi người giữ một nửa bản đồ, ai hết mạng trước thì thua. Nên chơi trên máy tính.','2v2':'Quân hai đội tràn sang đánh lâu đài nhau. Mỗi đội 2 người giữ một nửa bản đồ, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
 function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Hợp tác':m==='2v2'?'👥 2vs2':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
 function lobbyMsg(m){setText($('roomList'),'<div class="empty">'+m+'</div>',true)}
 async function openLobby(){
@@ -1748,7 +1785,7 @@ function renderRooms(){
   const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode).sort((a,b)=>a.k-b.k);
   setText($('lbCount'),'Phòng '+({coop:'Hợp tác',vs:'Solo','2v2':'2vs2'}[lbMode])+' đang chờ ('+list.length+')');
   if(!list.length)return lobbyMsg('Chưa có phòng '+({coop:'Hợp tác',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
-  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'?' · '+(r.n||1)+'/4':'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
+  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'||r.cap?' · '+(r.n||1)+'/'+(r.cap||4):'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
 }
 function toggleNext(force){
   const nx=$('next'),open=force!=null?force:!nx.classList.contains('open');
@@ -1772,7 +1809,7 @@ function joinRoom(id){
       const link=makeLink(c,hT,gT,d.from);
       if(d.mode==='2v2')joinAsGuest4(c,link,d);else joinAsGuest(c,link,d.mode,d.k||info.k,cleanName(d.name)||cleanName(info.name)||'Chủ phòng')}
     else if(d.t==='full')fail('Phòng đã đủ người');});
-  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName},{qos:1}),150);
+  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName,hero:heroK},{qos:1}),150);
 }
 let roomInfo=null;
 function showRoom(o){
@@ -1813,7 +1850,7 @@ async function createRoom(mode){
     showRoom({full:true});SFX.play('build');
   });
 }
-function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'?COOP_LEVEL:VS_LEVEL);if(mp.mode==='2v2'){mp.started=true;room4Announce()}mpSend({t:'start',mode:mp.mode,level:lv,names:mp.names});mpBegin(lv)}
+function mpStartMatch(){const lv=mp.nextLv||(mp.mode==='coop'?COOP_LEVEL:VS_LEVEL);if(mp.mode==='2v2'){mp.started=true;room4Announce()}mpSend({t:'start',mode:mp.mode,level:lv,names:mp.names,heroK:mp.heroK});mpBegin(lv)}
 function joinAsGuest(c,conn,mode,k,hostName){
   mp={mode,role:'guest',client:c,own:true,conn,opp:{},stT:0,k,oppName:hostName};mpWire();roomInfo=null;showRoom({mode,role:'guest',k:k||'?',full:true});
 }
@@ -1835,7 +1872,7 @@ function mpBegin(lv){
   $('menuLv').style.display='none';$('reset').style.display='none';$('mpLeave').style.display='';
   $('sendbar').style.display=mp.mode==='vs'||mp.mode==='2v2'?'flex':'none';$('opp').style.display='block';
   fit();
-  if(mp.mode==='2v2'){toast('👥 2vs2! Bạn ở '+TEAMN(myTeam())+' ('+(myTeam()?'bên phải':'bên trái')+'). Gửi quái sang đội kia!',3500);updateUI();return}
+  if(mp.mode==='2v2'){toast('Bạn ở '+TEAMN(myTeam())+' (nhà '+(myTeam()?'bên phải':'bên trái')+'). Lính hai nhà tràn sang phá nhau, giữ nhà mình!',3500);updateUI();return}
   toast(mp.mode==='coop'?'🤝 Hợp tác! Tháp chấm vàng là của chủ phòng, chấm xanh là của khách':'⚔️ Solo! Bỏ vàng gửi quái sang bên kia',3200);
   updateUI();
 }
@@ -1930,13 +1967,20 @@ function updateOpp(){
 const r2=v=>Math.round(v*100)/100;
 function makeSnap(){
   const x2=mp.mode==='2v2'?{sx:state.stats.flatMap(o=>[o.k,o.g]),g:[state.gold,...state.goldP.slice(1)],lt:state.livesT,wt:state.wt??-2}:{sx:[state.stats[0].k,state.stats[0].g,state.stats[1].k,state.stats[1].g],g:[state.gold,state.gold2]};
+  if(mp.mode==='2v2')x2.hs=heroes.map(h=>h?[HK.indexOf(h.k),r2(h.x),r2(h.y),r2(h.fa),h.lv,Math.round(h.xp),r2(h.cdE),r2(h.cdQ),r2(h.atk),h.jobs.flatMap(j=>[j.x,j.y,TK.indexOf(j.type)]),
+    h.fx.map(f=>{const o={};for(const k in f)o[k]=typeof f[k]==='number'?r2(f[k]):f[k];return o}),h.rain?[r2(h.rain.x),r2(h.rain.y),r2(h.rain.t),h.rain.r||1.5]:0,h.bt>0?1:0]:0);
   return {t:'s',...x2,l:state.lives,w:state.wave,q:queue.length,nt:r2(state.nextT),ov:state.over?1:0,wn:state.won?1:0,fl:r2(state.flash),
     ta:state.taunt?[state.taunt.txt,r2(state.taunt.t),state.taunt.k]:0,
     tw:towers.map(t=>[t.x,t.y,TK.indexOf(t.type),t.lvl,t.owner||0,Math.ceil(t.hp),t.maxhp,r2(t.ang),r2(t.rec),t.hurt>0?1:0]),
-    en:enemies.map(e=>[e.id,EK.indexOf(e.k),r2(e.x),r2(e.y),Math.round(e.hp),Math.round(e.max),r2(e.fa),(e.slow>0?1:0)|(e.burn>0?2:0)|(e.stun>0?4:0)|(e.atkT?8:0)|(e.hit>0?16:0),e.tx,e.ty,e.shieldMax?r2(e.shield/e.shieldMax):0]),
+    en:enemies.map(e=>[e.id,EK.indexOf(e.k),r2(e.x),r2(e.y),Math.round(e.hp),Math.round(e.max),r2(e.fa),(e.slow>0?1:0)|(e.burn>0?2:0)|(e.stun>0?4:0)|(e.atkT?8:0)|(e.hit>0?16:0),e.tx,e.ty,e.shieldMax?r2(e.shield/e.shieldMax):0,e.side||0]),
     sh:shots.map(x=>[TK.indexOf(x.type),r2(x.x),r2(x.y),r2(x.ang)])};
 }
 function applySnap(d){
+  if(mp.mode==='2v2'&&d.hs){d.hs.forEach((a,i)=>{if(!a){heroes[i]=null;return}let h=heroes[i];if(!h){h=heroes[i]=newHero(HK[a[0]],a[1],a[2],i)}
+      const [ki,x,y,fa,lv,xp,ce,cq,atk,jb,hf,rn,bt]=a;
+      if(h.lv&&lv>h.lv){texts.push({x,y:y-.9,t:1.2,txt:'Lên cấp '+lv+'!',c:'#ffd65a'});burst(x,y,'#ffd65a',18,3)}
+      Object.assign(h,{k:HK[ki],nx:x,ny:y,fa,lv,xp,cdE:ce,cdQ:cq,atk,fx:hf,rain:rn?{x:rn[0],y:rn[1],t:rn[2],r:rn[3]}:null,bt});
+      const js=[];for(let q=0;q<jb.length;q+=3)js.push({x:jb[q],y:jb[q+1],type:TK[jb[q+2]]});h.jobs=js});hero=heroes[mp.idx]||null}
   if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt[myTeam()];state.stats=[0,1,2,3].map(i=>({k:d.sx[i*2]||0,g:d.sx[i*2+1]||0}))}
   else{state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l}
   if(d.w!==state.wave)state.wave=d.w;
@@ -1957,10 +2001,10 @@ function applySnap(d){
   // enemies
   const byId=new Map(enemies.map(e=>[e.id,e])),next=[];
   for(const a of d.en){
-    const [id,ki,x,y,hp,max,fa,fl,tx,ty,sh]=a;let e=byId.get(id);
+    const [id,ki,x,y,hp,max,fa,fl,tx,ty,sh,sd]=a;let e=byId.get(id);
     if(!e){e={id,k:EK[ki],x,y,tx,ty,slow:0,burn:0,stun:0,hit:0}}
     byId.delete(id);
-    Object.assign(e,{nx:x,ny:y,hp,max,fa,tx,ty,slow:fl&1?1:0,burn:fl&2?1:0,shield:sh||0,shieldMax:sh!=null?1:0,stun:fl&4?.5:0,stunMax:1,atkT:fl&8?1:null,hit:fl&16?.1:0});
+    Object.assign(e,{side:sd||0,nx:x,ny:y,hp,max,fa,tx,ty,slow:fl&1?1:0,burn:fl&2?1:0,shield:sh||0,shieldMax:sh!=null?1:0,stun:fl&4?.5:0,stunMax:1,atkT:fl&8?1:null,hit:fl&16?.1:0});
     next.push(e);
   }
   for(const e of byId.values()){const T=ETYPES[e.k];burst(e.x,e.y,T.col,8,2.4);if(gates().every(s=>Math.hypot(e.x-s.ex.x-.5,e.y-s.ex.y-.5)>.8)){SFX.play('coin');texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold})}else SFX.play('leak')}
@@ -1971,6 +2015,7 @@ function applySnap(d){
   if(d.ov&&!state.over){state.over=true;mpShow(d.wn?'Cùng nhau qua màn '+level+'!':'Thua rồi!',d.wn?'Còn '+d.l+'/20 mạng':'Trụ được tới đợt '+d.w+'/'+WAVES,!!d.wn)}
 }
 function guestStep(dt){
+  for(const h of heroes)if(h&&h.nx!=null){const k=Math.min(1,dt*10),ox=h.x,oy=h.y;h.x+=(h.nx-h.x)*k;h.y+=(h.ny-h.y)*k;h.mv=Math.hypot(h.x-ox,h.y-oy)>dt*.3;if(h.mv)h.walk+=dt*10;h.atk=Math.max(0,h.atk-dt)}
   for(const e of enemies){if(e.nx!=null){const k=Math.min(1,dt*9);e.x+=(e.nx-e.x)*k;e.y+=(e.ny-e.y)*k}if(e.hit>0)e.hit-=dt}
   for(const tw of towers)if(tw.hurt>0)tw.hurt-=dt;
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.93;p.vy*=.93;p.life-=dt}
@@ -1983,15 +2028,28 @@ function guestStep(dt){
 }
 // ---- 2vs2: two mirrored halves, Đội Xanh (left, players 0 & 2) vs Đội Đỏ (right, players 1 & 3) ----
 // The host runs the whole match; guests send commands and mirror the host's snapshots.
+// hand-made battlefield (24x18, mirrored left/right and top/bottom): a river with 3 bridges and rock walls
 function genMap2(){
-  SIDES=null;setDims(12,18);SP={x:5,y:0};EX={x:5,y:17};genMap();
-  const half=terr;
-  setDims(DIVX*2+1,18);
-  terr=half.map(row=>[...row,ROCK,...row.slice().reverse()]);
-  SIDES=[{sp:{x:5,y:0},ex:{x:5,y:17}},{sp:{x:C-1-5,y:0},ex:{x:C-1-5,y:17}}];
+  setDims(DIVX*2,18);SIDES=null;
+  terr=Array.from({length:R},()=>Array(C).fill(GRASS));
+  const set=(x,y,v)=>{for(const [a,b] of [[x,y],[C-1-x,y],[x,R-1-y],[C-1-x,R-1-y]])terr[b][a]=v};
+  // river down the middle, bridges at the top, middle and bottom
+  for(let y=0;y<R;y++)for(const x of [DIVX-1,DIVX])if(!((y>=2&&y<=3)||(y>=8&&y<=9)||(y>=14&&y<=15)))terr[y][x]=WATER;
+  // rock walls that shape three lanes (listed for the top-left quarter, mirrored to the rest)
+  const rocks=[[3,5],[4,5],[5,5],[5,4],[8,5],[8,6],[7,6],[2,2],[6,1],[9,2],[9,3],[3,7],[6,8]];
+  const r=mulberry(level*977+5),sh=Math.floor(r()*2);
+  for(const [x,y] of rocks)set(x,Math.min(7,y+sh*(y>2&&y<7?1:0)),ROCK);
+  // two little ponds
+  for(const [x,y] of [[6,3],[7,3]])set(x,y,WATER);
+  // SIDES[s]: troops attacking team s, pouring out of the other team's base
+  SIDES=[{sp:{x:C-2,y:8},ex:{x:1,y:8},dir:{x:-1,y:0},open:1},{sp:{x:1,y:8},ex:{x:C-2,y:8},dir:{x:1,y:0},open:1}];
+  for(const sd of SIDES)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)terr[sd.ex.y+dy][sd.ex.x+dx]=GRASS;
   SP=SIDES[0].sp;EX=SIDES[0].ex;
   buildGrid();
 }
+// a side defended by 2 players gets tougher troops; heroes add a bit too
+function sideMul(sd){const n=mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;return (n>=2?COOP_HP:1)*HERO_HP}
+const PVP_GOLD=120;
 const TEAMN=t=>t?'Đội Đỏ':'Đội Xanh';
 function end2v2(wt){
   state.over=true;state.wt=wt;selTower=null;
@@ -2023,22 +2081,25 @@ function showRoom4(){
   const r=mp;if(!r)return;
   $('lobby').style.display='none';$('mpwait').style.display='none';$('room').style.display='flex';
   $('rmTitle').textContent=r.k?'Phòng '+r.k:'Đang tạo phòng…';
-  $('rmSub').textContent='👥 2vs2 · hai đội, mỗi đội giữ một nửa bản đồ';
+  const one=r.cap===2;
+  $('rmSub').textContent=one?'⚔️ 1vs1 · quân hai bên tràn sang đánh lâu đài nhau':'👥 2vs2 · quân hai đội tràn sang đánh lâu đài nhau';
   document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
   let h='';
   for(const t of [0,1]){h+='<div class="team4"><div class="tn" style="color:'+(t?'#ff8a8a':'#8fd0ff')+'">'+(t?'🔴 ':'🔵 ')+TEAMN(t)+'</div>';
-    for(const i of [t,t+2]){const n=r.names[i];h+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(i===0?'👑':'🙂'):'⏳')+'</span><div><b>'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b></div></div>'}
+    for(const i of (one?[t]:[t,t+2])){const n=r.names[i],hk=r.heroK&&r.heroK[i];h+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div><b>'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div></div>'}
     h+='</div>'}
+  h+='<div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Nhân vật của bạn</div><div class="hgrid">'+HK.map(k=>'<button class="hb'+(k===((r.heroK&&r.heroK[r.idx])||heroK)?' cur':'')+'" data-hk="'+k+'"><b>'+HEROES[k].ico+'</b><small>'+HEROES[k].name+'</small></button>').join('')+'</div></div>';
   $('slots4').innerHTML=h;
   const host=r.role==='host',cnt=r.names.filter(Boolean).length;
   $('rmStart').style.display=host?'':'none';$('rmStart').disabled=!r.names[1];
-  $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(r.names[1]?'Có thể bắt đầu ('+cnt+'/4 người). Đủ 4 người thì vui hơn!':'Cần ít nhất 1 người bên Đội Đỏ để bắt đầu'):'Chờ chủ phòng bấm Bắt đầu…';
+  $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(r.names[1]?(one?'Đủ người rồi, bấm Bắt đầu nhé!':'Có thể bắt đầu ('+cnt+'/4 người). Đủ 4 người thì vui hơn!'):(one?'Chờ người chơi thứ 2 vào phòng…':'Cần ít nhất 1 người bên Đội Đỏ để bắt đầu')):'Chờ chủ phòng bấm Bắt đầu…';
 }
-async function createRoom4(){
+async function createRoom4(cap){
+  cap=cap||4;
   closeLobby();mpStopSearch();
   const id=rid(8),k=100+Math.floor(Math.random()*900),topic=NS+'rooms/'+id,hT=NS+'r/'+id+'/h',gT=NS+'r/'+id+'/g';
   roomInfo=null;
-  mp={mode:'2v2',role:'host',idx:0,k:0,names:[myName,null,null,null],peers:new Map(),snapT:0,stT:0,opp:{},topic,hT,gT,born:Date.now()};
+  mp={mode:'2v2',role:'host',idx:0,k:0,cap,heroK:[heroK,null,null,null],names:[myName,null,null,null],peers:new Map(),snapT:0,stT:0,opp:{},topic,hT,gT,born:Date.now()};
   const my=mp;showRoom4();
   const c=await mqConnect({topic,payload:'',retain:true,qos:1});
   if(mp!==my){c&&c.end();return}
@@ -2055,19 +2116,19 @@ function room4Announce(){
   if(!mp||mp.mode!=='2v2'||mp.role!=='host'||!mp.client)return;
   const n=mp.names.filter(Boolean).length;
   if(mp.started)mqPub(mp.client,mp.topic,null,{retain:true,qos:1});
-  else mqPub(mp.client,mp.topic,{mode:'2v2',k:mp.k,at:Date.now(),born:mp.born,name:myName,n,full:n>=4},{retain:true,qos:1});
+  else mqPub(mp.client,mp.topic,{mode:mp.cap===2?'vs':'2v2',k:mp.k,at:Date.now(),born:mp.born,name:myName,n,cap:mp.cap,full:n>=mp.cap},{retain:true,qos:1});
 }
-function roster4(){mp.conn.send({t:'roster',names:mp.names});if(!started)showRoom4();room4Announce()}
+function roster4(){mp.conn.send({t:'roster',names:mp.names,heroK:mp.heroK});if(!started)showRoom4();room4Announce()}
 function hostRecv4(d){
   if(!d||!d.from||!mp||mp.mode!=='2v2'||mp.role!=='host')return;
   const p=mp.peers.get(d.from);
   if(d.t==='hello'){
     if(p)return;
-    const idx=[1,2,3].find(i=>!mp.names[i]);
+    const idx=(mp.cap===2?[1]:[1,2,3]).find(i=>!mp.names[i]);
     if(mp.started||idx==null){mqPub(mp.client,mp.gT,{t:'full',to:d.from,from:mp.client.myId},{qos:1});return}
     const name=cleanName(d.name)||'Người chơi '+(idx+1);
-    mp.peers.set(d.from,{idx,name,last:Date.now()});mp.names[idx]=name;
-    mp.conn.send({t:'welcome',to:d.from,mode:'2v2',k:mp.k,name:myName,idx,names:mp.names});
+    mp.peers.set(d.from,{idx,name,last:Date.now()});mp.names[idx]=name;mp.heroK[idx]=HEROES[d.hero]?d.hero:'warrior';
+    mp.conn.send({t:'welcome',to:d.from,mode:'2v2',k:mp.k,name:myName,idx,names:mp.names,heroK:mp.heroK,cap:mp.cap});
     roster4();SFX.play('build');return;
   }
   if(!p)return;p.last=Date.now();
@@ -2083,9 +2144,17 @@ function hostCmd4(d,p,pid){
   const err=m=>m&&mp.conn.send({t:'err',to:pid,m});
   if(d.t==='place'||d.t==='up'||d.t==='sell'){
     if(!started||state.over)return;
-    if(d.t==='place')return err(TYPES[d.k]?doPlace(d.x,d.y,p.idx,d.k):'?');
+    if(d.t==='place')return err(!TYPES[d.k]?'?':heroes[p.idx]?withHero(heroes[p.idx],()=>heroOrder2(d.x,d.y,d.k,p.idx)):doPlace(d.x,d.y,p.idx,d.k));
     const tw=grid[d.y]&&grid[d.y][d.x];if(!tw||tw.wall)return err('Không có tháp');
     return err(d.t==='up'?doUpgrade(tw,p.idx):doSell(tw,p.idx));
+  }
+  if(d.t==='hero'){if(HEROES[d.k]&&!mp.started){mp.heroK[p.idx]=d.k;roster4()}return}
+  const hh=heroes[p.idx];
+  if(hh&&started&&!state.over){
+    if(d.t==='go'){withHero(hh,()=>heroGo({x:+d.x,y:+d.y}));return}
+    if(d.t==='joy'){hh.joy=d.x==null?null:{x:+d.x,y:+d.y};return}
+    if(d.t==='E'){withHero(hh,heroE);return}
+    if(d.t==='Q'){withHero(hh,heroQ);return}
   }
   if(d.t==='send'){
     if(!started||state.over)return;
@@ -2097,12 +2166,15 @@ function hostCmd4(d,p,pid){
 // queue monsters on the other team's side and tell everyone
 function send4(fromTeam,o,by){
   const side=1-fromTeam,n=Math.max(1,state.wave),{hpm,spm}=waveMul(n);
-  for(let i=0;i<o.n;i++)queue.unshift({k:o.k,hpm,spm,n,side});
+  for(let i=0;i<o.n;i++)queue.unshift({k:o.k,hpm:hpm*sideMul(side),spm,n,side});
   mp.conn.send({t:'ev',k:o.k,n:o.n,side,by});ev4({k:o.k,n:o.n,side,by});
 }
 function ev4(d){toast('⚔️ '+d.by+' gửi '+d.n+' '+ETYPES[d.k].name+' sang '+(d.side===myTeam()?'đội bạn!':'đội kia'),2200)}
+$('slots4').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b||!mp||mp.mode!=='2v2')return;
+  heroK=b.dataset.hk;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}SFX.play('click');
+  mp.heroK=mp.heroK||[];mp.heroK[mp.idx]=heroK;if(mp.role==='host')roster4();else{mpSend({t:'hero',k:heroK});showRoom4()}});
 function joinAsGuest4(c,link,d){
-  mp={mode:'2v2',role:'guest',client:c,own:true,conn:link,idx:d.idx,k:d.k,names:d.names||[cleanName(d.name),null,null,null],opp:{},stT:0};
+  mp={mode:'2v2',role:'guest',client:c,own:true,conn:link,idx:d.idx,k:d.k,cap:d.cap||4,heroK:d.heroK||[],names:d.names||[cleanName(d.name),null,null,null],opp:{},stT:0};
   link.on('data',guestRecv4);
   link.on('close',()=>{if(!mp||mp.conn!==link)return;mpCleanup();hideRoom();started=false;$('over').style.display='none';$('mpwait').style.display='none';toast('Chủ phòng đã rời phòng',3000);openLobby()});
   showRoom4();
@@ -2111,14 +2183,14 @@ function guestRecv4(d){
   if(!d||!mp||mp.mode!=='2v2')return;
   if(d.to&&d.to!==mp.client.myId)return;
   switch(d.t){
-    case 'roster':mp.names=d.names;if(!started)showRoom4();break;
-    case 'start':mp.names=d.names||mp.names;mpBegin(d.level);break;
+    case 'roster':mp.names=d.names;mp.heroK=d.heroK||mp.heroK;if(!started)showRoom4();break;
+    case 'start':mp.names=d.names||mp.names;mp.heroK=d.heroK||mp.heroK;mpBegin(d.level);break;
     case 's':applySnap(d);break;
     case 'err':toast(d.m);break;
     case 'ev':ev4(d);break;
   }
 }
-$('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4():createRoom(lbMode);
+$('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4(4):lbMode==='vs'?createRoom4(2):createRoom(lbMode);
 setLbMode('coop');
 $('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
 $('rmLeave').onclick=()=>{mpStopSearch();if(mp)mpCleanup();hideRoom();openLobby()};
@@ -2351,7 +2423,7 @@ if(document.readyState==='complete')initFB();else addEventListener('load',initFB
 /* ---------- hero (single player): walks straight over everything, builds towers, fights, never dies ---------- */
 const HEROES={
   warrior:{name:'Chiến binh',ico:'🛡️',col:'#e0a040',sp:4,range:1.05,dmg:14,cd:.55,cleave:3,desc:'Cận chiến, chém trúng 3 quái cùng lúc',
-    e:{n:'Lao tới',i:'💨',cd:6,d:'lao tới con quái gần nhất trong 4 ô, húc văng và làm choáng nhẹ quái trên đường'},
+    e:{n:'Đập đất',i:'💥',cd:6,d:'đập khiên xuống đất phía trước, gây sát thương và làm choáng 0.8 giây quái trong 1.6 ô'},
     q:{n:'Chém xoáy',i:'🌀',cd:20,d:'chém mọi quái trong 2 ô quanh mình, làm choáng 1.5 giây'}},
   archer:{name:'Cung thủ',ico:'🏹',col:'#5fc46a',sp:4,range:3.4,dmg:9,cd:.4,desc:'Bắn xa, nhanh',
     e:{n:'Tên xuyên',i:'➶',cd:6,d:'bắn một mũi tên xuyên thẳng qua mọi quái trên đường bay'},
@@ -2361,7 +2433,7 @@ const HEROES={
     q:{n:'Băng giá',i:'❄️',cd:24,d:'đóng băng 3 giây vùng quái đông nhất trong 5 ô quanh mình'}},
   assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,desc:'Đâm cực đau, xuyên giáp, chạy nhanh',
     e:{n:'Phi tiêu',i:'✴️',cd:5,d:'phóng 3 phi tiêu vào 3 quái gần nhất trong 4 ô, xuyên giáp'},
-    q:{n:'Ám sát',i:'💀',cd:20,d:'lướt tới con quái gần nhất trong 5 ô và đâm một nhát chí mạng'}}
+    q:{n:'Đoạt mệnh',i:'💀',cd:20,d:'phóng một con dao lớn vào con quái gần nhất trong 5 ô, gây chí mạng cực mạnh'}}
 };
 const HK=Object.keys(HEROES),HERO_SC=1.3;
 const hrgb=k=>HPAL[k][1].match(/\w\w/g).map(x=>parseInt(x,16)).join(',');
@@ -2373,11 +2445,29 @@ addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false});
 const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
 document.body.classList.toggle('kb',!TOUCH);
 // builders stand beside the cell (on the side they come from), not in the middle of it
-function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;return {x,y:cy+.1}}
+function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;const p={x,y:cy+.1,owner:h.owner};heroClamp(p);return p}
 let hero=null,heroK='warrior';
 try{const v=localStorage.getItem('mctt-hero');if(HEROES[v])heroK=v}catch(e){}
-const heroOn=()=>!!hero&&!mp;
-function makeHero(){hero=mp?null:{k:heroK,x:EX.x+.5,y:EX.y-.4,fa:-Math.PI/2,cd:0,cdE:2,cdQ:5,lv:1,xp:0,jobs:[],goto:null,sel:false,bt:0,walk:0,atk:0,fx:[],rain:null}}
+const heroOn=()=>!!hero&&(!mp||mp.mode==='2v2');
+// 2vs2/1vs1: one hero per player; `hero` points at the hero being simulated/drawn (the local one otherwise)
+let heroes=[];
+const myHero=()=>mp&&mp.mode==='2v2'?heroes[mp.idx]:hero;
+function withHero(h,fn){const c=hero;hero=h;try{return fn()}finally{hero=c}}
+function eachHero(fn){if(mp&&mp.mode==='2v2'){for(const h of heroes)if(h)withHero(h,fn)}else if(hero)fn()}
+const heroMark=()=>mp&&mp.mode==='2v2'?(hero.owner||0)+1:1;
+const heroByMark=m=>mp&&mp.mode==='2v2'?heroes[m-1]:hero;
+const foe=e=>e.hp>0&&(!SIDES||(e.side||0)===teamOf(hero.owner||0));
+function newHero(k,x,y,owner){return {k,x,y,fa:-Math.PI/2,cd:0,cdE:2,cdQ:5,lv:1,xp:0,jobs:[],goto:null,sel:false,bt:0,walk:0,atk:0,fx:[],rain:null,owner}}
+// keep each hero inside its own team's half
+function heroClamp(h){h.x=Math.max(.3,Math.min(C-.3,h.x));h.y=Math.max(.3,Math.min(R-.3,h.y))}
+function makeHero(){
+  heroes=[];
+  if(mp&&mp.mode==='2v2'){
+    for(let i=0;i<4;i++)if(mp.names&&mp.names[i]){const sd=SIDES[teamOf(i)],x=sd.ex.x+(teamOf(i)?-.6:1.6),y=sd.ex.y+(i<2?-.2:1.4);heroes[i]=newHero((mp.heroK&&mp.heroK[i])||'warrior',x,y,i);heroes[i].fa=teamOf(i)?Math.PI:0}
+    hero=heroes[mp.idx]||null;return;
+  }
+  hero=mp?null:newHero(heroK,EX.x+.5,EX.y-.4,0);
+}
 // hero damage keeps pace with monster HP so it stays useful in late waves
 // base power is lower than before; each hero level adds 12% (level 10 ≈ double level 1)
 const HERO_BASE=.6,HERO_MAXLV=10,HERO_HP=1.35,xpNeed=lv=>40+35*(lv-1);
@@ -2389,24 +2479,27 @@ function heroXP(v){
     texts.push({x:h.x,y:h.y-.9,t:1.2,txt:'Lên cấp '+h.lv+'!',c:'#ffd65a'});burst(h.x,h.y,'#ffd65a',22,3);h.fx.push({lvup:1,x:h.x,y:h.y,t:.6});SFX.play('build')}
   if(h.lv>=HERO_MAXLV)h.xp=0;
 }
-function heroOrder(x,y){
-  const err=canPlace(x,y);if(err){toast(err);return}
-  const T=TYPES[selType].lv[0];
+function heroOrder(x,y){const e=heroOrder2(x,y,selType,hero.owner||0);if(e)toast(e);else SFX.play('click')}
+function heroOrder2(x,y,type,owner){
+  if(!TYPES[type])return '?';
+  const err=canPlace(x,y,owner);if(err)return err;
+  const T=TYPES[type].lv[0];
   const queued=hero.jobs.reduce((s,j)=>s+TYPES[j.type].lv[0].cost,0);
-  if(state.gold<queued+T.cost){toast('Không đủ vàng');return}
-  if(hero.jobs.some(j=>j.x===x&&j.y===y)){toast('Ô này đã có lệnh xây');return}
-  if(hero.jobs.length>=6){toast('Tối đa 6 lệnh xây chờ');return}
-  hero.jobs.push({x,y,type:selType});hero.goto=null;hero.sel=false;SFX.play('click');
+  if(goldOf(owner)<queued+T.cost)return 'Không đủ vàng';
+  if(hero.jobs.some(j=>j.x===x&&j.y===y))return 'Ô này đã có lệnh xây';
+  if(hero.jobs.length>=6)return 'Tối đa 6 lệnh xây chờ';
+  hero.jobs.push({x,y,type});hero.goto=null;hero.sel=false;return null;
 }
 function heroGo(p){
   if(p.x<0||p.y<0||p.x>=C||p.y>=R)return;
-  hero.jobs=[];hero.bt=0;hero.goto={x:Math.max(.3,Math.min(C-.3,p.x)),y:Math.max(.3,Math.min(R-.3,p.y))};
+  if(coopGuest()){mpSend({t:'go',x:Math.round(p.x*100)/100,y:Math.round(p.y*100)/100});fx.push({x:p.x,y:p.y,r:.35,t:.3,c:'#fffbe0'});SFX.play('click');return}
+  hero.jobs=[];hero.bt=0;hero.goto={x:Math.max(.3,Math.min(C-.3,p.x)),y:Math.max(.3,Math.min(R-.3,p.y))};hero.goto.owner=hero.owner;heroClamp(hero.goto);
   fx.push({x:p.x,y:p.y,r:.35,t:.3,c:'#fffbe0'});SFX.play('click');
 }
 function heroTarget(H,px,py){
   let best=null,bv=Infinity;
   for(const e of enemies){
-    if(e.hp<=0)continue;const d=Math.hypot(e.x-px,e.y-py);if(d>H.range)continue;
+    if(!foe(e))continue;const d=Math.hypot(e.x-px,e.y-py);if(d>H.range)continue;
     const v=hero.k==='assassin'?-e.hp:prog(e);
     if(v<bv){bv=v;best=e}
   }
@@ -2417,41 +2510,41 @@ function heroTarget(H,px,py){
 const SK_REACH=5;
 function crowdSpot(r){
   let best=null,bn=0,bd=0;
-  for(const e of enemies){if(e.hp<=0)continue;const d=Math.hypot(e.x-hero.x,e.y-hero.y);if(d>SK_REACH)continue;const n=around(e.x,e.y,r).length;if(n>bn||(n===bn&&d<bd)){bn=n;best=e;bd=d}}
+  for(const e of enemies){if(!foe(e))continue;const d=Math.hypot(e.x-hero.x,e.y-hero.y);if(d>SK_REACH)continue;const n=around(e.x,e.y,r).length;if(n>bn||(n===bn&&d<bd)){bn=n;best=e;bd=d}}
   return best&&{x:best.x,y:best.y};
 }
-const nearest=(x,y,r)=>{let b=null,bd=r;for(const e of enemies){if(e.hp<=0)continue;const d=Math.hypot(e.x-x,e.y-y);if(d<bd){bd=d;b=e}}return b};
+const nearest=(x,y,r)=>{let b=null,bd=r;for(const e of enemies){if(!foe(e))continue;const d=Math.hypot(e.x-x,e.y-y);if(d<bd){bd=d;b=e}}return b};
 const stunE=(e,s)=>{if(e.k==='boss')s*=.4;if(!(e.stun>0))e.stunMax=s;e.stun=Math.max(e.stun||0,s)};
 // with no monster in reach, skills still fire straight ahead so players can see what they do
 const ahead=(h,d)=>({x:Math.max(.4,Math.min(C-.4,h.x+Math.cos(h.fa)*d)),y:Math.max(.4,Math.min(R-.4,h.y+Math.sin(h.fa)*d)),hp:1});
 // E: normal skill (short cooldown)
-function heroE(){HD=true;try{heroE_()}finally{HD=false}}
-function heroQ(){HD=true;try{heroQ_()}finally{HD=false}}
+function heroE(){if(coopGuest()){mpSend({t:'E'});return}HD=heroMark();try{heroE_()}finally{HD=false}}
+function heroQ(){if(coopGuest()){mpSend({t:'Q'});return}HD=heroMark();try{heroQ_()}finally{HD=false}}
+function heroErr(h,m){if(h===myHero())toast(m);else if(mp&&mp.role==='host'&&mp.peers){for(const [pid,p] of mp.peers)if(p.idx===h.owner)mp.conn.send({t:'err',to:pid,m})}}
 function heroE_(){
   if(!heroOn()||!started||state.over||paused)return;
   const h=hero,H=HEROES[h.k],m=heroMul();
   if(h.cdE>0)return;
-  dmgBy=0;
+  dmgBy=hero.owner||0;
   if(h.k==='warrior'){
-    const t=nearest(h.x,h.y,4)||ahead(h,3);
-    const sx=h.x,sy=h.y,a=Math.atan2(t.y-sy,t.x-sx),L=Math.hypot(t.x-sx,t.y-sy);
-    for(const e of enemies){if(e.hp<=0)continue;const ux=e.x-sx,uy=e.y-sy,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
-      if(along>-.3&&along<L+.6&&off<.6){hurt(e,40*m);stunE(e,.6)}}
-    h.fx.push({dash:1,x0:sx,y0:sy,x1:t.x,y1:t.y,t:.3});h.x=t.x-Math.cos(a)*.35;h.y=t.y-Math.sin(a)*.35;h.fa=a;h.goto=null;
-    burst(t.x,t.y,'#ffd27a',12,2.8);SFX.play('cannon');
+    // ground slam in front of the hero (no dash)
+    const t=nearest(h.x,h.y,2.6);if(t)h.fa=Math.atan2(t.y-h.y,t.x-h.x);
+    const p=ahead(h,.9);
+    for(const e of around(p.x,p.y,1.6)){hurt(e,45*m);stunE(e,.8)}
+    h.fx.push({spin:1,x:p.x,y:p.y,t:.45,r:1.6});fx.push({x:p.x,y:p.y,r:1.6,t:.3,c:'#ffd27a'});burst(p.x,p.y,'#c9a26a',18,3.2);SFX.play('cannon');
   }else if(h.k==='archer'){
     const t=nearest(h.x,h.y,6)||ahead(h,3);
     const a=Math.atan2(t.y-h.y,t.x-h.x);h.fa=a;
-    for(const e of enemies){if(e.hp<=0)continue;const ux=e.x-h.x,uy=e.y-h.y,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
+    for(const e of enemies){if(!foe(e))continue;const ux=e.x-h.x,uy=e.y-h.y,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
       if(along>0&&along<7&&off<.45)hurt(e,45*m)}
     h.fx.push({beam:1,x0:h.x,y0:h.y-.1,x1:h.x+Math.cos(a)*7,y1:h.y-.1+Math.sin(a)*7,t:.35});SFX.play('arrow');
   }else if(h.k==='mage'){
-    let best=null,bn=0;for(const e of enemies){if(e.hp<=0||Math.hypot(e.x-h.x,e.y-h.y)>4)continue;const n=around(e.x,e.y,1.2).length;if(n>bn){bn=n;best=e}}
+    let best=null,bn=0;for(const e of enemies){if(!foe(e)||Math.hypot(e.x-h.x,e.y-h.y)>4)continue;const n=around(e.x,e.y,1.2).length;if(n>bn){bn=n;best=e}}
     if(!best)best=ahead(h,2.5);
     for(const e of around(best.x,best.y,1.2)){hurt(e,40*m);e.burnBy=0;e.burnDps=Math.max(e.burnDps||0,10*m);e.burn=Math.max(e.burn||0,3)}
     fx.push({x:best.x,y:best.y,r:1.2,t:.3,c:'#ff8a3d'});burst(best.x,best.y,'#ffb347',22,3.4);h.fx.push({ball:1,x0:h.x,y0:h.y-.4,x1:best.x,y1:best.y,t:.25});SFX.play('cannon');
   }else{
-    const ts=enemies.filter(e=>e.hp>0&&Math.hypot(e.x-h.x,e.y-h.y)<=4).sort((a,b)=>Math.hypot(a.x-h.x,a.y-h.y)-Math.hypot(b.x-h.x,b.y-h.y)).slice(0,3);
+    const ts=enemies.filter(e=>foe(e)&&Math.hypot(e.x-h.x,e.y-h.y)<=4).sort((a,b)=>Math.hypot(a.x-h.x,a.y-h.y)-Math.hypot(b.x-h.x,b.y-h.y)).slice(0,3);
     if(!ts.length)for(const da of [-.35,0,.35]){const a=h.fa+da;ts.push({x:h.x+Math.cos(a)*3,y:h.y+Math.sin(a)*3,dummy:1})}
     for(const t of ts){if(t.dummy){h.fx.push({star:1,x0:h.x,y0:h.y-.2,x1:t.x,y1:t.y,t:.25});continue}hurt(t,35*m,true);h.fx.push({star:1,x0:h.x,y0:h.y-.2,x1:t.x,y1:t.y,t:.25});burst(t.x,t.y,'#ff6b81',6,2)}SFX.play('arrow');
   }
@@ -2462,7 +2555,7 @@ function heroQ_(){
   if(!heroOn()||!started||state.over||paused)return;
   const h=hero,H=HEROES[h.k],m=heroMul();
   if(h.cdQ>0)return;
-  dmgBy=0;
+  dmgBy=hero.owner||0;
   if(h.k==='warrior'){
     const hit=around(h.x,h.y,2.1);
     for(const e of hit){hurt(e,90*m);stunE(e,1.5)}
@@ -2475,13 +2568,14 @@ function heroQ_(){
     for(const e of around(p.x,p.y,2)){hurt(e,40*m);stunE(e,3)}
     fx.push({x:p.x,y:p.y,r:2,t:.3,c:'#bfe9ff'});burst(p.x,p.y,'#e6f7ff',28,3.2);h.fx.push({ice:1,x:p.x,y:p.y,t:3,r:2});SFX.play('frost');
   }else{
-    const real=nearest(h.x,h.y,SK_REACH),tgt=real||ahead(h,3);
-    burst(h.x,h.y,'#5a2a3a',12,2.4);h.x=tgt.x;h.y=tgt.y-.15;h.goto=null;
-    if(real)hurt(tgt,400*m,true);h.fx.push({slash:1,x:tgt.x,y:tgt.y,a:-.6,t:.35,c:'#ff2d55',big:1});burst(tgt.x,tgt.y,'#ff4d6d',24,3.4);SFX.play('cannon');
+    // throw a big dagger (no dash)
+    const real=nearest(h.x,h.y,SK_REACH),tgt=real||ahead(h,3);if(real)h.fa=Math.atan2(tgt.y-h.y,tgt.x-h.x);
+    h.fx.push({star:1,big:1,x0:h.x,y0:h.y-.2,x1:tgt.x,y1:tgt.y,t:.25});
+    if(real){hurt(tgt,400*m,true);texts.push({x:tgt.x,y:tgt.y-.4,t:.8,txt:'Đoạt mệnh!',c:'#ff6b81'})}h.fx.push({slash:1,x:tgt.x,y:tgt.y,a:-.6,t:.35,c:'#ff2d55',big:1});burst(tgt.x,tgt.y,'#ff4d6d',24,3.4);SFX.play('cannon');
   }
   h.cdQ=H.q.cd;
 }
-function heroStep(dt){HD=true;try{heroStep_(dt)}finally{HD=false}}
+function heroStep(dt){HD=heroMark();try{heroStep_(dt)}finally{HD=false}}
 function heroStep_(dt){
   const h=hero;if(!h)return;
   const H=HEROES[h.k],m=heroMul();
@@ -2491,30 +2585,30 @@ function heroStep_(dt){
   while(h.jobs.length&&grid[h.jobs[0].y][h.jobs[0].x]){h.jobs.shift();h.bt=0}
   // joystick steering wins over everything; queued builds resume when it is released
   // WASD / arrow keys on PC act like the joystick
-  const kx=(KEYS.d?1:0)-(KEYS.a?1:0),ky=(KEYS.s?1:0)-(KEYS.w?1:0);
+  const kx=h===myHero()?(KEYS.d?1:0)-(KEYS.a?1:0):0,ky=h===myHero()?(KEYS.s?1:0)-(KEYS.w?1:0):0;
   if(kx||ky){const l=Math.hypot(kx,ky);h.joy={x:kx/l,y:ky/l,key:1}}else if(h.joy&&h.joy.key)h.joy=null;
   const jm=h.joy?Math.min(1,Math.hypot(h.joy.x,h.joy.y)):0;
   if(jm>.15){
     const a=Math.atan2(h.joy.y,h.joy.x),step=H.sp*jm*dt;
     h.x=Math.max(.3,Math.min(C-.3,h.x+Math.cos(a)*step));h.y=Math.max(.3,Math.min(R-.3,h.y+Math.sin(a)*step));
-    h.fa=a;h.walk+=dt*10*jm;h.goto=null;h.bt=0;for(const j of h.jobs)j.at=null;
+    h.fa=a;h.walk+=dt*10*jm;h.goto=null;h.bt=0;for(const j of h.jobs)j.at=null;heroClamp(h);
   }
   const job=jm>.15?null:h.jobs[0];if(job&&!job.at)job.at=buildSpot(h,job);
   const tgt=jm>.15?null:job?job.at:h.goto;
   if(tgt){
     const dx=tgt.x-h.x,dy=tgt.y-h.y,dl=Math.hypot(dx,dy),step=H.sp*dt;
     if(dl<=step){h.x=tgt.x;h.y=tgt.y;
-      if(job){h.fa=Math.atan2(job.y+.5-h.y,job.x+.5-h.x);h.bt+=dt;if(h.bt>=.3){h.jobs.shift();h.bt=0;const e=doPlace(job.x,job.y,0,job.type);if(e)toast(e)}}
+      if(job){h.fa=Math.atan2(job.y+.5-h.y,job.x+.5-h.x);h.bt+=dt;if(h.bt>=.3){h.jobs.shift();h.bt=0;const e=doPlace(job.x,job.y,h.owner||0,job.type);if(e)heroErr(h,e)}}
       else h.goto=null}
     else{h.x+=dx/dl*step;h.y+=dy/dl*step;h.fa=Math.atan2(dy,dx);h.walk+=dt*10;h.bt=0}
   }
   if(h.rain){const r=h.rain;r.t-=dt;r.tick-=dt;
-    if(r.tick<=0){r.tick=.25;dmgBy=0;for(const e of around(r.x,r.y,r.r||1.5))hurt(e,12*m);SFX.play('arrow')}
+    if(r.tick<=0){r.tick=.25;dmgBy=hero.owner||0;for(const e of around(r.x,r.y,r.r||1.5))hurt(e,12*m);SFX.play('arrow')}
     if(r.t<=0)h.rain=null}
   const t=heroTarget(H,h.x,h.y);
   if(t&&h.cd<=0){
-    h.cd=H.cd;h.atk=.18;h.fa=Math.atan2(t.y-h.y,t.x-h.x);dmgBy=0;
-    if(h.k==='archer'){shots.push({x:h.x,y:h.y-.1,t,L:{dmg:H.dmg*m},type:'arrow',ang:h.fa,owner:0,hero:hrgb(h.k)});SFX.play('arrow')}
+    h.cd=H.cd;h.atk=.18;h.fa=Math.atan2(t.y-h.y,t.x-h.x);dmgBy=hero.owner||0;
+    if(h.k==='archer'){shots.push({x:h.x,y:h.y-.1,t,L:{dmg:H.dmg*m},type:'arrow',ang:h.fa,owner:h.owner||0,hm:heroMark(),hero:hrgb(h.k)});SFX.play('arrow')}
     else if(h.k==='mage'){zap({x:h.x-.5,y:h.y-.65},t,{dmg:H.dmg*m,chain:H.chain,hero:hrgb(h.k)});SFX.play('thunder')}
     else if(h.k==='warrior'){
       const grp=around(t.x,t.y,.8).filter(e=>Math.hypot(e.x-h.x,e.y-h.y)<=H.range+.3).slice(0,H.cleave);
@@ -2543,7 +2637,7 @@ function drawHeroJobs(){
 function drawHero(){
   if(!heroOn())return;
   const h=hero,H=HEROES[h.k],px=h.x*S,py=h.y*S,moving=h.jobs.length||h.goto;
-  const bob=moving||(h.joy&&Math.hypot(h.joy.x,h.joy.y)>.15)?Math.abs(Math.sin(h.walk))*2:Math.sin(now*3)*.8;
+  const bob=moving||h.mv||(h.joy&&Math.hypot(h.joy.x,h.joy.y)>.15)?Math.abs(Math.sin(h.walk))*2:Math.sin(now*3)*.8;
   if(h.rain){const r=h.rain;g.save();g.globalAlpha=.25;g.fillStyle='#bff5c4';g.beginPath();g.arc(r.x*S,r.y*S,(r.r||1.5)*S,0,7);g.fill();g.globalAlpha=.9;g.strokeStyle='#e8ffe0';g.lineWidth=1.5;
     for(let i=0;i<10;i++){const a=(i*2.4+now*7)%6.28,d=((i*.37+now*2.3)%1)*1.4,x=r.x*S+Math.cos(a)*d*S,y=r.y*S+Math.sin(a)*d*S,f=(now*6+i)%1;g.beginPath();g.moveTo(x,y-14+f*10);g.lineTo(x,y-6+f*10);g.stroke()}g.restore()}
   for(const f of h.fx){
@@ -2604,6 +2698,7 @@ function drawHero(){
   }
   if(h.jobs.length&&h.bt>0){g.fillStyle='#fffbe0';g.font='bold 11px system-ui';g.textAlign='center';g.fillText('🔨',px+face*S*.28,y-S*.3+Math.sin(now*20)*2)}
   g.restore();
+  if(mp&&mp.mode==='2v2'&&mp.names){const nm=mp.names[h.owner||0]||'';g.font='bold 10px system-ui';g.textAlign='center';g.textBaseline='bottom';g.fillStyle='#000c';g.fillText(nm,px+1,py-S*1.15-bob+1);g.fillStyle=PCOL[h.owner||0];g.fillText(nm,px,py-S*1.15-bob)}
   // level badge + XP bar above the head
   {const bx=px,by=py-S*.98-bob,w=26;g.fillStyle='#000b';rr(g,bx-w/2,by-7,w,13,6);g.fill();
     g.fillStyle='#ffd65a';g.font='bold 9px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText('Lv'+h.lv,bx,by);
@@ -2614,7 +2709,7 @@ function drawHero(){
     if(f.dash){const a=Math.min(1,f.t*4);g.save();g.globalAlpha=a;g.strokeStyle=HPAL.warrior[1];g.lineWidth=10;g.lineCap='round';g.shadowColor=HPAL.warrior[1];g.shadowBlur=12;g.beginPath();g.moveTo(f.x0*S,f.y0*S);g.lineTo(f.x1*S,f.y1*S);g.stroke();g.restore()}
     if(f.beam){const a=Math.min(1,f.t*3.5),c=hrgb('archer');g.save();g.lineCap='round';g.strokeStyle='rgba('+c+','+(a*.5)+')';g.lineWidth=12;g.beginPath();g.moveTo(f.x0*S,f.y0*S);g.lineTo(f.x1*S,f.y1*S);g.stroke();g.strokeStyle='rgba(255,255,255,'+a+')';g.lineWidth=3;g.stroke();g.restore()}
     if(f.ball){const k=1-f.t/.25,x=(f.x0+(f.x1-f.x0)*k)*S,y=(f.y0+(f.y1-f.y0)*k)*S;const gg=g.createRadialGradient(x,y,0,x,y,12);gg.addColorStop(0,'#fff6c0');gg.addColorStop(.4,'#ff8a3d');gg.addColorStop(1,'rgba(255,80,30,0)');g.fillStyle=gg;g.beginPath();g.arc(x,y,12,0,7);g.fill()}
-    if(f.star){const k=1-f.t/.25,x=(f.x0+(f.x1-f.x0)*k)*S,y=(f.y0+(f.y1-f.y0)*k)*S;g.save();g.translate(x,y);g.rotate(now*25);g.fillStyle=HPAL.assassin[1];g.shadowColor='#ff4d6d';g.shadowBlur=8;g.beginPath();for(let i=0;i<8;i++){const rr2=i%2?2:6,a=i*Math.PI/4;g.lineTo(Math.cos(a)*rr2,Math.sin(a)*rr2)}g.closePath();g.fill();g.restore()}
+    if(f.star){const k=1-f.t/.25,x=(f.x0+(f.x1-f.x0)*k)*S,y=(f.y0+(f.y1-f.y0)*k)*S;g.save();g.translate(x,y);g.rotate(now*25);g.fillStyle=HPAL.assassin[1];g.shadowColor='#ff4d6d';g.shadowBlur=8;g.beginPath();for(let i=0;i<8;i++){const rr2=(i%2?2:6)*(f.big?2:1),a=i*Math.PI/4;g.lineTo(Math.cos(a)*rr2,Math.sin(a)*rr2)}g.closePath();g.fill();g.restore()}
     if(f.spin){const k=1-f.t/.45;g.save();g.globalAlpha=f.t*2;g.strokeStyle='#ffd27a';g.lineWidth=4;g.beginPath();g.arc(f.x*S,f.y*S,f.r*S*(.4+.6*k),k*12,k*12+4.5);g.stroke();g.restore()}
   }
 }
@@ -2623,7 +2718,16 @@ function skBtn(b,ico,name,left,max,key){
   b.style.setProperty('--p',(p*360)+'deg');b.classList.toggle('cd',p>0);
   setText(b.querySelector('.sl'),p>0?Math.ceil(left)+'':name);b.querySelector('.kk').style.display=TOUCH?'none':'';
 }
+let joySent='',joyT=0;
+function guestJoy(dt){
+  const h=myHero();if(!h)return;
+  const kx=(KEYS.d?1:0)-(KEYS.a?1:0),ky=(KEYS.s?1:0)-(KEYS.w?1:0);
+  let v=null;if(kx||ky){const l=Math.hypot(kx,ky);v={x:kx/l,y:ky/l}}else if(h.joy&&!h.joy.key)v=h.joy;
+  const key=v?Math.round(v.x*10)+','+Math.round(v.y*10):'';joyT-=dt;
+  if(key!==joySent&&joyT<=0){joySent=key;joyT=.08;mpSend(v?{t:'joy',x:Math.round(v.x*100)/100,y:Math.round(v.y*100)/100}:{t:'joy'})}
+}
 function heroUI(){
+  if(coopGuest()&&started)guestJoy(1/60);
   const bq=$('skill'),be=$('skillE');if(!bq)return;
   $('joy').style.display=heroOn()&&started&&TOUCH?'block':'none';
   if(!heroOn()||!started){bq.style.display=be.style.display='none';return}
