@@ -183,6 +183,7 @@
   #sendbar button.poor{opacity:.45}
   #levels{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
   .lvgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .lv.inf{grid-column:1/-1;flex-direction:row;justify-content:center;gap:8px;padding:9px 0}
   .lv{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 0 7px;border-radius:14px}
   .lv b{font-size:20px;font-weight:800;line-height:1}
   .lv small{font-size:11px;color:var(--gold);letter-spacing:1px;line-height:1}
@@ -444,7 +445,7 @@ const ETYPES={
 let grid,terr,waterCells,towers,enemies,shots,queue,state,distG,distS,parts,texts,fx;
 let started=false,paused=false,selType='arrow',selTower=null,hover=null,tchoice=null;
 let spawnT=0,last=0,msgT=0,best=0,now=0,eid=0,hoverErr=null,hoverKey='',frameN=0;
-let level=1,stars=Array(LEVELS+1).fill(0),mp=null,bestT={},myName='';
+let endless=false,mapSeed=null,level=1,stars=Array(LEVELS+1).fill(0),mp=null,bestT={},myName='';
 try{myName=localStorage.getItem('mctt-name')||''}catch(e){}
 const esc=t=>String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cleanName=t=>String(t||'').replace(/[<>\n\r\t]/g,'').trim().slice(0,14);
@@ -520,7 +521,7 @@ function buildGrid(){
 }
 function genMap(){
   for(let tries=0;tries<300;tries++){
-    const rnd=mulberry(level*100003+tries*7919+17),ly0=R>=18?5:2;
+    const rnd=mulberry((mapSeed??level)*100003+tries*7919+17),ly0=R>=18?5:2;
     terr=Array.from({length:R},()=>Array(C).fill(GRASS));
     // lakes: ground units must walk around, swimmers cut straight through
     const lakes=[];
@@ -626,7 +627,7 @@ function drawMountain(c,x,y,rnd){
 }
 function buildTerrain(){
   const c=terrain.getContext('2d');c.setTransform(DPR,0,0,DPR,0,0);c.clearRect(0,0,C*S,R*S);
-  const rnd=mulberry(7+level*31),W=C*S,H=R*S;
+  const rnd=mulberry(7+(mapSeed??level)*31),W=C*S,H=R*S;
   // grass: one smooth base with large soft colour patches (no tile checkerboard)
   c.fillStyle='#4a8540';c.fillRect(0,0,W,H);
   for(let i=0;i<46;i++){
@@ -832,6 +833,14 @@ function statsHTML(){
     +'<tr><td>💰 Vàng kiếm</td><td><b>'+me.g+'</b></td><td><b>'+ot.g+'</b></td></tr></table>';
 }
 function showEnd(won,st){
+  if(endless){
+    const best=+(lsGetE()||0),w=state.wave,rec=w>best;if(rec)lsSetE(w);
+    $('overStats').innerHTML=statsHTML();SFX.play(rec?'win':'lose');
+    $('overT').textContent=rec?'🏆 Kỷ lục mới!':'Hết mạng!';$('overStars').textContent='';
+    $('overS').innerHTML='♾️ Vô tận · trụ được <b>'+w+'</b> đợt · ⏱ '+fmtT(state.time)+'<br>Kỷ lục: '+Math.max(w,best)+' đợt';
+    $('nextLv').style.display='none';$('again').textContent='Chơi lại (map mới)';
+    $('over').style.display='flex';updateUI();return;
+  }
   $('overStats').innerHTML=statsHTML();
   SFX.play(won?'win':'lose');
   $('overT').textContent=won?'Qua màn '+level+'!':'Thua rồi!';
@@ -949,7 +958,7 @@ function update(dt){
   spawnT-=dt;
   if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))*(SIDES?.5:1)}
   if(!queue.length){
-    if(state.wave>=WAVES){if(!enemies.length&&(SIDES||state.lives>0)){if(SIDES){const a=state.livesT[0],b=state.livesT[1];end2v2(a>b?0:b>a?1:-1)}else winLevel();return}}
+    if(!endless&&state.wave>=WAVES){if(!enemies.length&&(SIDES||state.lives>0)){if(SIDES){const a=state.livesT[0],b=state.livesT[1];end2v2(a>b?0:b>a?1:-1)}else winLevel();return}}
     else{state.nextT-=dt;if(state.nextT<=0)startWave()}
   }
   for(const e of enemies){
@@ -1578,7 +1587,7 @@ const EIMG={};for(const k in EICON){EIMG[k]=new Image();EIMG[k].src=EICON[k]}
 setTimeout(()=>buildSendbar(),0);
 function nextHTML(){
   const n=state.wave+1;
-  if(n>WAVES)return '<span class="nl"><b>Đợt cuối!</b> Hạ hết quái còn lại để qua màn '+level+'.</span>';
+  if(n>WAVES&&!endless)return '<span class="nl"><b>Đợt cuối!</b> Hạ hết quái còn lại để qua màn '+level+'.</span>';
   let h='<span class="nl">Đợt <b>'+n+'</b>:</span>';
   for(const [k,c] of waveComp(n)){
     const nw=FIRST[k]===n&&n>1;
@@ -1636,8 +1645,8 @@ function placePop(){
 function updateUI(){
   setText($('gold').querySelector('i'),''+state.gold);
   setText($('lives').querySelector('i'),''+state.lives);
-  setText($('wave').querySelector('i'),'Đợt '+state.wave+'/'+WAVES);
-  setText($('wave').querySelector('small'),'Màn '+level+' · '+(queue.length?'còn '+queue.length+' lính ra':state.wave>=WAVES?'đợt cuối':'đợt sau '+Math.ceil(state.nextT)+'s'));
+  setText($('wave').querySelector('i'),'Đợt '+state.wave+(endless?'':'/'+WAVES));
+  setText($('wave').querySelector('small'),(endless?'Vô tận':'Màn '+level)+' · '+(queue.length?'còn '+queue.length+' lính ra':state.wave>=WAVES?'đợt cuối':'đợt sau '+Math.ceil(state.nextT)+'s'));
   for(const b of $('dock').querySelectorAll('.tb')){
     b.classList.toggle('sel',b.dataset.k===selType);
     b.classList.toggle('poor',state.gold<TYPES[b.dataset.k].lv[0].cost);
@@ -1736,7 +1745,7 @@ function goOnline(m){if(!myName){openName();return}setLbMode(m);$('start').style
 $('go2').onclick=()=>goOnline('coop');
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
-$('again').onclick=reset;
+$('again').onclick=()=>{if(endless){startEndless();return}reset()};
 /* ---------------- multiplayer (MQTT relay over WebSocket) ---------------- */
 // Both players talk through a public MQTT broker, so no direct device-to-device connection is needed.
 // Rooms are retained messages on mctt3/rooms/<id>; each room has two topics: .../h (to host) and .../g (to guest).
@@ -1849,7 +1858,7 @@ function toggleNext(force){
 $('wave').addEventListener('click',e=>{e.stopPropagation();toggleNext()});
 // warn when the next wave brings a monster type the player has not met yet
 function warnNewType(){
-  const n=state.wave+1;if(n>WAVES)return;
+  const n=state.wave+1;if(n>WAVES&&!endless)return;
   const nw=waveComp(n).filter(([k])=>FIRST[k]===n&&n>1).map(([k])=>ETYPES[k].name);
   if(nw.length){$('wave').classList.add('new');toast('⚠️ Đợt sau có quái mới: '+nw.join(', ')+'. Chạm ⚔️ để xem',3200)}
 }
@@ -2322,7 +2331,14 @@ $('lbBack').onclick=showHome;
 $('mpAgain').onclick=()=>{if(mp&&mp.mode==='2v2'){if(mp.role==='host'){mp.nextLv=mp.pve?(mp.lastWon?Math.min(LEVELS,level+1):level):(level%LEVELS)+1;mpStartMatch()}return}if(!mp||mp.ready)return;mp.ready=true;mpSend({t:'again'});$('mpAgain').disabled=true;$('mpAgain').textContent='Đang chờ '+oppN()+'…';if(mp.oppReady&&mp.role==='host')mpStartMatch()};
 $('mpCancel').onclick=()=>{mpStopSearch();if(mp)mpCleanup();$('mpwait').style.display='none';openLobby()};
 $('mpLeave').onclick=mpLeave;
+const lsGetE=()=>{try{return localStorage.getItem(pk('mctt-endless'))}catch(e){return null}},lsSetE=v=>{try{localStorage.setItem(pk('mctt-endless'),v)}catch(e){}};
+function startEndless(){
+  endless=true;mapSeed=1000+Math.floor(Math.random()*900000);level=1;
+  $('levels').style.display='none';$('start').style.display='none';started=true;reset();
+  toast('♾️ Vô tận! Quái mạnh dần mãi, trụ được càng lâu càng tốt',2600);
+}
 function startLevel(n){
+  endless=false;mapSeed=null;
   level=n;$('levels').style.display='none';$('start').style.display='none';
   pickLv=n;started=true;reset();
   toast(heroOn()?'Màn '+n+' · '+(TOUCH?'kéo vòng tròn góc trái để đi':'WASD/chuột phải: đi · E: kỹ năng · Q: tuyệt kỹ'):'Màn '+n,heroOn()?3500:1500);
@@ -2331,12 +2347,13 @@ function showLevels(){
   $('mpAgain').style.display='none';$('lobby').style.display='none';
   $('again').style.display='';$('overLv').textContent='Chọn màn';
   const next=[...Array(LEVELS)].map((_,i)=>i+1).find(n=>unlocked(n)&&!stars[n])||1;
-  if(!pickLv||!unlocked(pickLv))pickLv=next;
+  if(pickLv!=='E'&&(!pickLv||!unlocked(pickLv)))pickLv=next;
   let h='';
   for(let n=1;n<=LEVELS;n++){
     const ok=unlocked(n),st=stars[n];
     h+='<button class="lv'+(st?' done':'')+(n===pickLv?' cur':'')+'" data-n="'+n+'"'+(ok?'':' disabled')+'><b>'+(ok?n:'🔒')+'</b><small>'+(ok?'★'.repeat(st)+'☆'.repeat(3-st):'')+'</small></button>';
   }
+  h+='<button class="lv inf'+(pickLv==='E'?' cur':'')+'" data-n="E"><b>♾️</b><small>Vô tận</small></button>';
   $('lvGrid').innerHTML=h;lvPickInfo();heroPick();
   $('lvSub').textContent='Đã qua '+cleared()+'/'+LEVELS+' màn';
   $('menu').style.display='none';$('over').style.display='none';
@@ -2344,14 +2361,15 @@ function showLevels(){
 }
 let pickLv=0;
 function lvPickInfo(){
+  if(pickLv==='E'){setText($('lvInfo'),'♾️ Vô tận · map ngẫu nhiên, quái mạnh dần mãi · kỷ lục '+(+(lsGetE()||0))+' đợt');setText($('lvGo'),'▶ Chơi Vô tận');$('lvRank').style.display='none';return}
   const n=pickLv,st=stars[n];
   setText($('lvInfo'),'Màn '+n+(st?' · '+'★'.repeat(st)+'☆'.repeat(3-st)+(bestT[n]?' · kỷ lục ⏱ '+fmtT(bestT[n]):''):' · chưa qua'));
   setText($('lvGo'),'▶ Chơi màn '+n);
   $('lvRank').style.display=fbDb?'':'none';
 }
 $('lvGrid').addEventListener('click',e=>{const b=e.target.closest('.lv');if(!b||b.disabled)return;
-  pickLv=+b.dataset.n;for(const x of $('lvGrid').querySelectorAll('.lv'))x.classList.toggle('cur',x===b);lvPickInfo()});
-$('lvGo').onclick=()=>{if(pickLv)startLevel(pickLv)};
+  pickLv=b.dataset.n==='E'?'E':+b.dataset.n;for(const x of $('lvGrid').querySelectorAll('.lv'))x.classList.toggle('cur',x===b);lvPickInfo()});
+$('lvGo').onclick=()=>{if(pickLv==='E')startEndless();else if(pickLv)startLevel(pickLv)};
 $('lvHelp').onclick=showHome;
 $('menuLv').onclick=showLevels;
 $('overLv').onclick=()=>{if(mp){mpLeave();return}showLevels()};
