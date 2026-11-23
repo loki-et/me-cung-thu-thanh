@@ -46,17 +46,20 @@
   /* stage */
   .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 8px 8px}
   .wrap{position:relative}
-  #skill{position:absolute;right:6px;bottom:6px;width:62px;height:62px;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
+  .skb{position:absolute;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
     background:conic-gradient(#0009 var(--p,0deg),#2c4a2acc 0);border:2px solid #fffbe0aa;box-shadow:0 3px 10px #0008;touch-action:none}
-  #skill.cd{border-color:#fffbe033}
-  #skKey{position:absolute;top:-4px;left:-4px;background:#000c;color:#fffbe0;font-size:10px;border-radius:6px;padding:1px 5px;border:1px solid #fffbe055}
+  #skill{right:6px;bottom:6px;width:64px;height:64px;border-color:#ffd65a}
+  #skillE{right:76px;bottom:8px;width:50px;height:50px}
+  .skb.cd{border-color:#fffbe033}
+  .skb .kk{position:absolute;top:-4px;left:-4px;background:#000c;color:#fffbe0;font-size:10px;border-radius:6px;padding:1px 5px;border:1px solid #fffbe055;font-style:normal}
+  .skb .sx{font-size:20px;line-height:1}
+  #skillE .sx{font-size:16px}
+  .skb .sl{background:none;padding:0;border:0;font-size:9px;font-weight:800;color:#fffbe0;white-space:nowrap;margin-top:1px}
+  .skb.cd .sl{font-size:14px}
   #joy{position:absolute;left:8px;bottom:8px;width:100px;height:100px;border-radius:50%;display:none;z-index:3;touch-action:none;
     background:radial-gradient(circle,#ffffff10 0,#ffffff1c 60%,#ffffff08 100%);border:2px solid #ffffff40;box-shadow:inset 0 0 12px #0005}
   #joyK{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffffffcc,#c9d6e0aa);box-shadow:0 2px 8px #0008;pointer-events:none}
   #joy.on{border-color:#fffbe0aa}
-  #skill #skI{font-size:22px;line-height:1}
-  #skill #skT{font-size:9.5px;font-weight:800;color:#fffbe0;white-space:nowrap;margin-top:1px}
-  #skill.cd #skT{font-size:15px}
   .hgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
   .hb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 6px;border-radius:14px}
   .hb b{font-size:22px}.hb small{font-size:11.5px}
@@ -221,7 +224,8 @@
     <div class="wrap">
       <canvas id="cv"></canvas>
       <div id="joy"><div id="joyK"></div></div>
-      <button id="skill"><b id="skKey">Q</b><span id="skI"></span><span id="skT"></span></button>
+      <button id="skillE" class="skb"><i class="kk">E</i><span class="sx"></span><span class="sl"></span></button>
+      <button id="skill" class="skb"><i class="kk">Q</i><span class="sx"></span><span class="sl"></span></button>
       <div class="pop" id="pop"></div>
       <div class="ov" id="menu">
         <h2>Tạm dừng</h2>
@@ -311,7 +315,7 @@
       <div style="height:10px"></div>
       <ul>
         <li>Lính tràn xuống từ cổng trên cùng, đi đường ngắn nhất tới lâu đài dưới cùng. Game không cho biết đường: hãy quan sát.</li>
-        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Chạm map để ra lệnh xây, nhân vật sẽ chạy tới xây. Di chuyển nhân vật: trên điện thoại kéo vòng tròn ở góc trái dưới, trên máy tính dùng WASD, phím mũi tên hoặc bấm chuột phải. Chiêu riêng: nút tròn góc phải dưới, hoặc phím Q trên máy tính.</li>
+        <li>Trước mỗi màn chọn 1 nhân vật. Nhân vật đi xuyên qua mọi thứ, tự đánh quái ở gần và là người đi xây tháp. Chạm map để ra lệnh xây, nhân vật sẽ chạy tới xây. Di chuyển nhân vật: trên điện thoại kéo vòng tròn ở góc trái dưới, trên máy tính dùng WASD, phím mũi tên hoặc bấm chuột phải. Hai nút tròn góc phải dưới: nút nhỏ là kỹ năng (phím E), nút to viền vàng là tuyệt kỹ (phím Q).</li>
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
@@ -1934,7 +1938,7 @@ $('mpLeave').onclick=mpLeave;
 function startLevel(n){
   level=n;$('levels').style.display='none';$('start').style.display='none';
   pickLv=n;started=true;reset();
-  toast(heroOn()?'Màn '+n+' · '+(TOUCH?'kéo vòng tròn góc trái để đi':'WASD/chuột phải: đi · Q: chiêu'):'Màn '+n,heroOn()?3500:1500);
+  toast(heroOn()?'Màn '+n+' · '+(TOUCH?'kéo vòng tròn góc trái để đi':'WASD/chuột phải: đi · E: kỹ năng · Q: tuyệt kỹ'):'Màn '+n,heroOn()?3500:1500);
 }
 function showLevels(){
   $('mpAgain').style.display='none';$('lobby').style.display='none';
@@ -2020,7 +2024,8 @@ addEventListener('keydown',e=>{
   const k=Object.keys(TYPES)[+e.key-1];
   if(k){pickType(k);showTip(k,2000)}
   if(e.key==='Escape')closePop();
-  if(e.key==='q'||e.key==='Q')heroSkill();
+  if(e.key==='q'||e.key==='Q')heroQ();
+  if(e.key==='e'||e.key==='E')heroE();
   if(e.key==='p'||e.key==='P'||e.key===' '){e.preventDefault();if(started&&!state.over)setPause(!paused)}
 });
 function fit(){
@@ -2153,14 +2158,18 @@ $('rkBack').onclick=()=>{$('rank').style.display='none'};
 if(document.readyState==='complete')initFB();else addEventListener('load',initFB);
 /* ---------- hero (single player): walks straight over everything, builds towers, fights, never dies ---------- */
 const HEROES={
-  warrior:{name:'Chiến binh',ico:'🛡️',col:'#e0a040',sp:4,range:1.05,dmg:14,cd:.55,cleave:3,
-    desc:'Cận chiến, chém trúng 3 quái cùng lúc',sk:'Chém xoáy',skDesc:'chém mọi quái quanh mình và làm choáng 1.2 giây',skCd:12},
-  archer:{name:'Cung thủ',ico:'🏹',col:'#5fc46a',sp:4,range:3.4,dmg:9,cd:.4,
-    desc:'Bắn xa, nhanh',sk:'Mưa tên',skDesc:'trút mưa tên 3 giây xuống chỗ quái đông nhất',skCd:14},
-  mage:{name:'Pháp sư',ico:'🔮',col:'#9a7bff',sp:4,range:2.8,dmg:18,cd:1,chain:3,
-    desc:'Phép sét lan sang 3 quái',sk:'Băng giá',skDesc:'đóng băng cả vùng quái đông nhất 2.5 giây',skCd:15},
-  assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,
-    desc:'Đâm cực đau, xuyên giáp, chạy nhanh',sk:'Ám sát',skDesc:'lướt tới con quái trâu nhất bản đồ và đâm một nhát chí mạng',skCd:13}
+  warrior:{name:'Chiến binh',ico:'🛡️',col:'#e0a040',sp:4,range:1.05,dmg:14,cd:.55,cleave:3,desc:'Cận chiến, chém trúng 3 quái cùng lúc',
+    e:{n:'Lao tới',i:'💨',cd:6,d:'lao tới con quái gần nhất trong 4 ô, húc văng và làm choáng nhẹ quái trên đường'},
+    q:{n:'Chém xoáy',i:'🌀',cd:20,d:'chém mọi quái trong 2 ô quanh mình, làm choáng 1.5 giây'}},
+  archer:{name:'Cung thủ',ico:'🏹',col:'#5fc46a',sp:4,range:3.4,dmg:9,cd:.4,desc:'Bắn xa, nhanh',
+    e:{n:'Tên xuyên',i:'➶',cd:6,d:'bắn một mũi tên xuyên thẳng qua mọi quái trên đường bay'},
+    q:{n:'Mưa tên',i:'🌧️',cd:22,d:'trút mưa tên 4 giây xuống chỗ quái đông nhất'}},
+  mage:{name:'Pháp sư',ico:'🔮',col:'#9a7bff',sp:4,range:2.8,dmg:18,cd:1,chain:3,desc:'Phép sét lan sang 3 quái',
+    e:{n:'Cầu lửa',i:'☄️',cd:7,d:'ném cầu lửa nổ lan vào chỗ quái đông gần mình, đốt cháy 3 giây'},
+    q:{n:'Băng giá',i:'❄️',cd:24,d:'đóng băng cả vùng quái đông nhất 3 giây'}},
+  assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,desc:'Đâm cực đau, xuyên giáp, chạy nhanh',
+    e:{n:'Phi tiêu',i:'✴️',cd:5,d:'phóng 3 phi tiêu vào 3 quái gần nhất trong 4 ô, xuyên giáp'},
+    q:{n:'Ám sát',i:'💀',cd:20,d:'lướt tới con quái trâu nhất bản đồ và đâm một nhát chí mạng'}}
 };
 const HK=Object.keys(HEROES),HERO_SC=1.3;
 const hrgb=k=>HPAL[k][1].match(/\w\w/g).map(x=>parseInt(x,16)).join(',');
@@ -2176,7 +2185,7 @@ function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72
 let hero=null,heroK='warrior';
 try{const v=localStorage.getItem('mctt-hero');if(HEROES[v])heroK=v}catch(e){}
 const heroOn=()=>!!hero&&!mp;
-function makeHero(){hero=mp?null:{k:heroK,x:EX.x+.5,y:EX.y-.4,fa:-Math.PI/2,cd:0,sk:3,jobs:[],goto:null,sel:false,bt:0,walk:0,atk:0,fx:[],rain:null}}
+function makeHero(){hero=mp?null:{k:heroK,x:EX.x+.5,y:EX.y-.4,fa:-Math.PI/2,cd:0,cdE:2,cdQ:5,jobs:[],goto:null,sel:false,bt:0,walk:0,atk:0,fx:[],rain:null}}
 // hero damage keeps pace with monster HP so it stays useful in late waves
 function heroMul(){const w=Math.max(1,state.wave);return .3+.7*waveMul(w).hpm/waveMul(1).hpm}
 function heroOrder(x,y){
@@ -2208,34 +2217,67 @@ function crowdSpot(r){
   for(const e of enemies){if(e.hp<=0)continue;const n=around(e.x,e.y,r).length;if(n>bn){bn=n;best=e}}
   return best&&{x:best.x,y:best.y};
 }
-function heroSkill(){
+const nearest=(x,y,r)=>{let b=null,bd=r;for(const e of enemies){if(e.hp<=0)continue;const d=Math.hypot(e.x-x,e.y-y);if(d<bd){bd=d;b=e}}return b};
+const stunE=(e,s)=>{if(e.k==='boss')s*=.4;if(!(e.stun>0))e.stunMax=s;e.stun=Math.max(e.stun||0,s)};
+// E: normal skill (short cooldown)
+function heroE(){
   if(!heroOn()||!started||state.over||paused)return;
   const h=hero,H=HEROES[h.k],m=heroMul();
-  if(h.sk>0)return;
+  if(h.cdE>0)return;
   dmgBy=0;
   if(h.k==='warrior'){
-    const hit=around(h.x,h.y,1.9);
-    for(const e of hit){hurt(e,50*m);const s=e.k==='boss'?.5:1.2;if(!(e.stun>0))e.stunMax=s;e.stun=Math.max(e.stun||0,s)}
-    h.fx.push({spin:1,x:h.x,y:h.y,t:.45,r:1.9});burst(h.x,h.y,'#ffd27a',18,3.4);SFX.play('boom');
+    const t=nearest(h.x,h.y,4);if(!t){toast('Không có quái gần');return}
+    const sx=h.x,sy=h.y,a=Math.atan2(t.y-sy,t.x-sx),L=Math.hypot(t.x-sx,t.y-sy);
+    for(const e of enemies){if(e.hp<=0)continue;const ux=e.x-sx,uy=e.y-sy,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
+      if(along>-.3&&along<L+.6&&off<.6){hurt(e,40*m);stunE(e,.6)}}
+    h.fx.push({dash:1,x0:sx,y0:sy,x1:t.x,y1:t.y,t:.3});h.x=t.x-Math.cos(a)*.35;h.y=t.y-Math.sin(a)*.35;h.fa=a;h.goto=null;
+    burst(t.x,t.y,'#ffd27a',12,2.8);SFX.play('cannon');
   }else if(h.k==='archer'){
-    const p=crowdSpot(1.5);if(!p){toast('Chưa có quái');return}
-    h.rain={x:p.x,y:p.y,t:3,tick:0};SFX.play('arrow');
+    const t=nearest(h.x,h.y,6);if(!t){toast('Không có quái gần');return}
+    const a=Math.atan2(t.y-h.y,t.x-h.x);h.fa=a;
+    for(const e of enemies){if(e.hp<=0)continue;const ux=e.x-h.x,uy=e.y-h.y,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
+      if(along>0&&along<7&&off<.45)hurt(e,45*m)}
+    h.fx.push({beam:1,x0:h.x,y0:h.y-.1,x1:h.x+Math.cos(a)*7,y1:h.y-.1+Math.sin(a)*7,t:.35});SFX.play('arrow');
   }else if(h.k==='mage'){
-    const p=crowdSpot(1.8);if(!p){toast('Chưa có quái');return}
-    for(const e of around(p.x,p.y,1.8)){hurt(e,30*m);const s=e.k==='boss'?1:2.5;if(!(e.stun>0))e.stunMax=s;e.stun=Math.max(e.stun||0,s);e.frozen=s}
-    fx.push({x:p.x,y:p.y,r:1.8,t:.5,c:'#bfe9ff'});burst(p.x,p.y,'#e6f7ff',24,3);h.fx.push({ice:1,x:p.x,y:p.y,t:2.5,r:1.8});SFX.play('frost');
-  }else if(h.k==='assassin'){
+    let best=null,bn=0;for(const e of enemies){if(e.hp<=0||Math.hypot(e.x-h.x,e.y-h.y)>4)continue;const n=around(e.x,e.y,1.2).length;if(n>bn){bn=n;best=e}}
+    if(!best){toast('Không có quái gần');return}
+    for(const e of around(best.x,best.y,1.2)){hurt(e,40*m);e.burnBy=0;e.burnDps=Math.max(e.burnDps||0,10*m);e.burn=Math.max(e.burn||0,3)}
+    fx.push({x:best.x,y:best.y,r:1.2,t:.35,c:'#ff8a3d'});burst(best.x,best.y,'#ffb347',22,3.4);h.fx.push({ball:1,x0:h.x,y0:h.y-.4,x1:best.x,y1:best.y,t:.25});SFX.play('cannon');
+  }else{
+    const ts=enemies.filter(e=>e.hp>0&&Math.hypot(e.x-h.x,e.y-h.y)<=4).sort((a,b)=>Math.hypot(a.x-h.x,a.y-h.y)-Math.hypot(b.x-h.x,b.y-h.y)).slice(0,3);
+    if(!ts.length){toast('Không có quái gần');return}
+    for(const t of ts){hurt(t,35*m,true);h.fx.push({star:1,x0:h.x,y0:h.y-.2,x1:t.x,y1:t.y,t:.25});burst(t.x,t.y,'#ff6b81',6,2)}SFX.play('arrow');
+  }
+  h.cdE=H.e.cd;
+}
+// Q: ultimate (long cooldown)
+function heroQ(){
+  if(!heroOn()||!started||state.over||paused)return;
+  const h=hero,H=HEROES[h.k],m=heroMul();
+  if(h.cdQ>0)return;
+  dmgBy=0;
+  if(h.k==='warrior'){
+    for(const e of around(h.x,h.y,2.1)){hurt(e,90*m);stunE(e,1.5)}
+    h.fx.push({spin:1,x:h.x,y:h.y,t:.45,r:2.1});burst(h.x,h.y,'#ffd27a',24,3.8);SFX.play('boom');
+  }else if(h.k==='archer'){
+    const p=crowdSpot(1.7);if(!p){toast('Chưa có quái');return}
+    h.rain={x:p.x,y:p.y,t:4,tick:0,r:1.7};SFX.play('arrow');
+  }else if(h.k==='mage'){
+    const p=crowdSpot(2);if(!p){toast('Chưa có quái');return}
+    for(const e of around(p.x,p.y,2)){hurt(e,40*m);stunE(e,3)}
+    fx.push({x:p.x,y:p.y,r:2,t:.5,c:'#bfe9ff'});burst(p.x,p.y,'#e6f7ff',28,3.2);h.fx.push({ice:1,x:p.x,y:p.y,t:3,r:2});SFX.play('frost');
+  }else{
     let tgt=null;for(const e of enemies)if(e.hp>0&&(!tgt||e.hp>tgt.hp))tgt=e;
     if(!tgt){toast('Chưa có quái');return}
     burst(h.x,h.y,'#5a2a3a',12,2.4);h.x=tgt.x;h.y=tgt.y-.15;h.goto=null;
-    hurt(tgt,300*m,true);h.fx.push({slash:1,x:tgt.x,y:tgt.y,a:-.6,t:.3,c:'#ff4d6d',big:1});burst(tgt.x,tgt.y,'#ff4d6d',20,3.2);SFX.play('cannon');
+    hurt(tgt,400*m,true);h.fx.push({slash:1,x:tgt.x,y:tgt.y,a:-.6,t:.35,c:'#ff2d55',big:1});burst(tgt.x,tgt.y,'#ff4d6d',24,3.4);SFX.play('cannon');
   }
-  h.sk=H.skCd;
+  h.cdQ=H.q.cd;
 }
 function heroStep(dt){
   const h=hero;if(!h)return;
   const H=HEROES[h.k],m=heroMul();
-  h.cd-=dt;h.sk=Math.max(0,h.sk-dt);h.atk=Math.max(0,h.atk-dt);
+  h.cd-=dt;h.cdE=Math.max(0,h.cdE-dt);h.cdQ=Math.max(0,h.cdQ-dt);h.atk=Math.max(0,h.atk-dt);
   for(const f of h.fx)f.t-=dt;h.fx=h.fx.filter(f=>f.t>0);
   // drop build orders that can no longer happen (cell taken meanwhile)
   while(h.jobs.length&&grid[h.jobs[0].y][h.jobs[0].x]){h.jobs.shift();h.bt=0}
@@ -2259,7 +2301,7 @@ function heroStep(dt){
     else{h.x+=dx/dl*step;h.y+=dy/dl*step;h.fa=Math.atan2(dy,dx);h.walk+=dt*10;h.bt=0}
   }
   if(h.rain){const r=h.rain;r.t-=dt;r.tick-=dt;
-    if(r.tick<=0){r.tick=.25;dmgBy=0;for(const e of around(r.x,r.y,1.5))hurt(e,12*m);SFX.play('arrow')}
+    if(r.tick<=0){r.tick=.25;dmgBy=0;for(const e of around(r.x,r.y,r.r||1.5))hurt(e,12*m);SFX.play('arrow')}
     if(r.t<=0)h.rain=null}
   const t=heroTarget(H,h.x,h.y);
   if(t&&h.cd<=0){
@@ -2294,7 +2336,7 @@ function drawHero(){
   if(!heroOn())return;
   const h=hero,H=HEROES[h.k],px=h.x*S,py=h.y*S,moving=h.jobs.length||h.goto;
   const bob=moving||(h.joy&&Math.hypot(h.joy.x,h.joy.y)>.15)?Math.abs(Math.sin(h.walk))*2:Math.sin(now*3)*.8;
-  if(h.rain){const r=h.rain;g.save();g.globalAlpha=.25;g.fillStyle='#bff5c4';g.beginPath();g.arc(r.x*S,r.y*S,1.5*S,0,7);g.fill();g.globalAlpha=.9;g.strokeStyle='#e8ffe0';g.lineWidth=1.5;
+  if(h.rain){const r=h.rain;g.save();g.globalAlpha=.25;g.fillStyle='#bff5c4';g.beginPath();g.arc(r.x*S,r.y*S,(r.r||1.5)*S,0,7);g.fill();g.globalAlpha=.9;g.strokeStyle='#e8ffe0';g.lineWidth=1.5;
     for(let i=0;i<10;i++){const a=(i*2.4+now*7)%6.28,d=((i*.37+now*2.3)%1)*1.4,x=r.x*S+Math.cos(a)*d*S,y=r.y*S+Math.sin(a)*d*S,f=(now*6+i)%1;g.beginPath();g.moveTo(x,y-14+f*10);g.lineTo(x,y-6+f*10);g.stroke()}g.restore()}
   for(const f of h.fx){
     if(f.ice){g.save();g.globalAlpha=Math.min(.35,f.t*.3);g.fillStyle='#bfe9ff';g.beginPath();g.arc(f.x*S,f.y*S,f.r*S,0,7);g.fill();g.restore()}
@@ -2356,26 +2398,31 @@ function drawHero(){
   g.restore();
   for(const f of h.fx){
     if(f.slash){g.save();g.globalAlpha=Math.min(1,f.t*6);g.strokeStyle=f.c;g.lineWidth=f.big?6:4.5;g.shadowColor=f.c;g.shadowBlur=10;g.beginPath();g.arc(f.x*S,f.y*S,(f.big?.45:.3)*S,f.a-1,f.a+1);g.stroke();g.restore()}
+    if(f.dash){const a=Math.min(1,f.t*4);g.save();g.globalAlpha=a;g.strokeStyle=HPAL.warrior[1];g.lineWidth=10;g.lineCap='round';g.shadowColor=HPAL.warrior[1];g.shadowBlur=12;g.beginPath();g.moveTo(f.x0*S,f.y0*S);g.lineTo(f.x1*S,f.y1*S);g.stroke();g.restore()}
+    if(f.beam){const a=Math.min(1,f.t*3.5),c=hrgb('archer');g.save();g.lineCap='round';g.strokeStyle='rgba('+c+','+(a*.5)+')';g.lineWidth=12;g.beginPath();g.moveTo(f.x0*S,f.y0*S);g.lineTo(f.x1*S,f.y1*S);g.stroke();g.strokeStyle='rgba(255,255,255,'+a+')';g.lineWidth=3;g.stroke();g.restore()}
+    if(f.ball){const k=1-f.t/.25,x=(f.x0+(f.x1-f.x0)*k)*S,y=(f.y0+(f.y1-f.y0)*k)*S;const gg=g.createRadialGradient(x,y,0,x,y,12);gg.addColorStop(0,'#fff6c0');gg.addColorStop(.4,'#ff8a3d');gg.addColorStop(1,'rgba(255,80,30,0)');g.fillStyle=gg;g.beginPath();g.arc(x,y,12,0,7);g.fill()}
+    if(f.star){const k=1-f.t/.25,x=(f.x0+(f.x1-f.x0)*k)*S,y=(f.y0+(f.y1-f.y0)*k)*S;g.save();g.translate(x,y);g.rotate(now*25);g.fillStyle=HPAL.assassin[1];g.shadowColor='#ff4d6d';g.shadowBlur=8;g.beginPath();for(let i=0;i<8;i++){const rr2=i%2?2:6,a=i*Math.PI/4;g.lineTo(Math.cos(a)*rr2,Math.sin(a)*rr2)}g.closePath();g.fill();g.restore()}
     if(f.spin){const k=1-f.t/.45;g.save();g.globalAlpha=f.t*2;g.strokeStyle='#ffd27a';g.lineWidth=4;g.beginPath();g.arc(f.x*S,f.y*S,f.r*S*(.4+.6*k),k*12,k*12+4.5);g.stroke();g.restore()}
   }
 }
-function heroUI(){
-  const b=$('skill');if(!b)return;
-  $('joy').style.display=heroOn()&&started&&TOUCH?'block':'none';
-  $('skKey').style.display=TOUCH?'none':'';
-  if(!heroOn()||!started){b.style.display='none';return}
-  const h=hero,H=HEROES[h.k];b.style.display='flex';
-  setText($('skI'),H.ico);
-  const p=h.sk>0?h.sk/H.skCd:0;
+function skBtn(b,ico,name,left,max,key){
+  setText(b.querySelector('.sx'),ico);const p=left>0?left/max:0;
   b.style.setProperty('--p',(p*360)+'deg');b.classList.toggle('cd',p>0);
-  setText($('skT'),p>0?Math.ceil(h.sk)+'':H.sk);
+  setText(b.querySelector('.sl'),p>0?Math.ceil(left)+'':name);b.querySelector('.kk').style.display=TOUCH?'none':'';
+}
+function heroUI(){
+  const bq=$('skill'),be=$('skillE');if(!bq)return;
+  $('joy').style.display=heroOn()&&started&&TOUCH?'block':'none';
+  if(!heroOn()||!started){bq.style.display=be.style.display='none';return}
+  const h=hero,H=HEROES[h.k];bq.style.display=be.style.display='flex';
+  skBtn(be,H.e.i,H.e.n,h.cdE,H.e.cd);skBtn(bq,H.q.i,H.q.n,h.cdQ,H.q.cd);
 }
 function heroPick(){
   let h='';
   for(const k of HK){const H=HEROES[k];h+='<button class="hb'+(k===heroK?' cur':'')+'" data-k="'+k+'"><b>'+H.ico+'</b><small>'+H.name+'</small></button>'}
   $('heroGrid').innerHTML=h;
   const H=HEROES[heroK];
-  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br>Chiêu <b>'+H.sk+'</b>: '+H.skDesc+' (hồi '+H.skCd+' giây).<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'WASD (hoặc phím mũi tên, chuột phải) để di chuyển, phím Q để tung chiêu, phím 1–6 chọn tháp.')+'</span>',true);
+  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br><b>E · '+H.e.n+'</b>: '+H.e.d+' (hồi '+H.e.cd+'s).<br><b>Q · '+H.q.n+'</b> (tuyệt kỹ): '+H.q.d+' (hồi '+H.q.cd+'s).<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'WASD (hoặc phím mũi tên, chuột phải) để di chuyển, E kỹ năng, Q tuyệt kỹ, phím 1–6 chọn tháp.')+'</span>',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
 (()=>{const J=$('joy'),K=$('joyK'),RAD=34;let id=null;
@@ -2386,7 +2433,8 @@ $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b
   J.addEventListener('pointermove',e=>{if(e.pointerId===id)set(e)});
   J.addEventListener('pointerup',e=>{if(e.pointerId===id)end()});J.addEventListener('pointercancel',end);
 })();
-$('skill').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();heroSkill()});
+$('skill').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();heroQ()});
+$('skillE').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();heroE()});
 refreshHome();
 reset();fit();requestAnimationFrame(loop);
 })();
