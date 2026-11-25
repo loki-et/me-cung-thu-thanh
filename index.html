@@ -2224,7 +2224,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v104'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v105'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2784,12 +2784,12 @@ function makeHero(){
 // hero damage keeps pace with monster HP so it stays useful in late waves
 // base power is lower than before; each hero level adds 12% (level 10 ≈ double level 1)
 const HERO_BASE=.6,HERO_MAXLV=10,HERO_HP=1.35,xpNeed=lv=>40+35*(lv-1);
-function heroMul(){const w=Math.max(1,state.wave);return (.3+.7*waveMul(w).hpm/waveMul(1).hpm)*HERO_BASE*(1+.12*((hero&&hero.lv||1)-1))*(1+.07*hUp(hero,'dmg'))}
+function heroMul(){const w=Math.max(1,state.wave);return (.3+.7*waveMul(w).hpm/waveMul(1).hpm)*HERO_BASE*(1+.12*((hero&&hero.lv||1)-1))*(1+.012*hUp(hero,'dmg'))}
 // gold upgrades: power (no cap, rising price), agility and cooldown (5 steps each)
-const HUPS={dmg:{i:'⚔️',n:'Sức mạnh',d:'+7% sát thương mọi đòn',c:250,f:1.45,max:99},spd:{i:'👟',n:'Nhanh nhẹn',d:'+6% tốc đánh, +4% tốc chạy',c:300,f:1.5,max:5},cd:{i:'⏱️',n:'Hồi chiêu',d:'E và Q hồi nhanh hơn 6%',c:300,f:1.5,max:5}};
+const HUPS={dmg:{i:'⚔️',n:'Sức mạnh',d:'+1.2% sát thương mọi đòn',c:60,f:1.06,max:999},spd:{i:'👟',n:'Nhanh nhẹn',d:'+1% tốc đánh, +0.6% tốc chạy',c:60,f:1.08,max:20},cd:{i:'⏱️',n:'Hồi chiêu',d:'E và Q hồi nhanh hơn 1%',c:60,f:1.08,max:20}};
 const hUp=(h,k)=>(h&&h.up&&h.up[k])||0;
 const hUpCost=(h,k)=>Math.round(HUPS[k].c*Math.pow(HUPS[k].f,hUp(h,k)));
-const hAtkCd=h=>HEROES[h.k].cd/(1+.06*hUp(h,'spd')),hSp=h=>HEROES[h.k].sp*(1+.04*hUp(h,'spd')),hSkCd=(h,base)=>base*(1-.06*hUp(h,'cd'));
+const hAtkCd=h=>HEROES[h.k].cd/(1+.01*hUp(h,'spd')),hSp=h=>HEROES[h.k].sp*(1+.006*hUp(h,'spd')),hSkCd=(h,base)=>base*(1-.01*hUp(h,'cd'));
 function heroBuy(k,owner){
   const h=hero;if(!h||!HUPS[k])return '?';
   if(hUp(h,k)>=HUPS[k].max)return 'Đã nâng tối đa';
@@ -3069,7 +3069,7 @@ function guestJoy(dt){
 function shopHTML(){
   const h=myHero();if(!h)return '';
   return Object.keys(HUPS).map(k=>{const U=HUPS[k],lv=hUp(h,k),mx=lv>=U.max,c=hUpCost(h,k);
-    return '<div class="hrow"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<99?'/'+U.max:'')+'</b><small>'+U.d+'</small></div>'+(mx?'<button disabled>Tối đa</button>':'<button data-k="'+k+'" class="'+(state.gold<c?'poor':'')+'">🪙 '+c+'</button>')+'</div>'}).join('');
+    return '<div class="hrow"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<999?'/'+U.max:'')+'</b><small>'+U.d+'</small></div>'+(mx?'<button disabled>Tối đa</button>':'<button data-k="'+k+'" class="'+(state.gold<c?'poor':'')+'">🪙 '+c+'</button>')+'</div>'}).join('');
 }
 function openShop(v){const sh=$('hshop');const on=v??sh.style.display!=='block';sh.style.display=on&&heroOn()&&started?'block':'none'}
 $('hupB').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openShop();SFX.play('click')});
