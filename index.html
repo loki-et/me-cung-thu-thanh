@@ -189,6 +189,9 @@
   #sendbar img{width:20px;height:20px}
   #sendbar small{color:var(--gold);font-weight:700}
   #sendbar button.poor{opacity:.45}
+  #solo{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
+  .go.sb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:16px 10px!important}
+  .go.sb b{font-size:19px}.go.sb small{font-size:12.5px;font-weight:600;opacity:.8}
   #levels{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
   .lvgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
   .lv.inf{grid-column:1/-1;flex-direction:row;justify-content:center;gap:8px;padding:9px 0}
@@ -297,9 +300,16 @@
     <div class="mph" id="rmHint" style="margin-top:12px"></div>
     <div class="prow" style="margin-top:8px"><button id="rmLeave">← Rời phòng</button><button class="go" id="rmStart" disabled>▶ Bắt đầu</button></div>
   </div></div>
+  <div id="solo"><div class="card">
+    <h1>Chơi 1 mình</h1>
+    <div class="sub">Chọn cách chơi</div>
+    <button class="go sb" id="soLv"><b>🗺️ Qua màn</b><small id="soLvS"></small></button>
+    <button class="go sb" id="soInf" style="margin-top:10px"><b>♾️ Vô tận</b><small id="soInfS"></small></button>
+    <button id="soBack" style="width:100%;margin-top:12px">← Quay lại</button>
+  </div></div>
   <div id="levels">
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between"><h1>Chọn màn</h1><button id="lvRank" title="Bảng xếp hạng" aria-label="Bảng xếp hạng" style="display:none;padding:6px 10px">🏆</button></div>
+      <div style="display:flex;align-items:center;justify-content:space-between"><h1 id="lvTitle">Chọn màn</h1><button id="lvRank" title="Bảng xếp hạng" aria-label="Bảng xếp hạng" style="display:none;padding:6px 10px">🏆</button></div>
       <div class="sub" id="lvSub"></div>
       <div class="lvgrid" id="lvGrid"></div>
       <div class="best" id="lvInfo" style="margin:10px 0 2px;color:var(--mut)"></div>
@@ -1741,7 +1751,7 @@ function showHelp(){$('homeBody').style.display='none';$('helpBody').style.displ
 function closeHelp(){$('helpBody').style.display='none';$('homeBody').style.display='';if(started){$('start').style.display='none'}}
 function showHome(){
   if(mp)mpCleanup();closeLobby();hideRoom();
-  $('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
+  $('solo').style.display='none';$('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
   $('helpBody').style.display='none';$('homeBody').style.display='';$('start').style.display='flex';
   started=false;
   if(typeof refreshHome==='function')refreshHome();
@@ -1753,7 +1763,16 @@ $('snd').onclick=()=>{SFX.toggle();sndLabel();SFX.play('click')};
 $('vol').value=Math.round(SFX.vol()*100);$('volT').textContent=$('vol').value+'%';
 $('vol').oninput=()=>{SFX.setVol($('vol').value/100);$('volT').textContent=$('vol').value+'%'};
 $('vol').onchange=()=>SFX.play('arrow');
-$('go').onclick=()=>{$('start').style.display='none';showLevels()};
+function showSolo(){
+  $('start').style.display='none';$('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
+  $('soLvS').textContent='10 màn từ dễ tới khó · đã qua '+cleared()+'/'+LEVELS;
+  $('soInfS').textContent='Map ngẫu nhiên, quái mạnh dần mãi · kỷ lục '+(+(lsGetE()||0))+' đợt';
+  $('solo').style.display='flex';
+}
+$('go').onclick=showSolo;
+$('soLv').onclick=()=>{$('solo').style.display='none';showLevels('lv')};
+$('soInf').onclick=()=>{$('solo').style.display='none';showLevels('E')};
+$('soBack').onclick=()=>{$('solo').style.display='none';showHome()};
 $('helpBtn').onclick=showHelp;
 $('helpBack').onclick=closeHelp;
 function setName(n){myName=cleanName(n);try{localStorage.setItem('mctt-name',myName)}catch(e){}$('meName').textContent=myName||'Khách'}
@@ -2186,7 +2205,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v99'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v100'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2388,25 +2407,27 @@ function startLevel(n){
   pickLv=n;started=true;reset();
   toast(heroOn()?'Màn '+n+' · '+(TOUCH?'kéo vòng tròn góc trái để đi':'WASD/chuột phải: đi · E: kỹ năng · Q: tuyệt kỹ'):'Màn '+n,heroOn()?3500:1500);
 }
-function showLevels(){
+function showLevels(mode){
+  if(mode!=='E'&&mode!=='lv')mode=endless?'E':'lv';
+  $('solo').style.display='none';
   $('mpAgain').style.display='none';$('lobby').style.display='none';
   $('again').style.display='';$('overLv').textContent='Chọn màn';
   const next=[...Array(LEVELS)].map((_,i)=>i+1).find(n=>unlocked(n)&&!stars[n])||1;
-  if(pickLv!=='E'&&(!pickLv||!unlocked(pickLv)))pickLv=next;
+  if(mode==='E')pickLv='E';else if(pickLv==='E'||!pickLv||!unlocked(pickLv))pickLv=next;
   let h='';
   for(let n=1;n<=LEVELS;n++){
     const ok=unlocked(n),st=stars[n];
     h+='<button class="lv'+(st?' done':'')+(n===pickLv?' cur':'')+'" data-n="'+n+'"'+(ok?'':' disabled')+'><b>'+(ok?n:'🔒')+'</b><small>'+(ok?'★'.repeat(st)+'☆'.repeat(3-st):'')+'</small></button>';
   }
-  h+='<button class="lv inf'+(pickLv==='E'?' cur':'')+'" data-n="E"><b>♾️</b><small>Vô tận</small></button>';
-  $('lvGrid').innerHTML=h;lvPickInfo();heroPick();
-  $('lvSub').textContent='Đã qua '+cleared()+'/'+LEVELS+' màn';
+  $('lvGrid').innerHTML=h;$('lvGrid').style.display=mode==='E'?'none':'';
+  $('lvTitle').textContent=mode==='E'?'♾️ Vô tận':'🗺️ Chọn màn';lvPickInfo();heroPick();
+  $('lvSub').textContent=mode==='E'?'Map ngẫu nhiên mỗi ván, đợt quái tăng mãi':'Đã qua '+cleared()+'/'+LEVELS+' màn';
   $('menu').style.display='none';$('over').style.display='none';
   $('levels').style.display='flex';
 }
 let pickLv=0;
 function lvPickInfo(){
-  if(pickLv==='E'){setText($('lvInfo'),'♾️ Vô tận · map ngẫu nhiên, quái mạnh dần mãi · kỷ lục '+(+(lsGetE()||0))+' đợt');setText($('lvGo'),'▶ Chơi Vô tận');$('lvRank').style.display='none';return}
+  if(pickLv==='E'){setText($('lvInfo'),'🏆 Kỷ lục của bạn: '+(+(lsGetE()||0))+' đợt');setText($('lvGo'),'▶ Chơi Vô tận');$('lvRank').style.display='none';return}
   const n=pickLv,st=stars[n];
   setText($('lvInfo'),'Màn '+n+(st?' · '+'★'.repeat(st)+'☆'.repeat(3-st)+(bestT[n]?' · kỷ lục ⏱ '+fmtT(bestT[n]):''):' · chưa qua'));
   setText($('lvGo'),'▶ Chơi màn '+n);
@@ -2415,7 +2436,7 @@ function lvPickInfo(){
 $('lvGrid').addEventListener('click',e=>{const b=e.target.closest('.lv');if(!b||b.disabled)return;
   pickLv=b.dataset.n==='E'?'E':+b.dataset.n;for(const x of $('lvGrid').querySelectorAll('.lv'))x.classList.toggle('cur',x===b);lvPickInfo()});
 $('lvGo').onclick=()=>{if(pickLv==='E')startEndless();else if(pickLv)startLevel(pickLv)};
-$('lvHelp').onclick=showHome;
+$('lvHelp').onclick=showSolo;
 $('menuLv').onclick=showLevels;
 $('overLv').onclick=()=>{if(mp){mpLeave();return}showLevels()};
 $('nextLv').onclick=()=>startLevel(level+1);
