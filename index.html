@@ -539,8 +539,10 @@ const SFX=(()=>{
     wind:()=>lim('wind',170)&&noise(.26,.018,400),
     coin:()=>coin&&lim('coin',60)&&(tone(1568,.22,'sine',.05),tone(2349,.3,'sine',.035,1,.055),tone(3136,.18,'sine',.012,1,.055),noise(.02,.012,5000)),
     leak:()=>lim('leak',220)&&tone(320,.3,'sawtooth',.05,.5),
-    build:()=>(tone(520,.06,'triangle',.06),tone(780,.08,'triangle',.06,1,.05)),
-    up:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.09,'triangle',.05,1,i*.06)),
+    // building: a wooden knock, then a bright two-note chime. Teammates' builds play the same thing quieter
+    build:(q)=>{q=q||1;noise(.05,.06*q,900);tone(170,.14,'sine',.14*q,.55);tone(660,.1,'triangle',.07*q,1,.07);tone(990,.16,'triangle',.06*q,1,.12)},
+    // upgrading: rising four-note run that ends on a shimmering high note
+    up:(q)=>{q=q||1;[523,659,784,1047].forEach((f,i)=>tone(f,.1,'triangle',.08*q,1,i*.06));tone(1568,.35,'sine',.07*q,1,.26);tone(2093,.3,'sine',.03*q,1,.3);noise(.08,.015*q,6000,.26)},
     sell:()=>(tone(880,.06,'square',.03),tone(660,.1,'square',.03,1,.05)),
     wave:()=>[392,523].forEach((f,i)=>tone(f,.18,'square',.03,1,i*.13)),
     boom:()=>lim('boom',150)&&(tone(80,.4,'sine',.15,.3),noise(.35,.07,150)),
@@ -548,7 +550,7 @@ const SFX=(()=>{
     lose:()=>[392,330,262,196].forEach((f,i)=>tone(f,.28,'sawtooth',.035,1,i*.18)),
     click:()=>tone(700,.03,'triangle',.025)
   };
-  return {play:k=>{try{P[k]&&P[k]()}catch(e){}},isMuted:()=>muted,vol:()=>vol,setVol(v){vol=v;try{localStorage.setItem('mctt-vol',v)}catch(e){};if(master)master.gain.value=v},coinOn:()=>coin,toggleCoin(){coin=!coin;try{localStorage.setItem('mctt-coin',coin?'1':'0')}catch(e){};return coin},toggle(){muted=!muted;try{localStorage.setItem('mctt-mute',muted?'1':'0')}catch(e){};if(!muted)ac();return muted},unlock:()=>{try{ac()}catch(e){}}};
+  return {play:(k,a)=>{try{P[k]&&P[k](a)}catch(e){}},isMuted:()=>muted,vol:()=>vol,setVol(v){vol=v;try{localStorage.setItem('mctt-vol',v)}catch(e){};if(master)master.gain.value=v},coinOn:()=>coin,toggleCoin(){coin=!coin;try{localStorage.setItem('mctt-coin',coin?'1':'0')}catch(e){};return coin},toggle(){muted=!muted;try{localStorage.setItem('mctt-mute',muted?'1':'0')}catch(e){};if(!muted)ac();return muted},unlock:()=>{try{ac()}catch(e){}}};
 })();
 addEventListener('pointerdown',()=>SFX.unlock(),{passive:true});
 
@@ -797,9 +799,10 @@ function doPlace(x,y,owner,type){
   addGold(owner,-t.cost);
   const tw={x,y,type,owner,cd:0,spent:t.cost,rec:0,ang:0,born:now,lvl:0,hp:towerMaxHp(t.cost),maxhp:towerMaxHp(t.cost)};
   towers.push(tw);grid[y][x]=tw;
-  burst(x+.5,y+.5,t.color,10,2.2);SFX.play('build');
+  burst(x+.5,y+.5,t.color,10,2.2);SFX.play('build',isMine(owner)?1:.4);
   recompute();updateUI();
 }
+const isMine=o=>(o||0)===(mp&&mp.mode==='2v2'?mp.idx:myId());
 const towerMaxHp=spent=>Math.round(60+spent*1.5);
 function upgrade(tw){
   if(coopGuest()){mpSend({t:'up',x:tw.x,y:tw.y});if(myHero())toast('Nhân vật đang chạy tới nâng cấp',1400);return}
@@ -815,7 +818,7 @@ function doUpgrade(tw,owner){
   addGold(owner,-nx.cost);tw.spent+=nx.cost;tw.lvl++;tw.born=now;
   const mh=towerMaxHp(tw.spent);tw.hp+=mh-tw.maxhp;tw.maxhp=mh;
   burst(tw.x+.5,tw.y+.5,'#ffd166',16,2.8);
-  texts.push({x:tw.x+.5,y:tw.y+.1,t:1,txt:'Cấp '+(tw.lvl+1)});SFX.play('up');
+  texts.push({x:tw.x+.5,y:tw.y+.1,t:1,txt:'Cấp '+(tw.lvl+1)});SFX.play('up',isMine(owner)?1:.4);
   updateUI();
 }
 function destroyTower(tw){
@@ -2183,17 +2186,18 @@ function applySnap(d){
   state.taunt=d.ta?{txt:d.ta[0],t:d.ta[1],k:d.ta[2]}:null;
   // towers (only sent when something changed)
   if(d.tw){
-    const seen=new Set();let changed=false;
+    const seen=new Set();let changed=false;const snd=[];
     for(const a of d.tw){
       const [x,y,ti,lvl,owner,hp,maxhp,hurt]=a,type=TK[ti];seen.add(x+','+y);
       let tw=grid[y][x];
-      if(!tw||tw.wall||tw.type!==type){tw={x,y,type,cd:0,spent:0,rec:0,ang:0,born:now,lvl:0};const i=towers.indexOf(grid[y][x]);if(i>=0)towers.splice(i,1);towers.push(tw);grid[y][x]=tw;changed=true;burst(x+.5,y+.5,TYPES[type].color,8,2)}
-      if(tw.lvl!==lvl&&lvl>tw.lvl){tw.born=now;burst(x+.5,y+.5,'#ffd166',12,2.6)}
+      if(!tw||tw.wall||tw.type!==type){tw={x,y,type,cd:0,spent:0,rec:0,ang:0,born:now,lvl:0};const i=towers.indexOf(grid[y][x]);if(i>=0)towers.splice(i,1);towers.push(tw);grid[y][x]=tw;changed=true;burst(x+.5,y+.5,TYPES[type].color,8,2);snd.push(['build',owner])}
+      else if(tw.lvl!==lvl&&lvl>tw.lvl){tw.born=now;burst(x+.5,y+.5,'#ffd166',12,2.6);snd.push(['up',owner])}
       if(hp<tw.hp)tw.hurt=.12;
       Object.assign(tw,{lvl,owner,hp,maxhp});
       tw.spent=TYPES[type].lv.slice(0,lvl+1).reduce((s,l)=>s+l.cost,0);
     }
     for(const tw of [...towers])if(!seen.has(tw.x+','+tw.y)){towers.splice(towers.indexOf(tw),1);grid[tw.y][tw.x]=null;changed=true;burst(tw.x+.5,tw.y+.5,'#9a8f84',12,2.6);if(selTower===tw)selTower=null}
+    if(mp.towSeen&&snd.length<=3)for(const [k,o] of snd)SFX.play(k,isMine(o)?1:.4);mp.towSeen=true;
     if(changed)recompute();
   }
   // enemies
@@ -2270,7 +2274,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v122'; // build id (filled in at deploy time)
+const APP_VER='mctt-v123'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
