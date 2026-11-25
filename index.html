@@ -229,6 +229,7 @@
   .rk li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rk li small{color:var(--gold)}
   .rk li.me{outline:2px solid var(--acc)}
+  .prow.ping{margin-top:6px}.prow.ping .pa{font-size:12px;padding:7px 4px}
   .bot-add,.bot-x{padding:5px 9px;font-size:12px;white-space:nowrap}
   .md{flex:1;padding:9px 4px;border-radius:12px;font-weight:700}
   .md.cur{outline:2px solid var(--acc);background:#2c4a2a}
@@ -1608,6 +1609,7 @@ function draw(){
     g.fillStyle=t.c||'#ffd166';g.fillText(t.txt,t.x*S,t.y*S);
   }
   g.globalAlpha=1;
+  drawPings(1/60);
   if(state.taunt){
     const tt=state.taunt,age=2.2-tt.t,pop=Math.min(1,age*6),sc=pop<1?.5+.5*pop+Math.sin(pop*3.14)*.15:1;
     const bx=EX.x*S+S/2,by=EX.y*S+4;
@@ -1678,7 +1680,8 @@ function openTower(tw){if(mp&&mp.mode==='2v2'&&teamOf(tw.owner||0)!==myTeam()){t
 function popHTML(){
   if(!selTower)return '';
   const T=TYPES[selTower.type],L=st(selTower),nx=T.lv[selTower.lvl+1],v=Math.floor(selTower.spent*SELL_RATE);
-  if((selTower.owner||0)!==(mp&&mp.mode==='2v2'?mp.idx:myId()))return '<div class="pinfo"><b>'+T.name+' cấp '+(selTower.lvl+1)+'/3</b> · tháp của '+esc(ownerName(selTower))+'<br>'+statLine(L)+'</div>';
+  if((selTower.owner||0)!==(mp&&mp.mode==='2v2'?mp.idx:myId()))return '<div class="pinfo"><b>'+T.name+' cấp '+(selTower.lvl+1)+'/3</b> · tháp của '+esc(ownerName(selTower))+'<br>'+statLine(L)+'</div>'
+    +(mp&&mp.mode==='2v2'?'<div class="prow ping">'+Object.keys(PINGS).map(k=>'<button class="pa" data-p="'+k+'">📣 '+PINGS[k]+'</button>').join('')+'</div>':'');
   let info='<b>'+T.name+' cấp '+(selTower.lvl+1)+'/3</b> · máu nhà '+Math.ceil(selTower.hp)+'/'+selTower.maxhp+'<br>'+statLine(L);
   if(nx)info+='<br><span style="color:#ffd166">Cấp '+(selTower.lvl+2)+': '+nx.note+'</span>';
   if(tchoice==='sell')info='Bán <b>'+T.name+'</b> lấy lại <b>'+v+'</b> vàng?<br>Chạm lần nữa để bán.';
@@ -1756,6 +1759,7 @@ $('pop').addEventListener('click',ev=>{
   ev.stopPropagation();
   if(paused||state.over||!selTower)return;
   const b=ev.target.closest('button');if(!b||b.disabled)return;
+  if(b.dataset.p){sendPing(b.dataset.p);return}
   const a=b.dataset.a;
   if(a==='up'){upgrade(selTower);tchoice=null;updateUI();return}
   sellTower(selTower);closePop();
@@ -2245,7 +2249,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v114'; // build id (filled in at deploy time)
+const APP_VER='mctt-v115'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2335,6 +2339,26 @@ function addBot(){
   mp.bots[i]=true;mp.names[i]='🤖 Máy '+i;mp.heroK[i]=HK[Math.floor(Math.random()*HK.length)];SFX.play('build');roster4();
 }
 function removeBot(i){if(!mp||!mp.bots||!mp.bots[i]||mp.started)return;mp.bots[i]=false;mp.names[i]=null;mp.heroK[i]=null;roster4()}
+// ---- quick pings between teammates: tap a teammate's tower and send a short call-out ----
+const PINGS={sell:'Bán nhé',up:'Nâng cấp nhé',keep:'Giữ nhé'};
+const PINGTXT={sell:'Bán nhà này nhé',up:'Nâng cấp nhà này nhé',keep:'Giữ nhà này nhé'};
+function showPing(d){
+  if(!PINGTXT[d.m])return;mp.pings=(mp.pings||[]).filter(p=>!(p.x===d.x&&p.y===d.y));mp.pings.push({x:d.x,y:d.y,m:d.m,i:d.i,t:3.2});
+  toast((mp.names&&mp.names[d.i]||'Đồng đội')+': '+PINGTXT[d.m],2600);SFX.play('wave');
+}
+function sendPing(m){
+  if(!selTower||!mp||mp.mode!=='2v2')return;const d={t:'png',x:selTower.x,y:selTower.y,m,i:mp.idx};
+  if(mp.role==='host'){mp.conn.send(d);showPing(d)}else{mpSend(d);showPing(d)}
+  closePop();
+}
+function drawPings(dt){
+  if(!mp||!mp.pings||!mp.pings.length)return;
+  for(const p of mp.pings){p.t-=dt;const cx=p.x*S+S/2,cy=p.y*S+S/2,col=PCOL[p.i]||'#fff',k=(3.2-p.t)%1;
+    g.save();g.globalAlpha=Math.max(0,1-k);g.strokeStyle=col;g.lineWidth=3;g.beginPath();g.arc(cx,cy,S*(.4+k*.9),0,7);g.stroke();g.restore();
+    g.font='bold 11px system-ui';const txt='📣 '+PINGTXT[p.m],w=g.measureText(txt).width+14,bx=Math.max(2,Math.min(C*S-w-2,cx-w/2)),by=cy-S*1.05+Math.sin(now*6)*1.5;
+    g.fillStyle='#000d';rr(g,bx,by-9,w,18,9);g.fill();g.strokeStyle=col;g.lineWidth=1.5;g.stroke();g.fillStyle='#fff';g.textAlign='left';g.textBaseline='middle';g.fillText(txt,bx+7,by)}
+  mp.pings=mp.pings.filter(p=>p.t>0);
+}
 const TEAMN=t=>t?'Đội Đỏ':'Đội Xanh';
 function end2v2(wt){
   state.over=true;state.wt=wt;selTower=null;
@@ -2446,6 +2470,7 @@ function dropPeer4(pid){
   mp.peers.delete(pid);if(p.rtc)p.rtc.close();mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
 }
 function hostCmd4(d,p,pid){
+  if(d.t==='png'){const m={t:'png',x:d.x,y:d.y,m:d.m,i:p.idx};mp.conn.send(m);showPing(m);return}
   if(d.t==='sel'){mp.sels=mp.sels||[];mp.sels[p.idx]=d.x!=null?{x:d.x,y:d.y}:null;return}
   if(d.t==='pi'){const m={t:'po',ts:d.ts,to:pid,from:mp.client.myId};if(!(p.rtc&&p.rtc.open()&&p.rtc.send(m)))mqPub(mp.client,mp.gT,m,{});return}
   const err=m=>m&&mp.conn.send({t:'err',to:pid,m});
@@ -2501,6 +2526,7 @@ function guestRecv4(d){
     case 's':applySnap(d);break;
     case 'err':toast(d.m);break;
     case 'ev':ev4(d);break;
+    case 'png':if(d.i!==mp.idx)showPing(d);break;
     case 'po':mp.rtt=mp.rtt?mp.rtt*.6+(performance.now()-d.ts)*.4:performance.now()-d.ts;break;
   }
 }
