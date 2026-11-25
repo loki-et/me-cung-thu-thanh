@@ -427,7 +427,7 @@ const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
 const isRes=(x,y)=>gates().some(s=>(s.res||[[s.sp.x+s.dir.x,s.sp.y+s.dir.y]]).some(([a,b])=>x===a&&y===b));
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
-const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=99,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=0,RAGE_ATK=2;
+const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=99,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.2,LEVEL_GOLD=0,RAGE_ATK=2;
 const TYPES={
   arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu, bị giáp chặn gần hết',lv:[
     {cost:30,range:3.4,dmg:8,cd:.35},
@@ -473,8 +473,8 @@ const ETYPES={
   slimelet:{atk:3,name:'Slime con',trait:'mảnh tách ra từ Slime',hp:20,sp:1.6,col:'#8fe05f',lite:'#e6ffd0',dark:'#3f8a28',r:.19,gold:1,move:'g'},
   healer:{atk:5,name:'Thầy thuốc',trait:'cứ 3 giây hồi máu cho quái xung quanh. Phải hạ nó trước!',hp:65,sp:1.2,col:'#eef3ea',lite:'#ffffff',dark:'#93a58f',r:.29,gold:9,move:'g',heal:.12,healR:1.7},
   knight:{atk:12,name:'Hiệp sĩ',trait:'có khiên chặn sát thương, khiên tự hồi nếu 3 giây không bị đánh. Sét phá khiên nhanh gấp đôi, Lửa đốt xuyên khiên',hp:130,sp:1,col:'#aab3c2',lite:'#eef2f8',dark:'#5d6676',r:.33,gold:11,move:'g',armor:2,shield:.8},
-  giant:{atk:20,name:'Khổng lồ',trait:'máu cực nhiều, tự hồi máu rất nhanh. Dùng Lửa: đốt theo % máu và chặn hồi máu',hp:420,sp:.75,col:'#b07a4a',lite:'#e8c49a',dark:'#5a3a1c',r:.44,gold:16,move:'g',regen:.04},
-  wolf:{atk:5,name:'Sói',trait:'chạy nhanh theo bầy, né 40% đòn khi chưa bị làm chậm. Băng chỉ chậm được 1 con, Gió lốc chậm cả bầy',dodge:.4,hp:34,sp:2.7,col:'#8a8f9a',lite:'#d8dde6',dark:'#3e434d',r:.24,gold:3,move:'g'},
+  giant:{atk:20,name:'Khổng lồ',trait:'máu cực nhiều, tự hồi máu rất nhanh. Dùng Lửa: đốt theo % máu và chặn hồi máu',hp:320,sp:.75,col:'#b07a4a',lite:'#e8c49a',dark:'#5a3a1c',r:.44,gold:16,move:'g',regen:.03},
+  wolf:{atk:5,name:'Sói',trait:'chạy nhanh theo bầy, né 30% đòn khi chưa bị làm chậm. Băng chỉ chậm được 1 con, Gió lốc chậm cả bầy',dodge:.3,hp:34,sp:2.7,col:'#8a8f9a',lite:'#d8dde6',dark:'#3e434d',r:.24,gold:3,move:'g'},
   boss:{atk:60,name:'Trùm',trait:'cực trâu, giáp dày, ít bị hất, cứ 6 giây triệu hồi 2 lính. Cần Pháo và Lửa cấp cao',hp:1500,sp:.85,col:'#d83a3a',lite:'#ff9080',dark:'#6e1220',r:.52,gold:80,move:'g',armor:10}
 };
 let grid,terr,waterCells,towers,enemies,shots,queue,state,distG,distS,parts,texts,fx;
@@ -832,7 +832,7 @@ function doSell(tw,owner){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(mp&&mp.pve?(1+TEAM_HP*(teamN()-1))*HERO_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.25+.75*n/WAVES))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(mp&&mp.pve?(1+TEAM_HP*(teamN()-1))*HERO_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.08+.92*Math.min(1,n/WAVES)))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+Math.round(1.3*n)]];
   if(n>=3)o.push(['runner',2+Math.round(.7*n)]);
@@ -846,7 +846,7 @@ function waveComp(n){
   if(n>=11)o.push(['hawk',1+Math.floor((n-11)/3)]);
   if(n>=15)o.push(['drake',1+Math.floor((n-15)/5)]);
   if(n>=8)o.push(['giant',1+Math.floor((n-8)/6)]);
-  if(n>=10)o.push(['wolf',5+Math.floor((n-10)/4)]);
+  if(n>=10)o.push(['wolf',4+Math.floor((n-10)/4)]);
   if(n%10===0||n===WAVES)o.push(['boss',n>=20?2:1]);
   return o;
 }
@@ -1705,7 +1705,11 @@ function updateUI(){
   }
   if(mp&&mp.mode==='coop'){const k=selTower?selTower.x+','+selTower.y:'';if(k!==mp.lastSel){mp.lastSel=k;mpSend(selTower?{t:'sel',x:selTower.x,y:selTower.y}:{t:'sel'})}}
   setText($('next'),nextHTML(),true);
-  setText($('pop'),popHTML(),true);
+  // rebuild the tower panel only when another tower/level/choice is shown; otherwise update its text in place
+  {const P=$('pop'),key=selTower?[selTower.x,selTower.y,selTower.lvl,tchoice,selTower.owner||0].join(','):'';
+    if(key!==P.dataset.key){P.dataset.key=key;txtCache.delete(P);setText(P,popHTML(),true)}
+    else if(selTower){const tmp=document.createElement('div');tmp.innerHTML=popHTML();const a=P.querySelector('.pinfo'),b=tmp.querySelector('.pinfo');if(a&&b&&a.innerHTML!==b.innerHTML)a.innerHTML=b.innerHTML;
+      const ua=P.querySelector('[data-a="up"]'),ub=tmp.querySelector('[data-a="up"]');if(ua&&ub)ua.classList.toggle('poor',ub.classList.contains('poor'))}}
   placePop();
 }
 let tipT=0;
@@ -2224,7 +2228,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v106'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v107'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -3070,16 +3074,24 @@ function guestJoy(dt){
 function shopHTML(){
   const h=myHero();if(!h)return '';
   return Object.keys(HUPS).map(k=>{const U=HUPS[k],lv=hUp(h,k),mx=lv>=U.max,c=hUpCost(h,k);
-    return '<div class="hrow"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<999?'/'+U.max:'')+'</b><small>'+U.d+'</small></div>'+(mx?'<button disabled>Tối đa</button>':'<button data-k="'+k+'" class="'+(state.gold<c?'poor':'')+'">🪙 '+c+'</button>')+'</div>'}).join('');
+    return '<div class="hrow" data-row="'+k+'"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<999?'/'+U.max:'')+'</b><small>'+U.d+'</small></div><button data-k="'+k+'" class="'+(!mx&&state.gold<c?'poor':'')+'"'+(mx?' disabled':'')+'>'+(mx?'Tối đa':'🪙 '+c)+'</button></div>'}).join('');
 }
-function openShop(v){const sh=$('hshop');const on=v??sh.style.display!=='block';sh.style.display=on&&heroOn()&&started?'block':'none'}
+// update the open shop in place (rebuilding the buttons every time gold changes made clicks flicker and get lost)
+function shopRefresh(){
+  const h=myHero();if(!h)return;const L=$('hshL');
+  if(!L.children.length){L.innerHTML=shopHTML();return}
+  for(const k of Object.keys(HUPS)){const U=HUPS[k],lv=hUp(h,k),mx=lv>=U.max,c=hUpCost(h,k),row=L.querySelector('[data-row="'+k+'"]');if(!row)continue;
+    setText(row.querySelector('.hd b'),U.n+' '+lv+(U.max<999?'/'+U.max:''));
+    const b=row.querySelector('button');setText(b,mx?'Tối đa':'🪙 '+c);b.disabled=mx;b.classList.toggle('poor',!mx&&state.gold<c)}
+}
+function openShop(v){const sh=$('hshop');const on=v??sh.style.display!=='block';sh.style.display=on&&heroOn()&&started?'block':'none';if(sh.style.display==='block'){$('hshL').innerHTML='';shopRefresh()}}
 $('hupB').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openShop();SFX.play('click')});
 $('hshX').onclick=()=>openShop(false);
 $('hshL').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;
   if(coopGuest()){mpSend({t:'hup',k:b.dataset.k});SFX.play('click');return}
   const er=heroBuy(b.dataset.k,hero.owner||0);if(er)toast(er)});
 function heroUI(){
-  if($('hshop').style.display==='block'){if(!heroOn()||!started||state.over)openShop(false);else setText($('hshL'),shopHTML(),true)}
+  if($('hshop').style.display==='block'){if(!heroOn()||!started||state.over)openShop(false);else shopRefresh()}
   $('hupB').style.display=heroOn()&&started?'flex':'none';$('hupB').querySelector('.kk').style.display=TOUCH?'none':'';
   if(coopGuest()&&started)guestJoy(1/60);
   const bq=$('skill'),be=$('skillE');if(!bq)return;
