@@ -409,19 +409,19 @@ const isRes=(x,y)=>gates().some(s=>x===s.sp.x+s.dir.x&&y===s.sp.y+s.dir.y);
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
 const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=99,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=0,RAGE_ATK=2;
 const TYPES={
-  arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu',lv:[
+  arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu, bị giáp chặn gần hết',lv:[
     {cost:30,range:3.4,dmg:8,cd:.35},
     {cost:40,range:3.6,dmg:13,cd:.3,note:'mạnh và nhanh hơn'},
     {cost:75,range:3.9,dmg:19,cd:.26,multi:2,note:'bắn 2 mục tiêu cùng lúc'}]},
-  cannon:{name:'Pháo',color:'#ffb35c',desc:'bắn rất đau nhưng chậm, trị quái giáp',lv:[
+  cannon:{name:'Pháo',color:'#ffb35c',desc:'phá giáp: bỏ qua giáp và mỗi phát làm mòn giáp quái. Trị Lính giáp',lv:[
     {cost:70,range:3,dmg:60,cd:1.6},
     {cost:80,range:3.1,dmg:120,cd:1.5,note:'sát thương gấp đôi'},
     {cost:150,range:3.4,dmg:220,cd:1.4,splash:1,note:'đạn nổ lan'}]},
-  frost:{name:'Băng',color:'#9bd6ff',desc:'sát thương yếu, làm chậm',lv:[
+  frost:{name:'Băng',color:'#9bd6ff',desc:'làm chậm; quái bị chậm không né được đòn. Trị Lính chạy',lv:[
     {cost:50,range:2.8,dmg:3,cd:.6,slow:.4,slowT:1.6},
     {cost:55,range:3,dmg:6,cd:.55,slow:.5,slowT:2,note:'làm chậm mạnh hơn'},
     {cost:90,range:3.2,dmg:10,cd:.5,slow:.6,slowT:2.2,area:1,note:'làm chậm cả nhóm'}]},
-  fire:{name:'Lửa',color:'#ff7a3d',desc:'sát thương yếu, thiêu đốt xuyên giáp',lv:[
+  fire:{name:'Lửa',color:'#ff7a3d',desc:'thiêu đốt xuyên giáp, đốt thêm theo % máu và chặn hồi máu. Trị Khổng lồ',lv:[
     {cost:45,range:3,dmg:3,cd:.55,burn:7,burnT:3},
     {cost:55,range:3.1,dmg:5,cd:.5,burn:16,burnT:3,note:'cháy mạnh hơn'},
     {cost:100,range:3.3,dmg:8,cd:.45,burn:32,burnT:4,area:.9,note:'lửa bén sang quái bên cạnh'}]},
@@ -429,7 +429,7 @@ const TYPES={
     {cost:80,range:3.2,dmg:16,cd:1.1,chain:3},
     {cost:90,range:3.4,dmg:28,cd:1,chain:4,note:'lan thêm 1 quái'},
     {cost:150,range:3.6,dmg:46,cd:.85,chain:6,note:'lan tới 6 quái'}]},
-  wind:{name:'Gió',color:'#bff0e0',desc:'hất tung quái, đứng khựng một lúc',lv:[
+  wind:{name:'Gió',color:'#bff0e0',desc:'lốc xoáy: làm chậm cả nhóm quanh mục tiêu và hất tung. Trị bầy Sói',lv:[
     {cost:60,range:2.6,dmg:4,cd:2.2,knock:.5,area:1,maxT:1},
     {cost:70,range:2.8,dmg:8,cd:2,knock:.5,area:1,maxT:2,note:'hất 2 quái cùng lúc'},
     {cost:110,range:3,dmg:14,cd:1.8,knock:.5,area:1,maxT:3,note:'hất 3 quái cùng lúc'}]}
@@ -442,18 +442,20 @@ function statLine(L){
 }
 const ETYPES={
   grunt:{atk:6,name:'Lính',trait:'quái thường, không có gì đặc biệt',hp:40,sp:1.5,col:'#e05a5a',lite:'#ff9f8f',dark:'#9a2c38',r:.3,gold:4,move:'g'},
-  runner:{atk:4,name:'Lính chạy',trait:'chạy rất nhanh nhưng máu ít. Băng và Gió giữ chân tốt',hp:26,sp:2.9,col:'#f2c744',lite:'#fff3a8',dark:'#b5861a',r:.23,gold:4,move:'g'},
-  tank:{atk:16,name:'Lính giáp',trait:'máu trâu, có giáp: đòn yếu như Cung gần như vô hại. Dùng Pháo hoặc Lửa',hp:180,sp:.95,col:'#8f6ad8',lite:'#c9b0ff',dark:'#573796',r:.4,gold:12,move:'g',armor:5},
+  runner:{atk:4,name:'Lính chạy',trait:'chạy rất nhanh, né 40% đòn khi chưa bị làm chậm. Dùng Băng làm chậm nó',dodge:.4,hp:26,sp:3.2,col:'#f2c744',lite:'#fff3a8',dark:'#b5861a',r:.23,gold:4,move:'g'},
+  tank:{atk:16,name:'Lính giáp',trait:'giáp rất dày, đòn thường gần như vô hại. Dùng Pháo phá giáp',hp:180,sp:.95,col:'#8f6ad8',lite:'#c9b0ff',dark:'#573796',r:.4,gold:12,move:'g',armor:12},
   swimmer:{atk:6,name:'Quái nước',trait:'bơi thẳng qua hồ, không phải đi vòng. Đặt tháp sát bờ hồ',hp:50,sp:1.35,col:'#3fb5c9',lite:'#a8f0ff',dark:'#1d6e80',r:.28,gold:6,move:'s'},
   flyer:{atk:0,name:'Quái bay',trait:'bay thẳng tới lâu đài, bỏ qua mọi tường. Đặt tháp dọc đường thẳng từ cổng tới lâu đài',hp:85,sp:1.3,col:'#5b6180',lite:'#b3bbe0',dark:'#2a2e44',r:.25,gold:8,move:'f'},
   bee:{atk:0,name:'Ong độc',trait:'bay thẳng thành đàn đông, mỗi con máu rất ít. Tháp bắn lan và Sét dọn gọn',hp:16,sp:1.75,col:'#ffcf3a',lite:'#fff3a8',dark:'#3a2a05',r:.17,gold:2,move:'f'},
   hawk:{atk:0,name:'Chim ưng',trait:'bay thẳng rất nhanh tới lâu đài. Băng làm chậm nó hiệu quả nhất',hp:55,sp:2.5,col:'#c9874a',lite:'#f2d0a4',dark:'#5a3418',r:.24,gold:7,move:'f'},
-  drake:{atk:0,name:'Rồng con',trait:'bay thẳng, chậm nhưng cực trâu và có giáp. Cần Pháo và Lửa',hp:300,sp:.9,col:'#3fae8f',lite:'#a8f0d8',dark:'#1d5e4c',r:.36,gold:18,move:'f',armor:4},
+  drake:{atk:0,name:'Rồng con',trait:'bay thẳng, chậm nhưng cực trâu và có giáp. Cần Pháo và Lửa',hp:300,sp:.9,col:'#3fae8f',lite:'#a8f0d8',dark:'#1d5e4c',r:.36,gold:18,move:'f',armor:8},
   slime:{atk:6,name:'Slime',trait:'chết thì tách làm 3 slime con chạy tiếp. Tháp bắn lan (Pháo cấp 3, Sét) dọn gọn',hp:70,sp:1.2,col:'#6cc644',lite:'#d4ffb0',dark:'#2f6f1c',r:.31,gold:5,move:'g',split:3},
   slimelet:{atk:3,name:'Slime con',trait:'mảnh tách ra từ Slime',hp:20,sp:1.6,col:'#8fe05f',lite:'#e6ffd0',dark:'#3f8a28',r:.19,gold:1,move:'g'},
   healer:{atk:5,name:'Thầy thuốc',trait:'cứ 3 giây hồi máu cho quái xung quanh. Phải hạ nó trước!',hp:65,sp:1.2,col:'#eef3ea',lite:'#ffffff',dark:'#93a58f',r:.29,gold:9,move:'g',heal:.12,healR:1.7},
   knight:{atk:12,name:'Hiệp sĩ',trait:'có khiên chặn sát thương, khiên tự hồi nếu 3 giây không bị đánh. Sét phá khiên nhanh gấp đôi, Lửa đốt xuyên khiên',hp:130,sp:1,col:'#aab3c2',lite:'#eef2f8',dark:'#5d6676',r:.33,gold:11,move:'g',armor:2,shield:.8},
-  boss:{atk:60,name:'Trùm',trait:'cực trâu, giáp dày, ít bị hất, cứ 6 giây triệu hồi 2 lính. Cần Pháo và Lửa cấp cao',hp:1500,sp:.85,col:'#d83a3a',lite:'#ff9080',dark:'#6e1220',r:.52,gold:80,move:'g',armor:8}
+  giant:{atk:20,name:'Khổng lồ',trait:'máu cực nhiều, tự hồi máu rất nhanh. Dùng Lửa: đốt theo % máu và chặn hồi máu',hp:420,sp:.75,col:'#b07a4a',lite:'#e8c49a',dark:'#5a3a1c',r:.44,gold:16,move:'g',regen:.04},
+  wolf:{atk:5,name:'Sói',trait:'chạy nhanh theo bầy, né 40% đòn khi chưa bị làm chậm. Băng chỉ chậm được 1 con, Gió lốc chậm cả bầy',dodge:.4,hp:34,sp:2.7,col:'#8a8f9a',lite:'#d8dde6',dark:'#3e434d',r:.24,gold:3,move:'g'},
+  boss:{atk:60,name:'Trùm',trait:'cực trâu, giáp dày, ít bị hất, cứ 6 giây triệu hồi 2 lính. Cần Pháo và Lửa cấp cao',hp:1500,sp:.85,col:'#d83a3a',lite:'#ff9080',dark:'#6e1220',r:.52,gold:80,move:'g',armor:10}
 };
 let grid,terr,waterCells,towers,enemies,shots,queue,state,distG,distS,parts,texts,fx;
 let started=false,paused=false,selType='arrow',selTower=null,hover=null,tchoice=null;
@@ -821,6 +823,8 @@ function waveComp(n){
   if(n>=8)o.push(['bee',3+Math.floor((n-8)*.8)]);
   if(n>=11)o.push(['hawk',1+Math.floor((n-11)/3)]);
   if(n>=15)o.push(['drake',1+Math.floor((n-15)/5)]);
+  if(n>=8)o.push(['giant',1+Math.floor((n-8)/6)]);
+  if(n>=10)o.push(['wolf',5+Math.floor((n-10)/4)]);
   if(n%10===0||n===WAVES)o.push(['boss',n>=20?2:1]);
   return o;
 }
@@ -871,6 +875,7 @@ function startWave(){
   const n=state.wave,{hpm,spm}=waveMul(n),list=[];
   for(const [k,c] of waveComp(n))for(let i=0;i<c;i++)list.push(k);
   for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
+  {const pack=list.filter(k=>k==='wolf');if(pack.length){const rest=list.filter(k=>k!=='wolf');rest.splice(Math.floor(Math.random()*(rest.length+1)),0,...pack);list.length=0;list.push(...rest)}}
   if(SIDES){
     const per=[0,1].map(sd=>{const l=list.slice();if(sideN(sd)>=2){const extra=Math.round(list.length*(SIDE_MORE-1));const pool=list.filter(k=>k!=='boss');for(let i=0;i<extra&&pool.length;i++)l.splice(Math.floor(Math.random()*(l.length+1)),0,pool[Math.floor(Math.random()*pool.length)])}return l});
     for(let i=0;i<Math.max(per[0].length,per[1].length);i++)for(const side of [0,1])if(per[side][i])queue.push({k:per[side][i],hpm:hpm*sideMul(side),spm,n,side});
@@ -914,12 +919,15 @@ function prog(e){
   const D=dmap(e,m),tx=Math.min(C-1,Math.max(0,e.tx)),ty=Math.min(R-1,Math.max(0,e.ty));
   return D[ty][tx]+Math.hypot(e.x-(tx+.5),e.y-(ty+.5));
 }
+const BURN_PCT=.012; // fire also burns 1.2% of max HP per second
 let dmgBy=0,HD=false; // HD: damage currently dealt by the hero (for its XP)
 function hurt(e,d,raw,zap){
   if(e.hp<=0)return;let dm=d;e.lastBy=dmgBy;e.byHero=HD;
+  // fast monsters dodge hits unless they are slowed
+  const TT=ETYPES[e.k];if(TT.dodge&&!(e.slow>0)&&Math.random()<TT.dodge){if(!e.dodgeT||now-e.dodgeT>.6){e.dodgeT=now;texts.push({x:e.x,y:e.y-.35,t:.5,txt:'né!',c:'#cfe8ff'})}return}
   if(e.shield>0){const m=zap?2:1,ab=Math.min(e.shield,dm*m);e.shield-=ab;dm-=ab/m;e.shieldCd=3;e.hit=.1;if(e.shield<=0)burst(e.x,e.y,'#9fe8ff',12,2.6)}
   if(dm<=0)return;
-  const a=raw?0:(ETYPES[e.k].armor||0);e.hp-=Math.max(dm*.2,dm-a);e.hit=.1;
+  const a=raw?0:Math.max(0,(ETYPES[e.k].armor||0)-(e.shred||0));e.hp-=Math.max(dm*.2,dm-a);e.hit=.1;
 }
 function around(x,y,r){const sd=teamOf(dmgBy);return enemies.filter(e=>e.hp>0&&Math.hypot(e.x-x,e.y-y)<=r&&(!SIDES||(e.side||0)===sd))}
 function impact(s,tx,ty){
@@ -927,8 +935,8 @@ function impact(s,tx,ty){
   const L=s.L,t=s.t;
   if(s.type==='cannon'){
     fx.push({flash:1,x:tx,y:ty,t:.16,r:L.splash?1.1:.6});
-    if(L.splash){for(const e of around(tx,ty,L.splash))hurt(e,L.dmg);fx.push({x:tx,y:ty,r:L.splash,t:.3,c:'#ffb35c'});burst(tx,ty,'#ffb35c',14,3.2)}
-    else if(t.hp>0){hurt(t,L.dmg);fx.push({x:tx,y:ty,r:.45,t:.25,c:'#ffb35c'});burst(tx,ty,'#ffb35c',8,2.4)}
+    if(L.splash){for(const e of around(tx,ty,L.splash)){hurt(e,L.dmg,true);e.shred=(e.shred||0)+2}fx.push({x:tx,y:ty,r:L.splash,t:.3,c:'#ffb35c'});burst(tx,ty,'#ffb35c',14,3.2)}
+    else if(t.hp>0){hurt(t,L.dmg,true);t.shred=(t.shred||0)+2;fx.push({x:tx,y:ty,r:.45,t:.25,c:'#ffb35c'});burst(tx,ty,'#ffb35c',8,2.4)}
     burst(tx,ty,'#5a4a3a',6,2);return;
   }
   if(t.hp<=0)return;
@@ -945,8 +953,9 @@ function impact(s,tx,ty){
     for(const e of group){e.burnBy=dmgBy;if(!(e.burn>0)||e.burnDps<=L.burn)e.burnDps=L.burn;e.burn=Math.max(e.burn||0,L.burnT)}
     burst(t.x,t.y,'#ff9a3d',6,1.8);for(let i=0;i<6;i++)parts.push({x:t.x+(Math.random()-.5)*.3,y:t.y,vx:(Math.random()-.5)*.8,vy:-1-Math.random(),life:.5,max:.5,c:i%2?'#ffd25a':'#ff5a2a',r:1.5+Math.random()*1.5});
   }else if(s.type==='wind'){
+    for(const e of around(t.x,t.y,1.2)){e.slowAmt=e.slow>0?Math.max(e.slowAmt||0,.5):.5;e.slow=Math.max(e.slow||0,1.6)}
     for(const e of group){hurt(e,L.dmg);const k=L.knock*(e.k==='boss'?.4:1);if(!(e.stun>0))e.stunMax=k;e.stun=Math.max(e.stun||0,k)}
-    fx.push({x:t.x,y:t.y,r:L.area||.6,t:.35,c:'#e8fff6'});burst(t.x,t.y,'#e8fff6',8,2.4);
+    fx.push({x:t.x,y:t.y,r:1.2,t:.35,c:'#e8fff6'});burst(t.x,t.y,'#e8fff6',12,2.6);
   }
 }
 function zap(tw,first,L){
@@ -969,7 +978,7 @@ function update(dt){
   // passive income for both players in any 2-player mode (much smaller than kill gold)
   if(mp&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;if(mp.mode==='2v2'){state.gold++;for(let i=1;i<4;i++)state.goldP[i]++;for(const s of state.stats)s.g++}else{state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}}
   spawnT-=dt;
-  if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))*(SIDES?.5:1)}
+  if(queue.length&&spawnT<=0){const q0=queue.shift();spawn(q0);spawnT=q0.k==='wolf'&&queue[0]&&queue[0].k==='wolf'?.18:Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))*(SIDES?.5:1)}
   if(!queue.length){
     if(!endless&&state.wave>=WAVES){if(!enemies.length&&(SIDES||state.lives>0)){if(SIDES){const a=state.livesT[0],b=state.livesT[1];end2v2(a>b?0:b>a?1:-1)}else winLevel();return}}
     else{state.nextT-=dt;if(state.nextT<=0)startWave()}
@@ -979,9 +988,10 @@ function update(dt){
     if(e.slow>0)e.slow-=dt;
     if(e.hit>0)e.hit-=dt;
     if(e.burn>0){
-      e.burn-=dt;e.hp-=e.burnDps*dt;if(e.burnBy!=null)e.lastBy=e.burnBy;
+      e.burn-=dt;e.hp-=(e.burnDps+e.max*BURN_PCT)*dt;if(e.burnBy!=null)e.lastBy=e.burnBy;
       if(Math.random()<dt*14)parts.push({x:e.x+(Math.random()-.5)*.4,y:e.y-.1,vx:(Math.random()-.5)*.3,vy:-1.2,life:.35,max:.35,c:Math.random()<.5?'#ffb347':'#ff5a2a',r:1.5+Math.random()*1.5});
     }
+    if(T.regen&&!(e.burn>0)&&e.hp>0&&e.hp<e.max){e.hp=Math.min(e.max,e.hp+e.max*T.regen*dt);if(Math.random()<dt*3)parts.push({x:e.x+(Math.random()-.5)*.3,y:e.y-.2,vx:0,vy:-.8,life:.5,max:.5,c:'#7dff8a',r:2})}
     if(T.shield){if(e.shieldCd>0)e.shieldCd-=dt;else if(e.shield<e.shieldMax)e.shield=Math.min(e.shieldMax,e.shield+e.shieldMax*.35*dt)}
     if(T.heal){e.healCd=(e.healCd??1.5)-dt;if(e.healCd<=0){e.healCd=3;
       for(const o of enemies)if(o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<=T.healR){o.hp=Math.min(o.max,o.hp+o.max*T.heal);parts.push({x:o.x,y:o.y-.2,vx:0,vy:-.9,life:.6,max:.6,c:'#7dff8a',r:2.4})}
@@ -1235,6 +1245,10 @@ function paintMonster(c,k,px,cy,r,fa,t,id){
   else c.arc(px,cy,r,0,7);
   c.fill();c.strokeStyle='rgba(0,0,0,.35)';c.lineWidth=1.5;c.stroke();
   // front decorations
+  if(k==='giant'){c.fillStyle='#3a2410';for(const sg of [-1,1]){c.beginPath();c.moveTo(px+sg*r*.45,cy-r*.8);c.lineTo(px+sg*r*.55,cy-r*1.3);c.lineTo(px+sg*r*.75,cy-r*.7);c.closePath();c.fill()}
+    c.save();c.translate(px+r*.95,cy+r*.1);c.rotate(.5+Math.sin(t*3+(id||0))*.15);c.fillStyle='#7a5230';c.fillRect(-r*.12,-r*.9,r*.24,r*1.1);c.fillStyle='#5a3a1c';c.beginPath();c.arc(0,-r*.9,r*.24,0,7);c.fill();c.restore()}
+  if(k==='wolf'){c.fillStyle=T.dark;for(const sg of [-1,1]){c.beginPath();c.moveTo(px+sg*r*.25,cy-r*.75);c.lineTo(px+sg*r*.6,cy-r*1.45);c.lineTo(px+sg*r*.8,cy-r*.55);c.closePath();c.fill()}
+    c.fillStyle=T.lite;c.beginPath();c.ellipse(px+fx_*r*.55,cy+fy_*r*.55+r*.15,r*.35,r*.25,0,0,7);c.fill()}
   if(k==='grunt'){c.fillStyle='#4a1016';for(const sg of [-1,1]){c.beginPath();c.moveTo(px+sg*r*.35,cy-r*.85);c.lineTo(px+sg*r*.62,cy-r*1.4);c.lineTo(px+sg*r*.7,cy-r*.68);c.closePath();c.fill()}}
   if(k==='runner'){c.fillStyle=T.dark;for(const sg of [-1,1]){c.beginPath();c.moveTo(px+sg*r*.2,cy-r*.7);c.lineTo(px+sg*r*.55,cy-r*1.45);c.lineTo(px+sg*r*.7,cy-r*.55);c.closePath();c.fill()}}
   if(k==='tank'){const hg=c.createLinearGradient(0,cy-r,0,cy);hg.addColorStop(0,'#eef1f5');hg.addColorStop(1,'#8a92a0');c.fillStyle=hg;
@@ -2172,7 +2186,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v98'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v99'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
