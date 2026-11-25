@@ -2224,7 +2224,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v105'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v106'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2614,8 +2614,9 @@ let fbAuth=null,fbDb=null,cloudTimer=0,authBusy=false;
 function refreshHome(){
   $('bestT').textContent=cleared()?'Đã qua '+cleared()+'/'+LEVELS+' màn':'';
   $('meName').textContent=myName||'Khách';
-  if(!fbAuth){$('acctB').style.display='none';return}
-  $('acctB').style.display='';$('acctB').textContent=user?'Thoát':'🔑 Đăng nhập';
+  // the account button is always there on the real website, even while accounts are loading or failed to load
+  const site=/github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
+  $('acctB').style.display=site?'':'none';$('acctB').textContent=user?'Đăng xuất':'🔑 Đăng nhập';
 }
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
@@ -2655,7 +2656,7 @@ async function authRun(fn){
   if(!done){done=true;clearTimeout(to);authBusy=false;authBusyUI(false);if($('aErr').textContent==='Đang đăng nhập…')$('aErr').textContent=''}
 }
 const aEmail=()=>$('aEmail').value.trim();
-$('acctB').onclick=()=>{if(user){lsSet('mctt-guest',null);fbAuth.signOut()}else openAuth()};
+$('acctB').onclick=()=>{if(user&&fbAuth){lsSet('mctt-guest',null);fbAuth.signOut()}else{openAuth();if(!fbAuth){$('aErr').style.color='';$('aErr').textContent=fbFailed?'Không tải được hệ thống tài khoản ('+fbFailed+'). Kiểm tra mạng rồi tải lại trang nhé':'Đang tải hệ thống tài khoản, đợi vài giây rồi bấm lại nhé…'}}};
 $('aBack').onclick=()=>{lsSet('mctt-guest','1');closeAuth()};
 $('aLogin').onclick=()=>authRun(()=>fbAuth.signInWithEmailAndPassword(aEmail(),$('aPass').value));
 $('aSignup').onclick=()=>authRun(()=>fbAuth.createUserWithEmailAndPassword(aEmail(),$('aPass').value));
