@@ -415,8 +415,8 @@ let SP={x:Math.floor((C-1)/2),y:0},EX={x:Math.floor((C-1)/2),y:R-1};
 let SIDES=null;const DIVX=12;
 const sideOf=x=>SIDES&&x>=DIVX?1:0;
 let SPAWNS=null; // 4-player team map: one gate per corner, castle in the middle
-const gates=()=>SIDES||(SPAWNS?SPAWNS.map(g=>({sp:g.sp,ex:EX,dir:g.dir,res:g.res,open:1})):[{sp:SP,ex:EX,dir:{x:0,y:1}}]);
-const gateWalls=s=>s.open?[]:s.dir.y?[[s.sp.x-1,s.sp.y],[s.sp.x+1,s.sp.y]]:[[s.sp.x,s.sp.y-1],[s.sp.x,s.sp.y+1]];
+const gates=()=>SIDES||(SPAWNS?SPAWNS.map(g=>({sp:g.sp,ex:EX,dir:g.dir,res:g.res,walls:g.walls,open:1})):[{sp:SP,ex:EX,dir:{x:0,y:1}}]);
+const gateWalls=s=>s.walls||(s.open?[]:s.dir.y?[[s.sp.x-1,s.sp.y],[s.sp.x+1,s.sp.y]]:[[s.sp.x,s.sp.y-1],[s.sp.x,s.sp.y+1]]);
 const isGate=(x,y)=>gates().some(s=>(x===s.sp.x&&y===s.sp.y)||(x===s.ex.x&&y===s.ex.y));
 const teamOf=i=>mp&&mp.pve?0:(i||0)%2;
 const myTeam=()=>mp&&mp.mode==='2v2'?teamOf(mp.idx):0;
@@ -2228,7 +2228,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v101'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v102'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2253,8 +2253,9 @@ function showPve(won){
 }
 function genMap4(){
   SIDES=null;const N=23,M=11;setDims(N,N);EX={x:M,y:M};
-  SPAWNS=[{sp:{x:0,y:0},dir:{x:1,y:0},res:[[1,0],[0,1]]},{sp:{x:N-1,y:0},dir:{x:-1,y:0},res:[[N-2,0],[N-1,1]]},
-          {sp:{x:N-1,y:N-1},dir:{x:-1,y:0},res:[[N-2,N-1],[N-1,N-2]]},{sp:{x:0,y:N-1},dir:{x:1,y:0},res:[[1,N-1],[0,N-2]]}];
+  // each corner gate has one way out (the other side is a stone block), turned the same way around the map
+  SPAWNS=[{sp:{x:0,y:0},dir:{x:0,y:1},res:[[0,1]],walls:[[1,0]]},{sp:{x:N-1,y:0},dir:{x:-1,y:0},res:[[N-2,0]],walls:[[N-1,1]]},
+          {sp:{x:N-1,y:N-1},dir:{x:0,y:-1},res:[[N-1,N-2]],walls:[[N-2,N-1]]},{sp:{x:0,y:N-1},dir:{x:1,y:0},res:[[1,N-1]],walls:[[0,N-2]]}];
   SP=SPAWNS[0].sp;
   for(let tries=0;tries<60;tries++){
     const rnd=mulberry((mapSeed??level)*4001+tries*131+9);
