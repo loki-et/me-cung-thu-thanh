@@ -2237,7 +2237,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v110'; // build id (filled in at deploy time)
+const APP_VER='mctt-v111'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -3061,7 +3061,7 @@ function drawHero(){
   // level badge + XP bar above the head
   {const bx=px,by=py-S*.98-bob,w=26;g.fillStyle='#000b';rr(g,bx-w/2,by-7,w,13,6);g.fill();
     g.fillStyle='#ffd65a';g.font='bold 9px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText('Lv'+h.lv,bx,by);
-    const pr=h.lv>=HERO_MAXLV?1:h.xp/xpNeed(h.lv);g.fillStyle='#0009';g.fillRect(bx-w/2+2,by+6,w-4,3);g.fillStyle=h.lv>=HERO_SOFTLV?'#ffd65a':'#7dd3ff';g.fillRect(bx-w/2+2,by+6,(w-4)*pr,3)}
+}
   for(const f of h.fx){
     if(f.lvup){const k=1-f.t/.6;g.save();g.globalAlpha=f.t/.6;g.strokeStyle='#ffd65a';g.lineWidth=3;g.beginPath();g.arc(f.x*S,f.y*S,S*(.3+k*.9),0,7);g.stroke();g.restore()}
     if(f.slash){g.save();g.globalAlpha=Math.min(1,f.t*6);g.strokeStyle=f.c;g.lineWidth=f.big?6:4.5;g.shadowColor=f.c;g.shadowBlur=10;g.beginPath();g.arc(f.x*S,f.y*S,(f.big?.45:.3)*S,f.a-1,f.a+1);g.stroke();g.restore()}
