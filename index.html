@@ -189,6 +189,7 @@
   #sendbar img{width:20px;height:20px}
   #sendbar small{color:var(--gold);font-weight:700}
   #sendbar button.poor{opacity:.45}
+  #teamPick{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
   #solo{position:absolute;inset:0;z-index:9;background:#070b07ee;display:none;align-items:center;justify-content:center;padding:20px}
   .go.sb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:16px 10px!important}
   .go.sb b{font-size:19px}.go.sb small{font-size:12.5px;font-weight:600;opacity:.8}
@@ -307,6 +308,13 @@
     <button class="go sb" id="soInf" style="margin-top:10px"><b>♾️ Vô tận</b><small id="soInfS"></small></button>
     <button id="soBack" style="width:100%;margin-top:12px">← Quay lại</button>
   </div></div>
+  <div id="teamPick"><div class="card">
+    <h1>Tổ đội</h1>
+    <div class="sub">Chọn số người</div>
+    <button class="go sb" id="tp2"><b>👥 2 người</b><small>Cùng giữ một lâu đài trên bản đồ thường</small></button>
+    <button class="go sb" id="tp4" style="margin-top:10px"><b>👥👥 4 người</b><small>Lâu đài chung ở giữa, quái ra từ 4 góc, mỗi người giữ một góc</small></button>
+    <button id="tpBack" style="width:100%;margin-top:12px">← Quay lại</button>
+  </div></div>
   <div id="levels">
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between"><h1 id="lvTitle">Chọn màn</h1><button id="lvRank" title="Bảng xếp hạng" aria-label="Bảng xếp hạng" style="display:none;padding:6px 10px">🏆</button></div>
@@ -354,7 +362,7 @@
       <h1>Mê Cung Thủ Thành</h1>
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
       <div class="mgrp"><div class="mrow"><button class="go" id="go">👤 Chơi 1 mình</button></div>
-        <div class="mrow" style="margin-top:8px"><button class="go" id="go2">🤝 Tổ đội (2–4 người)</button></div></div>
+        <div class="mrow" style="margin-top:8px"><button class="go" id="go2">🤝 Tổ đội</button></div></div>
       <div class="best" id="bestT" style="margin:10px 0 0"></div>
       </div>
       <div id="helpBody" style="display:none">
@@ -406,7 +414,8 @@ let SP={x:Math.floor((C-1)/2),y:0},EX={x:Math.floor((C-1)/2),y:R-1};
 // 2vs2: SIDES holds one spawn/exit per team; the map is two mirrored halves split by a rock column at DIVX
 let SIDES=null;const DIVX=12;
 const sideOf=x=>SIDES&&x>=DIVX?1:0;
-const gates=()=>SIDES||[{sp:SP,ex:EX,dir:{x:0,y:1}}];
+let SPAWNS=null; // 4-player team map: one gate per corner, castle in the middle
+const gates=()=>SIDES||(SPAWNS?SPAWNS.map(g=>({sp:g.sp,ex:EX,dir:g.dir,res:g.res,open:1})):[{sp:SP,ex:EX,dir:{x:0,y:1}}]);
 const gateWalls=s=>s.open?[]:s.dir.y?[[s.sp.x-1,s.sp.y],[s.sp.x+1,s.sp.y]]:[[s.sp.x,s.sp.y-1],[s.sp.x,s.sp.y+1]];
 const isGate=(x,y)=>gates().some(s=>(x===s.sp.x&&y===s.sp.y)||(x===s.ex.x&&y===s.ex.y));
 const teamOf=i=>mp&&mp.pve?0:(i||0)%2;
@@ -415,7 +424,7 @@ const PCOL=['#5ab0ff','#ff6b6b','#7de3ff','#ffa07a'];
 function setDims(c,r){C=c;R=r;$('app').classList.toggle('wide',C>12);cv.width=C*S*DPR;cv.height=R*S*DPR;terrain.width=C*S*DPR;terrain.height=R*S*DPR;try{fit()}catch(e){}}
 const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
-const isRes=(x,y)=>gates().some(s=>x===s.sp.x+s.dir.x&&y===s.sp.y+s.dir.y);
+const isRes=(x,y)=>gates().some(s=>(s.res||[[s.sp.x+s.dir.x,s.sp.y+s.dir.y]]).some(([a,b])=>x===a&&y===b));
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
 const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=99,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.4,LEVEL_GOLD=0,RAGE_ATK=2;
 const TYPES={
@@ -713,7 +722,9 @@ function waterCellsExist(){return terr.some(r=>r.includes(WATER))}
 
 /* ---------- game logic ---------- */
 function reset(){
+  SPAWNS=null;
   if(mp&&mp.mode==='2v2'&&!mp.pve)genMap2();
+  else if(mp&&mp.pve&&mp.cap===4)genMap4();
   else{if(SIDES||C!==12){SIDES=null;setDims(12,18)}SP={x:5,y:0};EX={x:5,y:17};genMap()}
   buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
@@ -752,7 +763,7 @@ function canPlace(x,y,owner){
   if(x<0||y<0||x>=C||y>=R)return 'Ngoài bản đồ';
   if(SIDES&&mp&&mp.mode==='2v2'&&sideOf(x)!==teamOf(owner??mp.idx))return 'Chỉ xây được bên đất của đội mình';
   if(isGate(x,y))return 'Không xây ở cổng vào/ra';
-  if(isRes(x,y))return 'Ô ngay dưới cổng phải để trống cho lính đi';
+  if(isRes(x,y))return 'Ô sát cổng phải để trống cho lính đi';
   if(terr[y][x]===ROCK)return 'Núi đá, không xây được';
   if(terr[y][x]===WATER)return 'Mặt nước, không xây được';
   if(grid[y][x])return 'Ô đã có tháp';
@@ -893,7 +904,7 @@ function startWave(){
   else{
     if(mp&&mp.pve&&teamN()>1){const pool=list.filter(k=>k!=='boss'),extra=Math.round(list.length*TEAM_MORE*(teamN()-1));
       for(let i=0;i<extra&&pool.length;i++)list.splice(Math.floor(Math.random()*(list.length+1)),0,pool[Math.floor(Math.random()*pool.length)])}
-    for(const k of list)queue.push({k,hpm,spm,n});
+    let gi=0;list.forEach((k,i)=>{if(!(k==='wolf'&&list[i-1]==='wolf'))gi++;queue.push({k,hpm,spm,n,g:gi})}); // a wolf pack keeps one gate
   }
   if(n%10===0)toast('👑 Trùm xuất hiện! Trùm triệu hồi thêm lính',2500);
   else setTimeout(warnNewType,2600);
@@ -905,7 +916,7 @@ function mkEnemy(k,x,y,tx,ty,hpm,spm,n){
   return e;
 }
 function spawn(q){
-  const sd=SIDES?SIDES[q.side||0]:{sp:SP,ex:EX},e=mkEnemy(q.k,sd.sp.x+.5,sd.sp.y+.5,sd.sp.x,sd.sp.y,q.hpm,q.spm,q.n);
+  const sd=SIDES?SIDES[q.side||0]:SPAWNS?{sp:SPAWNS[(q.g||0)%SPAWNS.length].sp,ex:EX}:{sp:SP,ex:EX},e=mkEnemy(q.k,sd.sp.x+.5,sd.sp.y+.5,sd.sp.x,sd.sp.y,q.hpm,q.spm,q.n);
   e.side=q.side||0;e.ex=sd.ex;
   // PvP troops walk as a loose crowd instead of a single file
   if(SIDES){e.ox=(Math.random()-.5)*.62;e.oy=(Math.random()-.5)*.62;e.x+=e.ox;e.y+=e.oy}
@@ -988,7 +999,7 @@ function update(dt){
   // passive income for both players in any 2-player mode (much smaller than kill gold)
   if(mp&&state.wave>0){state.passT=(state.passT||0)+dt;while(state.passT>=PASSIVE_EVERY){state.passT-=PASSIVE_EVERY;if(mp.mode==='2v2'){state.gold++;for(let i=1;i<4;i++)state.goldP[i]++;for(const s of state.stats)s.g++}else{state.gold+=1;state.gold2+=1;state.stats[0].g++;state.stats[1].g++}}}
   spawnT-=dt;
-  if(queue.length&&spawnT<=0){const q0=queue.shift();spawn(q0);spawnT=q0.k==='wolf'&&queue[0]&&queue[0].k==='wolf'?.18:Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))*(SIDES?.5:1)}
+  if(queue.length&&spawnT<=0){const q0=queue.shift();spawn(q0);spawnT=q0.k==='wolf'&&queue[0]&&queue[0].k==='wolf'?.18:Math.max(.3,.55-.012*Math.max(0,state.wave-EASY_WAVES))*(SIDES?.5:SPAWNS?.35:1)}
   if(!queue.length){
     if(!endless&&state.wave>=WAVES){if(!enemies.length&&(SIDES||state.lives>0)){if(SIDES){const a=state.livesT[0],b=state.livesT[1];end2v2(a>b?0:b>a?1:-1)}else winLevel();return}}
     else{state.nextT-=dt;if(state.nextT<=0)startWave()}
@@ -1364,7 +1375,9 @@ function drawWater(){
   g.globalAlpha=1;
 }
 function drawGates(){
-  if(SIDES){for(const t of [0,1])drawBase(t)}else drawGate1(gates()[0]);
+  if(SIDES){for(const t of [0,1])drawBase(t)}
+  else if(SPAWNS){const s0=SP;for(const gt of gates()){SP=gt.sp;drawGate1(gt)}SP=s0}
+  else drawGate1(gates()[0]);
 }
 // a team's base: one building that sends out troops; its HP bar is the team's lives
 function drawBase(t){
@@ -1429,6 +1442,12 @@ function draw(){
   g.setTransform(DPR,0,0,DPR,0,0);
   g.clearRect(0,0,C*S,R*S);
   g.drawImage(terrain,0,0,C*S,R*S);
+  if(SPAWNS&&mp&&mp.names){const h=C*S/2;const zs=[[0,0],[h,0],[h,h],[0,h]];
+    for(let i=0;i<4;i++){if(!mp.names[i])continue;g.fillStyle=PCOL[i]+'14';g.fillRect(zs[i][0],zs[i][1],h,h)}
+    g.strokeStyle='rgba(255,255,255,.14)';g.setLineDash([6,6]);g.lineWidth=1.5;g.beginPath();g.moveTo(h,0);g.lineTo(h,C*S);g.moveTo(0,h);g.lineTo(C*S,h);g.stroke();g.setLineDash([]);
+    g.font='bold 11px system-ui';g.textBaseline='middle';
+    for(let i=0;i<4;i++){const n=mp.names[i];if(!n)continue;const right=i===1||i===2,bot=i>=2,txt=n,w=g.measureText(txt).width+14,x=right?C*S-S*1.3-w:S*1.3,y=bot?C*S-S*.5:S*.5;
+      g.fillStyle='#000b';rr(g,x,y-9,w,18,9);g.fill();g.fillStyle=PCOL[i];g.textAlign='left';g.fillText(txt,x+7,y)}}
   if(SIDES){drawBridges();const ot=1-myTeam(),x0=ot?(DIVX+1)*S:0;g.fillStyle='rgba(255,40,40,.05)';g.fillRect(x0,0,(DIVX-1)*S,R*S);
     g.font='bold 12px system-ui';g.textAlign='center';g.textBaseline='top';
     for(const t of [0,1]){const lb=(t===myTeam()?'ĐỘI BẠN · ':'ĐỘI KIA · ')+(t?'ĐỎ':'XANH');
@@ -1751,7 +1770,7 @@ function showHelp(){$('homeBody').style.display='none';$('helpBody').style.displ
 function closeHelp(){$('helpBody').style.display='none';$('homeBody').style.display='';if(started){$('start').style.display='none'}}
 function showHome(){
   if(mp)mpCleanup();closeLobby();hideRoom();
-  $('solo').style.display='none';$('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
+  $('solo').style.display='none';$('teamPick').style.display='none';$('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
   $('helpBody').style.display='none';$('homeBody').style.display='';$('start').style.display='flex';
   started=false;
   if(typeof refreshHome==='function')refreshHome();
@@ -1788,7 +1807,11 @@ $('nmCancel').onclick=()=>{$('nameBox').style.display='none'};
 $('nmOk').onclick=()=>{const n=cleanName($('pname').value);if(!n){toast('Nhập tên trước nhé',1800);return}setName(n);$('nameBox').style.display='none';if(user)cloudSave()};
 $('pname').addEventListener('keydown',e=>{if(e.key==='Enter')$('nmOk').click()});
 function goOnline(m){if(!myName){openName();return}setLbMode(m);$('start').style.display='none';openLobby()}
-$('go2').onclick=()=>goOnline('coop');
+let lbCap=2;
+$('go2').onclick=()=>{if(!myName){openName();return}$('start').style.display='none';$('teamPick').style.display='flex'};
+$('tp2').onclick=()=>{lbCap=2;$('teamPick').style.display='none';goOnline('coop')};
+$('tp4').onclick=()=>{lbCap=4;$('teamPick').style.display='none';goOnline('coop')};
+$('tpBack').onclick=()=>{$('teamPick').style.display='none';showHome()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!state.over&&!mp)setPause(true)});
 $('reset').onclick=reset;
 $('again').onclick=()=>{if(endless){startEndless();return}reset()};
@@ -1872,8 +1895,8 @@ function mpStopSearch(){
 function mpFail(m){mpStopSearch();hideRoom();$('mpwait').style.display='none';toast(m,3000);openLobby()}
 const modeName=m=>m==='coop'?'🤝 Tổ đội':m==='2v2'?'👥 2vs2':'⚔️ Solo';
 let lobby=null,lbMode='coop';
-const MODE_DESC={vs:'Quân hai bên tràn sang đánh lâu đài nhau. Mỗi người giữ một nửa bản đồ, ai hết mạng trước thì thua. Nên chơi trên máy tính.',coop:'2–4 người cùng giữ một lâu đài, mỗi người một nhân vật và vàng riêng. Càng đông người quái càng đông và trâu. Qua màn cùng nhau.','2v2':'Quân hai đội tràn sang đánh lâu đài nhau. Mỗi đội 2 người giữ một nửa bản đồ, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
-function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Tổ đội':m==='2v2'?'👥 2vs2':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
+const MODE_DESC={vs:'Quân hai bên tràn sang đánh lâu đài nhau. Mỗi người giữ một nửa bản đồ, ai hết mạng trước thì thua. Nên chơi trên máy tính.',coop:'Cùng giữ một lâu đài, mỗi người một nhân vật và vàng riêng. Quái đông và trâu theo số người. Qua màn cùng nhau.','2v2':'Quân hai đội tràn sang đánh lâu đài nhau. Mỗi đội 2 người giữ một nửa bản đồ, đội nào hết mạng trước thì thua. Nên chơi trên máy tính.'};
+function setLbMode(m){lbMode=m;$('lbTitle').textContent=m==='coop'?'🤝 Tổ đội '+lbCap+' người':m==='2v2'?'👥 2vs2':'⚔️ Solo 1vs1';$('lbDesc').textContent=MODE_DESC[m];renderRooms()}
 function lobbyMsg(m){setText($('roomList'),'<div class="empty">'+m+'</div>',true)}
 async function openLobby(){
   $('levels').style.display='none';$('lobby').style.display='flex';
@@ -1894,7 +1917,7 @@ function closeLobby(keepClient){
 }
 function renderRooms(){
   if(!lobby)return;
-  const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode).sort((a,b)=>a.k-b.k);
+  const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode&&(lbMode!=='coop'||(r.cap||4)===lbCap)).sort((a,b)=>a.k-b.k);
   setText($('lbCount'),'Phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' đang chờ ('+list.length+')');
   if(!list.length)return lobbyMsg('Chưa có phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
   setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'||r.cap?' · '+(r.n||1)+'/'+(r.cap||4):'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
@@ -2205,7 +2228,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v100'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v101'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2227,6 +2250,24 @@ function showPve(won){
   $('mpAgain').style.display=mp?'':'none';$('mpAgain').disabled=!host;
   $('mpAgain').textContent=host?(won&&level<LEVELS?'Màn tiếp theo cùng nhau ▶':'Chơi lại màn này ▶'):'Chờ chủ phòng bắt đầu…';
   $('over').style.display='flex';updateUI();
+}
+function genMap4(){
+  SIDES=null;const N=23,M=11;setDims(N,N);EX={x:M,y:M};
+  SPAWNS=[{sp:{x:0,y:0},dir:{x:1,y:0},res:[[1,0],[0,1]]},{sp:{x:N-1,y:0},dir:{x:-1,y:0},res:[[N-2,0],[N-1,1]]},
+          {sp:{x:N-1,y:N-1},dir:{x:-1,y:0},res:[[N-2,N-1],[N-1,N-2]]},{sp:{x:0,y:N-1},dir:{x:1,y:0},res:[[1,N-1],[0,N-2]]}];
+  SP=SPAWNS[0].sp;
+  for(let tries=0;tries<60;tries++){
+    const rnd=mulberry((mapSeed??level)*4001+tries*131+9);
+    terr=Array.from({length:N},()=>Array(N).fill(GRASS));
+    const put=(x,y,v)=>{for(const [a,b] of [[x,y],[N-1-y,x],[N-1-x,N-1-y],[y,N-1-x]])terr[b][a]=v};
+    // a few small rock clusters and one little pond per quarter (kept simple), away from gates and castle
+    const ok=(x,y)=>x+y>4&&Math.hypot(x-M,y-M)>3&&x<M&&y<M;
+    for(let i=0;i<3;i++){let x=2+Math.floor(rnd()*8),y=2+Math.floor(rnd()*8);if(!ok(x,y))continue;const len=2+Math.floor(rnd()*2);
+      for(let k=0;k<len;k++){if(ok(x,y))put(x,y,ROCK);if(rnd()<.5)x++;else y++}}
+    {const x=3+Math.floor(rnd()*6),y=3+Math.floor(rnd()*6);if(ok(x,y)&&ok(x+1,y)){put(x,y,WATER);put(x+1,y,WATER)}}
+    buildGrid();
+    const d=bfs(null,'g');if(SPAWNS.every(g=>d[g.sp.y][g.sp.x]<Infinity))break;
+  }
 }
 const TEAMN=t=>t?'Đội Đỏ':'Đội Xanh';
 function end2v2(wt){
@@ -2259,15 +2300,17 @@ function showRoom4(){
   const r=mp;if(!r)return;
   $('lobby').style.display='none';$('mpwait').style.display='none';$('room').style.display='flex';
   $('rmTitle').textContent=r.k?'Phòng '+r.k:'Đang tạo phòng…';
-  const one=r.cap===2;
-  if(r.pve){$('rmSub').textContent='🤝 Tổ đội · 2–4 người cùng giữ một lâu đài';document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
+  const one=r.cap===2;$('rmStart').textContent='▶ Bắt đầu';
+  if(r.pve){$('rmSub').textContent=r.cap===2?'🤝 Tổ đội 2 người · cùng giữ một lâu đài':'🤝 Tổ đội 4 người · lâu đài ở giữa, quái ra từ 4 góc';document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
     let hh='<div class="team4" style="grid-column:1/-1"><div class="tn" style="color:#8fe07a">🤝 Cả đội</div>';
-    for(let i=0;i<4;i++){const n=r.names[i],hk=r.heroK&&r.heroK[i];hh+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div><b style="color:'+(n?PCOL[i]:'')+'">'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div></div>'}
+    for(let i=0;i<(r.cap||4);i++){const n=r.names[i],hk=r.heroK&&r.heroK[i];hh+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div><b style="color:'+(n?PCOL[i]:'')+'">'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div></div>'}
     hh+='</div><div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Chế độ'+(r.role==='host'?'':' (chủ phòng chọn)')+'</div><div class="mrow"><button class="md'+(r.endless?'':' cur')+'" data-md="lv"'+(r.role==='host'?'':' disabled')+'>🗺️ Theo màn</button><button class="md'+(r.endless?' cur':'')+'" data-md="inf"'+(r.role==='host'?'':' disabled')+'>♾️ Vô tận</button></div></div>';
     hh+='<div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Nhân vật của bạn</div><div class="hgrid">'+HK.map(k=>'<button class="hb'+(k===((r.heroK&&r.heroK[r.idx])||heroK)?' cur':'')+'" data-hk="'+k+'"><b>'+HEROES[k].ico+'</b><small>'+HEROES[k].name+'</small></button>').join('')+'</div></div>';
     $('slots4').innerHTML=hh;const host=r.role==='host',cnt=r.names.filter(Boolean).length;
-    $('rmStart').style.display=host?'':'none';$('rmStart').disabled=cnt<2;
-    $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(cnt<2?'Chờ thêm người vào phòng…':'Có thể bắt đầu ('+cnt+'/4 người)'):'Chờ chủ phòng bấm Bắt đầu…';
+    const capN=r.cap||4,full=cnt>=capN;
+    $('rmStart').style.display=host?'':'none';$('rmStart').disabled=capN===2&&!full;
+    $('rmStart').textContent=full||capN===2?'▶ Bắt đầu':'▶ Chơi thử ('+cnt+'/4)';
+    $('rmHint').textContent=!r.k?'Đang kết nối máy chủ…':host?(full?'Đủ người rồi, bấm Bắt đầu nhé!':capN===2?'Chờ người thứ 2 vào phòng…':'Chờ đủ 4 người, hoặc bấm Chơi thử để thử bản đồ 4 góc với số người đang có'):'Chờ chủ phòng bấm Bắt đầu…';
     return}
   $('rmSub').textContent=one?'⚔️ 1vs1 · quân hai bên tràn sang đánh lâu đài nhau':'👥 2vs2 · quân hai đội tràn sang đánh lâu đài nhau';
   document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
@@ -2386,7 +2429,7 @@ function guestRecv4(d){
     case 'ev':ev4(d);break;
   }
 }
-$('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4(4):lbMode==='vs'?createRoom4(2):createRoom4(4,true);
+$('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4(4):lbMode==='vs'?createRoom4(2):createRoom4(lbCap,true);
 setLbMode('coop');
 $('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
 $('rmLeave').onclick=()=>{mpStopSearch();if(mp)mpCleanup();hideRoom();openLobby()};
