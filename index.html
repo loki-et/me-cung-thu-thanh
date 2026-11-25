@@ -1917,10 +1917,10 @@ function closeLobby(keepClient){
 }
 function renderRooms(){
   if(!lobby)return;
-  const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode&&(lbMode!=='coop'||(r.cap||4)===lbCap)).sort((a,b)=>a.k-b.k);
+  const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode).sort((a,b)=>((b.cap||4)===lbCap)-((a.cap||4)===lbCap)||a.k-b.k);
   setText($('lbCount'),'Phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' đang chờ ('+list.length+')');
   if(!list.length)return lobbyMsg('Chưa có phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
-  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'">'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'||r.cap?' · '+(r.n||1)+'/'+(r.cap||4):'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
+  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'"'+(r.ver!=null&&r.ver!==NET_VER?' data-old="1"':'')+'>'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'||r.cap?' · '+(r.cap||4)+' người ('+(r.n||1)+'/'+(r.cap||4)+')':'')+(r.ver!=null&&r.ver!==NET_VER?' <small style="color:#ffb35c">⚠️ khác phiên bản – tải lại trang</small>':'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
 }
 function toggleNext(force){
   const nx=$('next'),open=force!=null?force:!nx.classList.contains('open');
@@ -1933,7 +1933,7 @@ function warnNewType(){
   const nw=waveComp(n).filter(([k])=>FIRST[k]===n&&n>1).map(([k])=>ETYPES[k].name);
   if(nw.length){$('wave').classList.add('new');toast('⚠️ Đợt sau có quái mới: '+nw.join(', ')+'. Chạm ⚔️ để xem',3200)}
 }
-$('roomList').addEventListener('click',e=>{const b=e.target.closest('.room');if(b)joinRoom(b.dataset.id)});
+$('roomList').addEventListener('click',e=>{const b=e.target.closest('.room');if(!b)return;if(b.dataset.old){toast('Phòng này khác phiên bản game. Hai bên tải lại trang rồi thử lại nhé',3000);return}joinRoom(b.dataset.id)});
 function joinRoom(id){
   if(!lobby)return;const L=lobby,c=L.client,info=L.rooms.get(id)||{};mpWait('Đang vào phòng…');
   const gT=NS+'r/'+id+'/g',hT=NS+'r/'+id+'/h';let ok=false;
@@ -1945,7 +1945,7 @@ function joinRoom(id){
       if(d.mode==='2v2')joinAsGuest4(c,link,d);else joinAsGuest(c,link,d.mode,d.k||info.k,cleanName(d.name)||cleanName(info.name)||'Chủ phòng')}
     else if(d.t==='full')fail('Phòng đã đủ người');
     else if(d.t==='oldver')fail('Phiên bản game khác với chủ phòng. Cả hai hãy tải lại trang rồi vào lại nhé');});
-  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName,hero:heroK,ver:APP_VER},{qos:1}),150);
+  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName,hero:heroK,ver:NET_VER},{qos:1}),150);
 }
 let roomInfo=null;
 function showRoom(o){
@@ -2228,7 +2228,9 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v107'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v108'; // build id (filled in at deploy time)
+// online protocol version: bump ONLY when the messages between players change, so small updates can still play together
+const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2399,7 +2401,7 @@ function room4Announce(){
   if(!mp||mp.mode!=='2v2'||mp.role!=='host'||!mp.client)return;
   const n=mp.names.filter(Boolean).length;
   if(mp.started)mqPub(mp.client,mp.topic,null,{retain:true,qos:1});
-  else mqPub(mp.client,mp.topic,{mode:mp.pve?'coop':mp.cap===2?'vs':'2v2',k:mp.k,at:Date.now(),born:mp.born,name:myName,n,cap:mp.cap,full:n>=mp.cap},{retain:true,qos:1});
+  else mqPub(mp.client,mp.topic,{mode:mp.pve?'coop':mp.cap===2?'vs':'2v2',ver:NET_VER,k:mp.k,at:Date.now(),born:mp.born,name:myName,n,cap:mp.cap,full:n>=mp.cap},{retain:true,qos:1});
 }
 function roster4(){mp.conn.send({t:'roster',names:mp.names,heroK:mp.heroK,endless:!!mp.endless});if(!started)showRoom4();room4Announce()}
 function hostRecv4(d){
@@ -2407,7 +2409,7 @@ function hostRecv4(d){
   const p=mp.peers.get(d.from);
   if(d.t==='hello'){
     if(p)return;
-    if(d.ver!==APP_VER){mqPub(mp.client,mp.gT,{t:'oldver',to:d.from,from:mp.client.myId},{qos:1});return}
+    if(d.ver!==NET_VER){mqPub(mp.client,mp.gT,{t:'oldver',to:d.from,from:mp.client.myId},{qos:1});return}
     const idx=(mp.cap===2?[1]:[1,2,3]).find(i=>!mp.names[i]);
     if(mp.started||idx==null){mqPub(mp.client,mp.gT,{t:'full',to:d.from,from:mp.client.myId},{qos:1});return}
     const name=cleanName(d.name)||'Người chơi '+(idx+1);
