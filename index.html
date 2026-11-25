@@ -2259,7 +2259,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v118'; // build id (filled in at deploy time)
+const APP_VER='mctt-v119'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2365,7 +2365,7 @@ function sendPing(m){
 function drawPings(dt){
   if(!mp||!mp.pings||!mp.pings.length)return;
   for(const p of mp.pings){p.t-=dt;const cx=p.x*S+S/2,cy=p.y*S+S/2,col=PINGCOL[p.m]||'#fff',k=(3.2-p.t)%1;
-    {const pu=.5+.5*Math.sin(now*9),m=S*.04;g.save();g.shadowColor=col;g.shadowBlur=8+10*pu;g.strokeStyle=col;g.lineWidth=2.5+1.5*pu;rr(g,p.x*S+m,p.y*S+m,S-2*m,S-2*m,S*.2);g.stroke();g.globalAlpha=.18+.14*pu;g.fillStyle=col;g.fill();g.restore()}
+    {const pu=.5+.5*Math.sin(now*9),m=S*.04;g.save();g.shadowColor=col;g.shadowBlur=8+10*pu;g.strokeStyle=col;g.lineWidth=2.5+1.5*pu;rr(g,p.x*S+m,p.y*S+m,S-2*m,S-2*m,S*.2);g.stroke();g.restore()}
     g.font='bold 11px system-ui';const txt=PINGTXT[p.m],w=g.measureText(txt).width+14,bx=Math.max(2,Math.min(C*S-w-2,cx-w/2)),by=cy-S*1.05+Math.sin(now*6)*1.5;
     g.fillStyle=PINGCOL[p.m];rr(g,bx,by-9,w,18,9);g.fill();g.fillStyle='#fff';g.textAlign='left';g.textBaseline='middle';g.fillText(txt,bx+7,by)}
   mp.pings=mp.pings.filter(p=>p.t>0);
