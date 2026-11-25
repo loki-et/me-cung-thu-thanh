@@ -51,11 +51,12 @@
   /* hero controls live in their own bar under the map so every map cell stays buildable */
   #ctrl{display:none;align-items:center;gap:10px;padding:2px 12px 6px;flex:none}
   #ctrl .sp{flex:1}
-  #flt{position:absolute;top:6px;left:6px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;z-index:3;pointer-events:none}
-  #flt button{pointer-events:auto;display:none;padding:5px 10px;font-size:12px;font-weight:800;border-radius:16px;background:#000b;border:1px solid #ffffff33;color:#fff;min-height:0}
-  #flt.dim button{opacity:.22;pointer-events:none}
+  #nextC{display:contents}
+  #flt{flex-basis:100%;display:flex;gap:6px;margin-top:4px}
+  #flt button{display:none;flex:1;padding:8px 8px;font-size:12.5px;font-weight:800;border-radius:12px}
   #spdB.on{background:#2f6b2a;border-color:var(--acc)}
   #callW{background:#5a3a0ccc!important;border-color:#ffd166aa!important}
+  #callW.on{background:#2f6b2a!important;border-color:var(--acc)!important}
   .skc{display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}.skc>*{pointer-events:auto}
   .kb .skc{flex-direction:row;gap:14px}
   #ctrl .skb,#ctrl #joy{position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important}
@@ -272,13 +273,12 @@
     <button id="sndq" aria-label="Bật tắt âm thanh">🔊</button>
     <button id="pause" aria-label="Menu">☰</button>
   </div>
-  <div class="nextw"><div id="opp"></div><div class="next" id="next"></div><div class="tip" id="etip"></div></div>
+  <div class="nextw"><div id="opp"></div><div class="next" id="next"><div id="nextC"></div><div id="flt"><button id="callW"></button><button id="spdB">⏩ Tốc độ x1</button></div></div><div class="tip" id="etip"></div></div>
   <div class="msgbar"><div id="msg"></div></div>
   <div class="stage">
     <div class="wrap">
       <canvas id="cv"></canvas>
       <div class="pop" id="pop"></div>
-      <div id="flt"><button id="spdB">⏩ x1</button><button id="callW"></button></div>
       <div class="ov" id="menu">
         <h2>Tạm dừng</h2>
         <button class="go" id="resume">▶ Tiếp tục</button>
@@ -379,7 +379,8 @@
       <h1>Mê Cung Thủ Thành</h1>
       <div class="sub">Đoán đường lính đi, xây tháp lái chúng vòng qua tầm bắn.</div>
       <div class="mgrp"><div class="mrow"><button class="go" id="go">👤 Chơi 1 mình</button></div>
-        <div class="mrow" style="margin-top:8px"><button class="go" id="go2">🤝 Tổ đội</button></div></div>
+        <div class="mrow" style="margin-top:8px"><button class="go" id="go2">🤝 Tổ đội</button></div>
+        <div class="mrow" style="margin-top:8px"><button class="go" id="rejoinB" style="display:none;background:linear-gradient(180deg,#ffb84d,#e08a1a);color:#2a1600">↩ Vào lại trận</button></div></div>
       <div class="best" id="bestT" style="margin:10px 0 0"></div>
       </div>
       <div id="helpBody" style="display:none">
@@ -919,9 +920,19 @@ const canCall=()=>started&&!paused&&!state.over&&!queue.length&&(endless||state.
 function fltUI(){
   const sp=$('spdB'),cw=$('callW'),showS=started&&!mp&&!state.over;
   if(sp.style.display!==(showS?'block':'none'))sp.style.display=showS?'block':'none';
-  setText(sp,SPD>1?'⏩ x2':'⏩ x1');sp.classList.toggle('on',SPD>1);
+  setText(sp,SPD>1?'⏩ Tốc độ x2':'⏩ Tốc độ x1');sp.classList.toggle('on',SPD>1);
   const c=canCall();if(cw.style.display!==(c?'block':'none'))cw.style.display=c?'block':'none';
-  if(c)setText(cw,'⚔️ Gọi đợt ngay'+(callBonus()>0?' +'+callBonus()+'🪙':''));
+  if(c){const team=mp&&mp.mode==='2v2',v=team?(mp.callV||[]):[],n=team?(mp.callN||humans().length):1,me=team&&v.includes(mp.idx);
+    setText(cw,me?'✓ Bạn đã đồng ý gọi sớm ('+v.length+'/'+n+'), chờ đồng đội':'⚔️ Gọi đợt ngay'+(callBonus()>0?' (thưởng '+callBonus()+' vàng)':'')+(team&&n>1?' · '+v.length+'/'+n+' đồng ý':''));cw.classList.toggle('on',me)}
+}
+// team play: the early call needs every player in the room to agree
+const humans=()=>mp&&mp.names?mp.names.map((n,i)=>n&&!(mp.bots&&mp.bots[i])&&!(mp.away&&mp.away[i])?i:-1).filter(i=>i>=0):[0];
+function voteCall(who){
+  if(!mp||mp.mode!=='2v2'){doCall(0);return}
+  if(!canCall())return;
+  mp.callV=mp.callV||[];const i=mp.callV.indexOf(who);
+  if(i>=0)mp.callV.splice(i,1);else{mp.callV.push(who);if(who!==mp.idx)toast((mp.names[who]||'Đồng đội')+' muốn gọi đợt sớm',1800)}
+  const need=humans();if(need.every(k=>mp.callV.includes(k))){mp.callV=[];doCall(who)}
 }
 function doCall(who){
   if(!canCall())return;const b=callBonus();
@@ -931,11 +942,11 @@ function doCall(who){
   updateUI();
 }
 $('spdB').onclick=e=>{e.stopPropagation();SPD=SPD>1?1:2;SFX.play('click');fltUI()};
-$('callW').onclick=e=>{e.stopPropagation();SFX.play('click');if(coopGuest())mpSend({t:'callw'});else doCall(mp?mp.idx||0:0)};
+$('callW').onclick=e=>{e.stopPropagation();SFX.play('click');if(coopGuest()){mpSend({t:'callw'});mp.callV=mp.callV||[];const i=mp.callV.indexOf(mp.idx);if(i>=0)mp.callV.splice(i,1);else mp.callV.push(mp.idx);fltUI()}else voteCall(mp?mp.idx||0:0)};
 function startWave(){
   if(!state.over)SFX.play('wave');
   if(state.over)return;
-  state.wave++;state.nextT=WAVE_GAP;
+  state.wave++;state.nextT=WAVE_GAP;if(mp)mp.callV=[];
   const n=state.wave,{hpm,spm}=waveMul(n),list=[];
   for(const [k,c] of waveComp(n))for(let i=0;i<c;i++)list.push(k);
   for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
@@ -1766,7 +1777,7 @@ function updateUI(){
   }
   if(mp&&mp.mode==='2v2'){const k=selTower?selTower.x+','+selTower.y:'';if(k!==mp.lastSel){mp.lastSel=k;mp.sels=mp.sels||[];mp.sels[mp.idx]=selTower?{x:selTower.x,y:selTower.y}:null;if(mp.role==='guest')mpSend(selTower?{t:'sel',x:selTower.x,y:selTower.y}:{t:'sel'})}}
   if(mp&&mp.mode==='coop'){const k=selTower?selTower.x+','+selTower.y:'';if(k!==mp.lastSel){mp.lastSel=k;mpSend(selTower?{t:'sel',x:selTower.x,y:selTower.y}:{t:'sel'})}}
-  setText($('next'),nextHTML(),true);
+  setText($('nextC'),nextHTML(),true);
   // rebuild the tower panel only when another tower/level/choice is shown; otherwise update its text in place
   {const P=$('pop'),key=selTower?[selTower.x,selTower.y,selTower.lvl,tchoice,selTower.owner||0].join(','):'';
     if(key!==P.dataset.key){P.dataset.key=key;txtCache.delete(P);setText(P,popHTML(),true)}
@@ -1982,8 +1993,9 @@ function renderRooms(){
   if(!lobby)return;
   const now=Date.now(),list=[...lobby.rooms.values()].filter(r=>now-(r.at||0)<60000&&!r.full&&r.mode===lbMode).sort((a,b)=>((b.cap||4)===lbCap)-((a.cap||4)===lbCap)||a.k-b.k);
   setText($('lbCount'),'Phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' đang chờ ('+list.length+')');
-  if(!list.length)return lobbyMsg('Chưa có phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!');
-  setText($('roomList'),list.map(r=>'<button class="room" data-id="'+r.id+'"'+(r.ver!=null&&r.ver!==NET_VER?' data-old="1"':'')+'>'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'||r.cap?' · '+(r.cap||4)+' người ('+(r.n||1)+'/'+(r.cap||4)+')':'')+(r.ver!=null&&r.ver!==NET_VER?' <small style="color:#ffb35c">⚠️ khác phiên bản – tải lại trang</small>':'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
+  const rj=rejoinInfo(),rjH=rj?'<button class="room" data-rejoin="'+esc(rj.id)+'" style="border-color:#ffb84d">↩ Vào lại trận với '+esc(rj.host||'đồng đội')+'<span>Vào ▶</span></button>':'';
+  if(!list.length){setText($('roomList'),rjH+'<div class="empty">Chưa có phòng '+({coop:'Tổ đội',vs:'Solo','2v2':'2vs2'}[lbMode])+' nào. Bấm ＋ Tạo phòng để bạn bè vào!</div>',true);return}
+  setText($('roomList'),rjH+list.map(r=>'<button class="room" data-id="'+r.id+'"'+(r.ver!=null&&r.ver!==NET_VER?' data-old="1"':'')+'>'+(r.name?'Phòng của '+esc(cleanName(r.name)):'Phòng '+r.k)+(r.mode==='2v2'||r.cap?' · '+(r.cap||4)+' người ('+(r.n||1)+'/'+(r.cap||4)+')':'')+(r.ver!=null&&r.ver!==NET_VER?' <small style="color:#ffb35c">⚠️ khác phiên bản – tải lại trang</small>':'')+' <small style="color:var(--mut);font-weight:400">· chờ '+Math.max(0,Math.round((now-(r.born||r.at))/1000))+'s</small><span>Vào ▶</span></button>').join(''),true);
 }
 function toggleNext(force){
   const nx=$('next'),open=force!=null?force:!nx.classList.contains('open');
@@ -1996,19 +2008,26 @@ function warnNewType(){
   const nw=waveComp(n).filter(([k])=>FIRST[k]===n&&n>1).map(([k])=>ETYPES[k].name);
   if(nw.length){$('wave').classList.add('new');toast('⚠️ Đợt sau có quái mới: '+nw.join(', ')+'. Chạm ⚔️ để xem',3200)}
 }
-$('roomList').addEventListener('click',e=>{const b=e.target.closest('.room');if(!b)return;if(b.dataset.old){toast('Phòng này khác phiên bản game. Hai bên tải lại trang rồi thử lại nhé',3000);return}joinRoom(b.dataset.id)});
-function joinRoom(id){
-  if(!lobby)return;const L=lobby,c=L.client,info=L.rooms.get(id)||{};mpWait('Đang vào phòng…');
+$('roomList').addEventListener('click',e=>{const b=e.target.closest('.room');if(!b)return;if(b.dataset.rejoin){joinRoom(b.dataset.rejoin,true);return}if(b.dataset.old){toast('Phòng này khác phiên bản game. Hai bên tải lại trang rồi thử lại nhé',3000);return}joinRoom(b.dataset.id)});
+// ---- rejoin: a player who drops mid-match can come back within 2 minutes to the same seat ----
+const REJOIN_MS=120000;
+let cidV='';const getCid=()=>{if(!cidV){cidV=lsGet('mctt-cid')||'';if(!cidV){cidV=rid(10);lsSet('mctt-cid',cidV)}}return cidV};
+function rejoinInfo(){try{const r=JSON.parse(lsGet('mctt-rejoin')||'null');return r&&Date.now()-r.at<REJOIN_MS?r:null}catch(e){return null}}
+function rejoinSave(){if(mp&&mp.role==='guest'&&mp.mode==='2v2'&&mp.rid&&started&&!state.over)lsSet('mctt-rejoin',JSON.stringify({id:mp.rid,at:Date.now(),k:mp.k,host:(mp.names&&mp.names[0])||''}))}
+function rejoinClear(){lsSet('mctt-rejoin',null)}
+function rejoinUI(){const r=rejoinInfo(),b=$('rejoinB');if(b)b.style.display=r?'':'none';if(r&&b)b.textContent='↩ Vào lại trận với '+(r.host||'đồng đội')}
+function joinRoom(id,rejoin){
+  if(!lobby)return;const L=lobby,c=L.client,info=L.rooms.get(id)||{};mpWait(rejoin?'Đang vào lại trận…':'Đang vào phòng…');
   const gT=NS+'r/'+id+'/g',hT=NS+'r/'+id+'/h';let ok=false;
   const fail=m=>{if(ok)return;ok=true;clearTimeout(to);mqUnsub(c,gT);$('mpwait').style.display='none';toast(m,2500);renderRooms()};
-  const to=setTimeout(()=>fail('Phòng đã đóng, chọn phòng khác nhé'),7000);
+  const to=setTimeout(()=>{if(rejoin)rejoinClear();fail(rejoin?'Trận đó đã kết thúc rồi':'Phòng đã đóng, chọn phòng khác nhé')},7000);
   mqSub(c,gT,d=>{if(ok||!d||d.to!==c.myId)return;
     if(d.t==='welcome'){ok=true;clearTimeout(to);mqUnsub(c,gT);closeLobby(true);
       const link=makeLink(c,hT,gT,d.from);
-      if(d.mode==='2v2')joinAsGuest4(c,link,d);else joinAsGuest(c,link,d.mode,d.k||info.k,cleanName(d.name)||cleanName(info.name)||'Chủ phòng')}
-    else if(d.t==='full')fail('Phòng đã đủ người');
+      if(d.mode==='2v2'){d.rid=id;joinAsGuest4(c,link,d)}else joinAsGuest(c,link,d.mode,d.k||info.k,cleanName(d.name)||cleanName(info.name)||'Chủ phòng')}
+    else if(d.t==='full'){if(rejoin)rejoinClear();fail(rejoin?'Không vào lại được, trận đã kết thúc hoặc chỗ đã hết hạn':'Phòng đã đủ người')}
     else if(d.t==='oldver')fail('Phiên bản game khác với chủ phòng. Cả hai hãy tải lại trang rồi vào lại nhé');});
-  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName,hero:heroK,ver:NET_VER},{qos:1}),150);
+  setTimeout(()=>mqPub(c,hT,{t:'hello',from:c.myId,name:myName,hero:heroK,ver:NET_VER,cid:getCid(),rejoin:rejoin?1:0},{qos:1}),150);
 }
 let roomInfo=null;
 function showRoom(o){
@@ -2085,7 +2104,7 @@ function mpCleanup(){
   $('sendbar').style.display='none';$('opp').style.display='none';$('menu').style.display='none';
   fit();
 }
-function mpLeave(){mpCleanup();started=false;$('over').style.display='none';openLobby()}
+function mpLeave(){rejoinClear();mpCleanup();started=false;$('over').style.display='none';openLobby()}
 function mpEnd(won){
   state.over=true;selTower=null;
   if(mp.mode==='2v2'){state.won=!!won;showPve(won);return}
@@ -2189,6 +2208,7 @@ function makeSnap(){
   const sig=towers.map(t=>t.x+','+t.y+','+t.type+','+t.lvl+','+(t.owner||0)+','+Math.ceil(t.hp/4)).join(';');
   mp.snapN=(mp.snapN||0)+1;
   if(sig!==mp.twSig||mp.snapN%12===0){mp.twSig=sig;x2.tw=towers.map(t=>[t.x,t.y,TK.indexOf(t.type),t.lvl,t.owner||0,Math.ceil(t.hp),t.maxhp,t.hurt>0?1:0])}
+  if(mp.mode==='2v2'){x2.cv=mp.callV||[];x2.cn=humans().length}
   const out={t:'s',...x2,ht:r2(performance.now()/1000),l:state.lives,w:state.wave,q:queue.length,nt:r2(state.nextT),ov:state.over?1:0,wn:state.won?1:0,fl:r2(state.flash),
     ta:state.taunt?[state.taunt.txt,r2(state.taunt.t),state.taunt.k]:0,
     en:enemies.map(e=>[e.id,EK.indexOf(e.k),r2(e.x),r2(e.y),Math.round(e.hp),Math.round(e.max),r2(e.fa),(e.slow>0?1:0)|(e.burn>0?2:0)|(e.stun>0?4:0)|(e.atkT?8:0)|(e.hit>0?16:0),e.tx,e.ty,e.shieldMax?r2(e.shield/e.shieldMax):0,e.side||0]),
@@ -2211,7 +2231,7 @@ function applySnap(d){
   if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt?d.lt[myTeam()]:d.l;state.stats=[0,1,2,3].map(i=>({k:d.sx[i*2]||0,g:d.sx[i*2+1]||0}))}
   else{state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l}
   if(d.w!==state.wave)state.wave=d.w;
-  queue.length=d.q;state.nextT=d.nt;state.flash=Math.max(state.flash,d.fl);
+  queue.length=d.q;state.nextT=d.nt;if(d.cv){const nw=d.cv.find(i=>i!==mp.idx&&!(mp.callV||[]).includes(i));if(nw!=null&&d.cv.length<(d.cn||9))toast((mp.names[nw]||'Đồng đội')+' muốn gọi đợt sớm',1800);mp.callV=d.cv;mp.callN=d.cn}state.flash=Math.max(state.flash,d.fl);
   state.taunt=d.ta?{txt:d.ta[0],t:d.ta[1],k:d.ta[2]}:null;
   // towers (only sent when something changed)
   if(d.tw){
@@ -2303,7 +2323,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v124'; // build id (filled in at deploy time)
+const APP_VER='mctt-v125'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2489,7 +2509,8 @@ async function createRoom4(cap,pve){
     close(){if(!this.open)return;this.send({t:'bye'});mqPub(c,gT,{t:'bye',from:c.myId},{qos:1});for(const p of my.peers.values())if(p.rtc)p.rtc.close();this.open=false;clearInterval(my.iv);clearInterval(my.hb);mqPub(c,topic,null,{retain:true,qos:1});mqUnsub(c,hT)}};
   room4Announce();my.hb=setInterval(room4Announce,15000);
   mqSub(c,hT,hostRecv4);
-  my.iv=setInterval(()=>{if(mp!==my)return;my.conn.send({t:'ping'});const t=Date.now();for(const [pid,p] of my.peers)if(t-p.last>LINK_TIMEOUT)dropPeer4(pid)},2000);
+  my.iv=setInterval(()=>{if(mp!==my)return;my.conn.send({t:'ping'});const t=Date.now();for(const [pid,p] of my.peers)if(t-p.last>LINK_TIMEOUT)dropPeer4(pid);
+    if(my.away)for(const i in my.away)if(t>my.away[i].until){const a=my.away[i];delete my.away[i];my.names[i]=null;roster4();toast(a.name+' không vào lại kịp',2500)}},2000);
   c.on('connect',()=>{if(mp===my)room4Announce()}); // back after a dropped connection: list the room again
   showRoom4();
 }
@@ -2506,10 +2527,21 @@ function hostRecv4(d){
   if(d.t==='hello'){
     if(p)return;
     if(d.ver!==NET_VER){mqPub(mp.client,mp.gT,{t:'oldver',to:d.from,from:mp.client.myId},{qos:1});return}
+    if(d.rejoin&&mp.started&&d.cid)for(const [pid,pp] of [...mp.peers])if(pp.cid===d.cid)dropPeer4(pid); // the old connection of the same player is dead
+    if(d.rejoin&&mp.started&&mp.away){
+      const idx=Object.keys(mp.away).map(Number).find(i=>mp.away[i].cid===d.cid&&Date.now()<mp.away[i].until);
+      if(idx==null||state.over){mqPub(mp.client,mp.gT,{t:'full',to:d.from,from:mp.client.myId},{qos:1});return}
+      const name=mp.away[idx].name;delete mp.away[idx];
+      mp.peers.set(d.from,{idx,name,cid:d.cid,last:Date.now()});mp.names[idx]=name;
+      {const pid=d.from,pp=mp.peers.get(pid);setTimeout(()=>{if(mp&&mp.peers.get(pid)===pp)pp.rtc=rtcOpen(sg=>mqPub(mp.client,mp.gT,Object.assign({},sg,{to:pid,from:mp.client.myId}),{qos:1}),m=>{if(mp&&mp.mode==='2v2')hostRecv4(Object.assign(m,{from:pid}))},true)},1500)}
+      mp.conn.send({t:'welcome',to:d.from,mode:'2v2',pve:mp.pve,k:mp.k,name:myName,idx,names:mp.names,heroK:mp.heroK,cap:mp.cap,rejoin:1});
+      setTimeout(()=>{if(!mp)return;mp.conn.send({t:'start',to:d.from,mode:mp.mode,level,names:mp.names,heroK:mp.heroK,endless,seed:mapSeed,rejoin:1});mp.twSig='';mp.selsSent=null},400);
+      toast(name+' đã vào lại trận',2500);SFX.play('build');return;
+    }
     const idx=(mp.cap===2?[1]:[1,2,3]).find(i=>!mp.names[i]);
     if(mp.started||idx==null){mqPub(mp.client,mp.gT,{t:'full',to:d.from,from:mp.client.myId},{qos:1});return}
     const name=cleanName(d.name)||'Người chơi '+(idx+1);
-    mp.peers.set(d.from,{idx,name,last:Date.now()});mp.names[idx]=name;mp.heroK[idx]=HEROES[d.hero]?d.hero:'warrior';
+    mp.peers.set(d.from,{idx,name,cid:d.cid,last:Date.now()});mp.names[idx]=name;mp.heroK[idx]=HEROES[d.hero]?d.hero:'warrior';
     {const pid=d.from,pp=mp.peers.get(pid);setTimeout(()=>{if(mp&&mp.peers.get(pid)===pp)pp.rtc=rtcOpen(sg=>mqPub(mp.client,mp.gT,Object.assign({},sg,{to:pid,from:mp.client.myId}),{qos:1}),m=>{if(mp&&mp.mode==='2v2')hostRecv4(Object.assign(m,{from:pid}))},true)},1500)}
     mp.conn.send({t:'welcome',to:d.from,mode:'2v2',pve:mp.pve,k:mp.k,name:myName,idx,names:mp.names,heroK:mp.heroK,cap:mp.cap});
     roster4();SFX.play('build');return;
@@ -2517,15 +2549,17 @@ function hostRecv4(d){
   if(!p)return;p.last=Date.now();
   if(d.t==='rtc'){if(p.rtc)p.rtc.sig(d);return}
   if(d.t==='ping')return;
-  if(d.t==='bye'){dropPeer4(d.from);return}
+  if(d.t==='bye'){p.bye=true;dropPeer4(d.from);return}
   hostCmd4(d,p,d.from);
 }
 function dropPeer4(pid){
   const p=mp.peers.get(pid);if(!p)return;
-  mp.peers.delete(pid);if(p.rtc)p.rtc.close();mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
+  mp.peers.delete(pid);if(p.rtc)p.rtc.close();
+  if(mp.started&&!state.over&&p.cid&&!p.bye){mp.away=mp.away||{};mp.away[p.idx]={name:p.name,cid:p.cid,until:Date.now()+REJOIN_MS};toast(p.name+' rớt mạng, giữ chỗ 2 phút để vào lại',3000);return}
+  mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
 }
 function hostCmd4(d,p,pid){
-  if(d.t==='callw'){doCall(p.idx);return}
+  if(d.t==='callw'){voteCall(p.idx);return}
   if(d.t==='png'){const m={t:'png',x:d.x,y:d.y,m:d.m,i:p.idx};mp.conn.send(m);showPing(m);return}
   if(d.t==='sel'){mp.sels=mp.sels||[];mp.sels[p.idx]=d.x!=null?{x:d.x,y:d.y}:null;return}
   if(d.t==='pi'){const m={t:'po',ts:d.ts,to:pid,from:mp.client.myId};if(!(p.rtc&&p.rtc.open()&&p.rtc.send(m)))mqPub(mp.client,mp.gT,m,{});return}
@@ -2568,9 +2602,10 @@ $('slots4').addEventListener('click',e=>{
   heroK=b.dataset.hk;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}SFX.play('click');
   mp.heroK=mp.heroK||[];mp.heroK[mp.idx]=heroK;if(mp.role==='host')roster4();else{mpSend({t:'hero',k:heroK});showRoom4()}});
 function joinAsGuest4(c,link,d){
-  mp={mode:'2v2',pve:!!d.pve,role:'guest',client:c,own:true,conn:link,idx:d.idx,k:d.k,cap:d.cap||4,heroK:d.heroK||[],names:d.names||[cleanName(d.name),null,null,null],opp:{},stT:0};
+  mp={mode:'2v2',pve:!!d.pve,role:'guest',client:c,own:true,conn:link,idx:d.idx,k:d.k,cap:d.cap||4,rid:d.rid,heroK:d.heroK||[],names:d.names||[cleanName(d.name),null,null,null],opp:{},stT:0};
   link.on('data',guestRecv4);
-  link.on('close',()=>{if(!mp||mp.conn!==link)return;mpCleanup();hideRoom();started=false;$('over').style.display='none';$('mpwait').style.display='none';toast('Chủ phòng đã rời phòng',3000);openLobby()});
+  link.on('close',()=>{if(!mp||mp.conn!==link)return;const mid=started&&!state.over;if(mid)rejoinSave();mpCleanup();hideRoom();started=false;$('over').style.display='none';$('mpwait').style.display='none';toast(mid?'Mất kết nối với chủ phòng. Bấm ↩ Vào lại trận để chơi tiếp':'Chủ phòng đã rời phòng',3500);openLobby()});
+  if(d.rejoin)toast('Đã vào lại trận!',2000);
   showRoom4();
 }
 function guestRecv4(d){
@@ -2579,13 +2614,15 @@ function guestRecv4(d){
   switch(d.t){
     case 'roster':mp.names=d.names;mp.heroK=d.heroK||mp.heroK;mp.endless=!!d.endless;if(!started)showRoom4();break;
     case 'start':mp.names=d.names||mp.names;mp.heroK=d.heroK||mp.heroK;endless=!!d.endless;mapSeed=d.seed??null;mpBegin(d.level);break;
-    case 's':applySnap(d);break;
+    case 's':applySnap(d);if(!mp.rjT||performance.now()-mp.rjT>5000){mp.rjT=performance.now();rejoinSave()}if(state.over)rejoinClear();break;
     case 'err':toast(d.m);break;
     case 'ev':ev4(d);break;
     case 'png':if(d.i!==mp.idx)showPing(d);break;
     case 'po':mp.rtt=mp.rtt?mp.rtt*.6+(performance.now()-d.ts)*.4:performance.now()-d.ts;break;
   }
 }
+$('rejoinB').onclick=async()=>{const r=rejoinInfo();if(!r){rejoinUI();return}if(!myName){openName();return}$('start').style.display='none';setLbMode('coop');await openLobby();if(lobby)joinRoom(r.id,true)};
+setInterval(()=>{if($('start').style.display==='flex')rejoinUI()},5000);
 $('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4(4):lbMode==='vs'?createRoom4(2):createRoom4(lbCap,true);
 setLbMode('coop');
 $('rmStart').onclick=()=>{if(mp&&mp.role==='host'&&mp.conn)mpStartMatch()};
@@ -2730,6 +2767,7 @@ const FB_CFG={apiKey:"AIzaSyAymxoZ0wbNCSnPsdauOLOdHbusIrdIBJ4",authDomain:"me-cu
 const MIN_RUN=300; // a level takes ~7+ minutes; matches the Firestore rule
 let fbAuth=null,fbDb=null,cloudTimer=0,authBusy=false;
 function refreshHome(){
+  if(typeof rejoinUI==='function')rejoinUI();
   $('bestT').textContent=cleared()?'Đã qua '+cleared()+'/'+LEVELS+' màn':'';
   $('meName').textContent=myName||'Khách';
   // the account button is always there on the real website, even while accounts are loading or failed to load
@@ -2873,7 +2911,7 @@ addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false});
 const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
 if(TOUCH)document.querySelector('.wrap').appendChild($('ctrl'));
 // picking a tower fades the hero buttons for a moment so the cells under them can be built on
-let dimT=0;function dimCtrl(ms){for(const id of ['ctrl','flt'])$(id).classList.add('dim');clearTimeout(dimT);dimT=setTimeout(()=>{for(const id of ['ctrl','flt'])$(id).classList.remove('dim')},ms)}
+let dimT=0;function dimCtrl(ms){$('ctrl').classList.add('dim');clearTimeout(dimT);dimT=setTimeout(()=>$('ctrl').classList.remove('dim'),ms)}
 document.body.classList.toggle('kb',!TOUCH);
 // builders stand beside the cell (on the side they come from), not in the middle of it
 function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;const p={x,y:cy+.1,owner:h.owner};heroClamp(p);return p}
