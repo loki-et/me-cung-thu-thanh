@@ -229,6 +229,7 @@
   .rk li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rk li small{color:var(--gold)}
   .rk li.me{outline:2px solid var(--acc)}
+  .bot-add,.bot-x{padding:5px 9px;font-size:12px;white-space:nowrap}
   .md{flex:1;padding:9px 4px;border-radius:12px;font-weight:700}
   .md.cur{outline:2px solid var(--acc);background:#2c4a2a}
   .md:disabled{opacity:.75}
@@ -1093,6 +1094,7 @@ function update(dt){
     }
   }
   if(heroOn()||heroes.length)eachHero(()=>heroStep(dt));
+  if(mp&&mp.pve)botsStep(dt);
   for(const s of shots){
     const tx=s.t.hp>0?s.t.x:(s.lx??s.x),ty=s.t.hp>0?s.t.y:(s.ly??s.y);
     s.lx=tx;s.ly=ty;
@@ -2228,7 +2230,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v102'; // filled in at deploy time; players in one room must run the same version
+const APP_VER='mctt-v103'; // filled in at deploy time; players in one room must run the same version
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2270,6 +2272,52 @@ function genMap4(){
     const d=bfs(null,'g');if(SPAWNS.every(g=>d[g.sp.y][g.sp.x]<Infinity))break;
   }
 }
+// ---- bot teammates for team play (run on the host): build around the monster path in their own area, fight, upgrade ----
+const BOT_TYPES=['arrow','cannon','frost','fire','wind','arrow','thunder','cannon'];
+function botZone(i){if(!SPAWNS)return {x0:0,y0:0,x1:C-1,y1:R-1};const M=Math.floor(C/2);return [{x0:0,y0:0,x1:M,y1:M},{x0:M,y0:0,x1:C-1,y1:M},{x0:M,y0:M,x1:C-1,y1:R-1},{x0:0,y0:M,x1:M,y1:R-1}][i]}
+const inZone=(z,x,y)=>x>=z.x0&&x<=z.x1&&y>=z.y0&&y<=z.y1;
+function botPathCells(z){
+  // walk the monster route from each gate (inside the zone) towards the castle
+  const out=[];for(const gt of gates()){let x=gt.sp.x,y=gt.sp.y,guard=0;
+    while(distG[y][x]>0&&guard++<200){if(inZone(z,x,y))out.push([x,y,distG[y][x]]);let bx=x,by=y;
+      for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<C&&ny<R&&distG[ny][nx]<distG[by][bx]){bx=nx;by=ny}}
+      if(bx===x&&by===y)break;x=bx;y=by}}
+  return out;
+}
+function botThink(i){
+  const h=heroes[i];if(!h||state.over)return;
+  withHero(h,()=>{
+    const z=botZone(i),gold=goldOf(i);
+    // spend: upgrade sometimes, otherwise build next to the path
+    if(h.jobs.length<2){
+      const mine=towers.filter(t=>(t.owner||0)===i&&TYPES[t.type].lv[t.lvl+1]);
+      if(mine.length&&gold>160&&Math.random()<.35){const t=mine[Math.floor(Math.random()*mine.length)];heroUpOrder(t,i)}
+      else{const type=BOT_TYPES[(towers.filter(t=>(t.owner||0)===i).length)%BOT_TYPES.length],cost=TYPES[type].lv[0].cost;
+        if(gold>=cost+h.jobs.reduce((s,j)=>s+jobCost(j),0)){
+          const cand=[];for(const [x,y,d] of botPathCells(z))for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy;if(inZone(z,nx,ny)&&!canPlace(nx,ny,i)&&!h.jobs.some(j=>j.x===nx&&j.y===ny))cand.push([nx,ny,d+Math.random()*5])}
+          cand.sort((a,b)=>b[2]-a[2]);
+          for(const [x,y] of cand.slice(0,10)){const d=bfs({x,y},'g');if(gates().every(g=>d[g.sp.y][g.sp.x]<TOWER_STEP)){heroOrder2(x,y,type,i);break}}
+        }
+      }
+      if(gold>700)heroBuy('dmg',i);
+    }
+    // fight: go after the nearest monster in its area when not building, fire skills when close
+    if(!h.jobs.length){let b=null,bd=1e9;for(const e of enemies){if(e.hp<=0)continue;const ex=Math.floor(e.x),ey=Math.floor(e.y);if(!inZone(z,ex,ey))continue;const d=Math.hypot(e.x-h.x,e.y-h.y);if(d<bd){bd=d;b=e}}
+      if(b&&bd>.9)h.goto={x:b.x,y:b.y+.3,owner:i};
+      if(b&&bd<2.5){HD=heroMark();try{if(h.cdE<=0)heroE_();if(h.cdQ<=0&&around(h.x,h.y,2).length>=3)heroQ_()}finally{HD=false}}}
+  });
+}
+function botsStep(dt){
+  if(!mp||!mp.bots||mp.role!=='host')return;
+  mp.botT=(mp.botT||0)-dt;if(mp.botT>0)return;mp.botT=.5;
+  for(let i=1;i<4;i++)if(mp.bots[i])botThink(i);
+}
+function addBot(){
+  if(!mp||mp.role!=='host'||mp.started)return;
+  const i=[1,2,3].slice(0,(mp.cap||4)-1).find(k=>!mp.names[k]);if(i==null)return;
+  mp.bots[i]=true;mp.names[i]='🤖 Máy '+i;mp.heroK[i]=HK[Math.floor(Math.random()*HK.length)];SFX.play('build');roster4();
+}
+function removeBot(i){if(!mp||!mp.bots||!mp.bots[i]||mp.started)return;mp.bots[i]=false;mp.names[i]=null;mp.heroK[i]=null;roster4()}
 const TEAMN=t=>t?'Đội Đỏ':'Đội Xanh';
 function end2v2(wt){
   state.over=true;state.wt=wt;selTower=null;
@@ -2304,7 +2352,9 @@ function showRoom4(){
   const one=r.cap===2;$('rmStart').textContent='▶ Bắt đầu';
   if(r.pve){$('rmSub').textContent=r.cap===2?'🤝 Tổ đội 2 người · cùng giữ một lâu đài':'🤝 Tổ đội 4 người · lâu đài ở giữa, quái ra từ 4 góc';document.querySelector('#room .slots').style.display='none';$('slots4').style.display='';
     let hh='<div class="team4" style="grid-column:1/-1"><div class="tn" style="color:#8fe07a">🤝 Cả đội</div>';
-    for(let i=0;i<(r.cap||4);i++){const n=r.names[i],hk=r.heroK&&r.heroK[i];hh+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div><b style="color:'+(n?PCOL[i]:'')+'">'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div></div>'}
+    for(let i=0;i<(r.cap||4);i++){const n=r.names[i],hk=r.heroK&&r.heroK[i],bot=r.bots&&r.bots[i],host=r.role==='host';
+      hh+='<div class="slot'+(n?' on':'')+'"><span class="av">'+(n?(HEROES[hk]?HEROES[hk].ico:'🙂'):'⏳')+'</span><div style="flex:1"><b style="color:'+(n?PCOL[i]:'')+'">'+(n?esc(n)+(i===r.idx?' (bạn)':''):'Đang chờ…')+'</b>'+(n&&HEROES[hk]?'<small>'+(i===0?'👑 ':'')+HEROES[hk].name+'</small>':'')+'</div>'
+        +(host&&bot?'<button class="bot-x" data-bx="'+i+'" title="Bỏ máy">✕</button>':'')+(host&&!n?'<button class="bot-add" data-ba="1">＋ Thêm máy</button>':'')+'</div>'}
     hh+='</div><div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Chế độ'+(r.role==='host'?'':' (chủ phòng chọn)')+'</div><div class="mrow"><button class="md'+(r.endless?'':' cur')+'" data-md="lv"'+(r.role==='host'?'':' disabled')+'>🗺️ Theo màn</button><button class="md'+(r.endless?' cur':'')+'" data-md="inf"'+(r.role==='host'?'':' disabled')+'>♾️ Vô tận</button></div></div>';
     hh+='<div style="grid-column:1/-1;margin-top:4px"><div class="mph" style="text-align:left;margin:0 0 4px">Nhân vật của bạn</div><div class="hgrid">'+HK.map(k=>'<button class="hb'+(k===((r.heroK&&r.heroK[r.idx])||heroK)?' cur':'')+'" data-hk="'+k+'"><b>'+HEROES[k].ico+'</b><small>'+HEROES[k].name+'</small></button>').join('')+'</div></div>';
     $('slots4').innerHTML=hh;const host=r.role==='host',cnt=r.names.filter(Boolean).length;
@@ -2327,13 +2377,14 @@ function showRoom4(){
 }
 async function createRoom4(cap,pve){
   cap=cap||4;
-  closeLobby();mpStopSearch();
+  const reuse=lobby&&lobby.client&&lobby.client.connected?lobby.client:null;
+  closeLobby(!!reuse);mpStopSearch();
   const id=rid(8),k=100+Math.floor(Math.random()*900),topic=NS+'rooms/'+id,hT=NS+'r/'+id+'/h',gT=NS+'r/'+id+'/g';
   roomInfo=null;
-  mp={mode:'2v2',pve:!!pve,role:'host',idx:0,k:0,cap,heroK:[heroK,null,null,null],names:[myName,null,null,null],peers:new Map(),snapT:0,stT:0,opp:{},topic,hT,gT,born:Date.now()};
+  mp={mode:'2v2',pve:!!pve,role:'host',idx:0,k:0,cap,heroK:[heroK,null,null,null],names:[myName,null,null,null],bots:[],peers:new Map(),snapT:0,stT:0,opp:{},topic,hT,gT,born:Date.now()};
   const my=mp;showRoom4();
-  const c=await mqConnect({topic,payload:'',retain:true,qos:1});
-  if(mp!==my){c&&c.end();return}
+  const c=reuse||await mqConnect({topic,payload:'',retain:true,qos:1});
+  if(mp!==my){if(!reuse)c&&c.end();return}
   if(!c){mp=null;return mpFail(mqErr==='load'?mqFailMsg():'Không kết nối được máy chủ, thử lại sau nhé')}
   mp.client=c;mp.own=true;mp.k=k;
   mp.conn={open:true,send(o){if(!this.open)return;const m=Object.assign({},o,{from:c.myId});let mq=!!o.to||!my.peers.size;
@@ -2409,7 +2460,10 @@ function send4(fromTeam,o,by){
   mp.conn.send({t:'ev',k:o.k,n:o.n,side,by});ev4({k:o.k,n:o.n,side,by});
 }
 function ev4(d){toast('⚔️ '+d.by+' gửi '+d.n+' '+ETYPES[d.k].name+' sang '+(d.side===myTeam()?'đội bạn!':'đội kia'),2200)}
-$('slots4').addEventListener('click',e=>{const m=e.target.closest('.md');if(m&&mp&&mp.role==='host'&&!m.disabled){mp.endless=m.dataset.md==='inf';SFX.play('click');roster4();return}
+$('slots4').addEventListener('click',e=>{
+  const ba=e.target.closest('.bot-add');if(ba){addBot();return}
+  const bx=e.target.closest('.bot-x');if(bx){removeBot(+bx.dataset.bx);return}
+  const m=e.target.closest('.md');if(m&&mp&&mp.role==='host'&&!m.disabled){mp.endless=m.dataset.md==='inf';SFX.play('click');roster4();return}
   const b=e.target.closest('.hb');if(!b||!mp||mp.mode!=='2v2')return;
   heroK=b.dataset.hk;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}SFX.play('click');
   mp.heroK=mp.heroK||[];mp.heroK[mp.idx]=heroK;if(mp.role==='host')roster4();else{mpSend({t:'hero',k:heroK});showRoom4()}});
