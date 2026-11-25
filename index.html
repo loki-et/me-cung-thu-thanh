@@ -51,6 +51,13 @@
   /* hero controls live in their own bar under the map so every map cell stays buildable */
   #ctrl{display:none;align-items:center;gap:10px;padding:2px 12px 6px;flex:none}
   #ctrl .sp{flex:1}
+  #flt{position:absolute;top:6px;left:6px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;z-index:3;pointer-events:none}
+  #flt button{pointer-events:auto;display:none;padding:5px 10px;font-size:12px;font-weight:800;border-radius:16px;background:#000b;border:1px solid #ffffff33;color:#fff;min-height:0}
+  #flt.dim button{opacity:.22;pointer-events:none}
+  #spdB.on{background:#2f6b2a;border-color:var(--acc)}
+  #callW{background:#5a3a0ccc!important;border-color:#ffd166aa!important}
+  .skc{display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}.skc>*{pointer-events:auto}
+  .kb .skc{flex-direction:row;gap:14px}
   #ctrl .skb,#ctrl #joy{position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important}
   #ctrl #joy{width:84px;height:84px}
   #app.wide #ctrl{width:100%;max-width:640px;margin:0 auto;box-sizing:border-box}
@@ -134,7 +141,8 @@
   .tip .ln span{color:#ffd166}
   .tb{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:0;padding:4px 0 3px;border-radius:12px}
   .tb img{width:34px;height:34px;display:block;pointer-events:none}
-  .tb small{color:var(--gold);font-size:11.5px;font-weight:700;pointer-events:none}
+  .tb small{color:var(--gold);font-size:11.5px;font-weight:700;pointer-events:none;white-space:nowrap}
+  .tb .tnm{color:var(--txt);font-weight:600}
   .tb{position:relative}
   .tb .kn{display:none;position:absolute;top:3px;left:5px;font-style:normal;font-size:10px;font-weight:800;color:#fffbe0;opacity:.75}
   .kb .tb .kn{display:block}
@@ -270,6 +278,7 @@
     <div class="wrap">
       <canvas id="cv"></canvas>
       <div class="pop" id="pop"></div>
+      <div id="flt"><button id="spdB">⏩ x1</button><button id="callW"></button></div>
       <div class="ov" id="menu">
         <h2>Tạm dừng</h2>
         <button class="go" id="resume">▶ Tiếp tục</button>
@@ -284,8 +293,8 @@
     </div>
   </div>
   <div id="ctrl"><div id="joy"><div id="joyK"></div></div><span class="sp"></span>
-    <button id="hupB" class="skb"><i class="kk">R</i><span class="sx">💪</span><span class="sl">Nâng cấp</span></button>
-    <button id="skillE" class="skb"><i class="kk">E</i><span class="sx"></span><span class="sl"></span></button>
+    <span class="skc"><button id="hupB" class="skb"><i class="kk">R</i><span class="sx">💪</span><span class="sl">Nâng cấp</span></button>
+    <button id="skillE" class="skb"><i class="kk">E</i><span class="sx"></span><span class="sl"></span></button></span>
     <button id="skill" class="skb"><i class="kk">Q</i><span class="sx"></span><span class="sl"></span></button></div>
   <div id="hshop"><div class="hsh"><b>💪 Nâng cấp nhân vật</b><button id="hshX">✕</button></div><div id="hshL"></div></div>
   <div id="sendbar"></div>
@@ -903,6 +912,26 @@ function showEnd(won,st){
   $('again').textContent='Chơi lại màn '+level;
   $('over').style.display='flex';updateUI();
 }
+// ---- speed x2 (solo) and calling the next wave early: the seconds skipped become a little gold ----
+let SPD=1;
+const callBonus=()=>Math.floor(state.nextT/2);
+const canCall=()=>started&&!paused&&!state.over&&!queue.length&&(endless||state.wave<WAVES)&&state.nextT>1.5;
+function fltUI(){
+  const sp=$('spdB'),cw=$('callW'),showS=started&&!mp&&!state.over;
+  if(sp.style.display!==(showS?'block':'none'))sp.style.display=showS?'block':'none';
+  setText(sp,SPD>1?'⏩ x2':'⏩ x1');sp.classList.toggle('on',SPD>1);
+  const c=canCall();if(cw.style.display!==(c?'block':'none'))cw.style.display=c?'block':'none';
+  if(c)setText(cw,'⚔️ Gọi đợt ngay'+(callBonus()>0?' +'+callBonus()+'🪙':''));
+}
+function doCall(who){
+  if(!canCall())return;const b=callBonus();
+  if(b>0){state.gold+=b;if(state.goldP)for(let i=1;i<state.goldP.length;i++)state.goldP[i]+=b;if(state.stats)for(const s of state.stats)if(s)s.g+=b}
+  state.nextT=0;texts.push({x:C/2,y:1.4,t:1.2,txt:'+'+b+' vàng',c:'#ffd166'});
+  if(mp&&mp.names&&who!=null&&who!==(mp.idx||0))toast((mp.names[who]||'Đồng đội')+' gọi đợt sớm',1600);
+  updateUI();
+}
+$('spdB').onclick=e=>{e.stopPropagation();SPD=SPD>1?1:2;SFX.play('click');fltUI()};
+$('callW').onclick=e=>{e.stopPropagation();SFX.play('click');if(coopGuest())mpSend({t:'callw'});else doCall(mp?mp.idx||0:0)};
 function startWave(){
   if(!state.over)SFX.play('wave');
   if(state.over)return;
@@ -1730,7 +1759,7 @@ function updateUI(){
   setText($('gold').querySelector('i'),''+state.gold);
   setText($('lives').querySelector('i'),''+state.lives);
   setText($('wave').querySelector('i'),'Đợt '+state.wave+(endless?'':'/'+WAVES));
-  setText($('wave').querySelector('small'),(endless?'Vô tận':'Màn '+level)+' · '+(queue.length?'còn '+queue.length+' lính ra':state.wave>=WAVES?'đợt cuối':'đợt sau '+Math.ceil(state.nextT)+'s'));
+  setText($('wave').querySelector('small'),(queue.length?'còn '+queue.length+' lính ra':state.wave>=WAVES?'đợt cuối':'đợt sau '+Math.ceil(state.nextT)+'s'));
   for(const b of $('dock').querySelectorAll('.tb')){
     b.classList.toggle('sel',b.dataset.k===selType);
     b.classList.toggle('poor',state.gold<TYPES[b.dataset.k].lv[0].cost);
@@ -1771,7 +1800,7 @@ function pickType(k,fromTouch){
 for(const k in TYPES){
   const T=TYPES[k];
   const b=document.createElement('button');b.className='tb';b.dataset.k=k;b.setAttribute('aria-label',T.name);
-  b.innerHTML='<i class="kn">'+(Object.keys(TYPES).indexOf(k)+1)+'</i><img src="'+ICON[k]+'" alt=""><small>'+T.lv[0].cost+'</small>';
+  b.innerHTML='<i class="kn">'+(Object.keys(TYPES).indexOf(k)+1)+'</i><img src="'+ICON[k]+'" alt=""><small><span class="tnm">'+T.name+' </span>'+T.lv[0].cost+'</small>';
   let lastType='mouse';
   b.addEventListener('pointerdown',e=>{lastType=e.pointerType});
   b.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')showTip(k)});
@@ -2274,7 +2303,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v123'; // build id (filled in at deploy time)
+const APP_VER='mctt-v124'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2496,6 +2525,7 @@ function dropPeer4(pid){
   mp.peers.delete(pid);if(p.rtc)p.rtc.close();mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
 }
 function hostCmd4(d,p,pid){
+  if(d.t==='callw'){doCall(p.idx);return}
   if(d.t==='png'){const m={t:'png',x:d.x,y:d.y,m:d.m,i:p.idx};mp.conn.send(m);showPing(m);return}
   if(d.t==='sel'){mp.sels=mp.sels||[];mp.sels[p.idx]=d.x!=null?{x:d.x,y:d.y}:null;return}
   if(d.t==='pi'){const m={t:'po',ts:d.ts,to:pid,from:mp.client.myId};if(!(p.rtc&&p.rtc.open()&&p.rtc.send(m)))mqPub(mp.client,mp.gT,m,{});return}
@@ -2681,9 +2711,9 @@ if(window.visualViewport)visualViewport.addEventListener('resize',fit);
 function loop(ts){
   const dt=Math.min(.05,(ts-last)/1000||0);last=ts;now=ts/1000;frameN++;
   if(coopGuest())guestStep(dt);
-  else if(started&&!paused)update(dt);
+  else if(started&&!paused){update(dt);if(SPD>1&&!mp&&!state.over)update(dt)}
   if(mp)mpTick(dt);
-  const w0=performance.now();draw();heroUI();perfWatch(performance.now()-w0,dt);requestAnimationFrame(loop);
+  const w0=performance.now();draw();heroUI();fltUI();perfWatch(performance.now()-w0,dt);requestAnimationFrame(loop);
 }
 // watch frame cost: go lighter when frames are slow, back to full detail once there is plenty of room again
 let pfW=0,pfI=1/60,pfBad=0,pfGood=0,pfWait=8;
@@ -2843,7 +2873,7 @@ addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false});
 const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
 if(TOUCH)document.querySelector('.wrap').appendChild($('ctrl'));
 // picking a tower fades the hero buttons for a moment so the cells under them can be built on
-let dimT=0;function dimCtrl(ms){$('ctrl').classList.add('dim');clearTimeout(dimT);dimT=setTimeout(()=>$('ctrl').classList.remove('dim'),ms)}
+let dimT=0;function dimCtrl(ms){for(const id of ['ctrl','flt'])$(id).classList.add('dim');clearTimeout(dimT);dimT=setTimeout(()=>{for(const id of ['ctrl','flt'])$(id).classList.remove('dim')},ms)}
 document.body.classList.toggle('kb',!TOUCH);
 // builders stand beside the cell (on the side they come from), not in the middle of it
 function buildSpot(h,j){const cx=j.x+.5,cy=j.y+.5,sd=h.x<cx?-1:1;let x=cx+sd*.72;if(x<.3||x>C-.3)x=cx-sd*.72;const p={x,y:cy+.1,owner:h.owner};heroClamp(p);return p}
@@ -3187,12 +3217,15 @@ function heroUI(){
   const h=hero,H=HEROES[h.k];bq.style.display=be.style.display='flex';
   skBtn(be,H.e.i,H.e.n,h.cdE,H.e.cd);skBtn(bq,H.q.i,H.q.n,h.cdQ,H.q.cd);
 }
+const HERO_SHORT={warrior:['choáng quái phía trước','chém và choáng mọi quái quanh mình'],archer:['tên xuyên cả hàng quái','mưa tên 4 giây vào chỗ đông'],
+  mage:['cầu lửa nổ lan, đốt cháy','đóng băng vùng quái đông'],assassin:['3 phi tiêu xuyên giáp','dao chí mạng vào con gần nhất']};
 function heroPick(){
   let h='';
   for(const k of HK){const H=HEROES[k];h+='<button class="hb'+(k===heroK?' cur':'')+'" data-k="'+k+'"><b>'+H.ico+'</b><small>'+H.name+'</small></button>'}
   $('heroGrid').innerHTML=h;
   const H=HEROES[heroK];
-  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br><b>E · '+H.e.n+'</b>: '+H.e.d+' (hồi '+H.e.cd+'s).<br><b>Q · '+H.q.n+'</b> (tuyệt kỹ): '+H.q.d+' (hồi '+H.q.cd+'s).<br>Tự tay hạ quái để lên cấp: tới cấp 10 mỗi cấp mạnh thêm 12%, sau đó vẫn lên tiếp, mỗi cấp thêm 3%.<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'WASD (hoặc phím mũi tên, chuột phải) để di chuyển, E kỹ năng, Q tuyệt kỹ, phím 1–6 chọn tháp.')+'</span>',true);
+  const SH=HERO_SHORT[heroK]||['',''];
+  setText($('heroInfo'),'<b>'+H.name+'</b>: '+H.desc+'.<br><b>E · '+H.e.n+'</b>: '+SH[0]+' · <b>Q · '+H.q.n+'</b>: '+SH[1]+'<br><span style="color:var(--gold)">'+(TOUCH?'Kéo vòng tròn góc trái dưới để di chuyển.':'WASD (hoặc phím mũi tên, chuột phải) để di chuyển, E kỹ năng, Q tuyệt kỹ, phím 1–6 chọn tháp.')+'</span>',true);
 }
 $('heroGrid').addEventListener('click',e=>{const b=e.target.closest('.hb');if(!b)return;heroK=b.dataset.k;try{localStorage.setItem('mctt-hero',heroK)}catch(er){}heroPick();SFX.play('click')});
 (()=>{const J=$('joy'),K=$('joyK'),RAD=34;let id=null;
