@@ -1851,7 +1851,7 @@ function mqPub(c,t,o,opt){try{c.publish(t,o==null?'':JSON.stringify(o),Object.as
 const ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];
 // how long a silent player is kept before being dropped (tab in background, phone locked, weak network)
 const LINK_TIMEOUT=25000;
-const FAST=t=>t==='s'||t==='joy'||t==='ping';
+const FAST=t=>t==='s'||t==='joy'||t==='ping'||t==='pi'||t==='po';
 function rtcOpen(sendSig,onMsg,initiator){
   if(typeof RTCPeerConnection==='undefined')return null;
   let pc;try{pc=new RTCPeerConnection({iceServers:ICE})}catch(e){return null}
@@ -2091,14 +2091,23 @@ function receiveSend(d){
 function mpTick(dt){
   if(!mp||!mp.conn)return;
   mp.stT-=dt;
+  if(mp.mode==='2v2'&&mp.role==='guest'){mp.piT=(mp.piT||0)-dt;if(mp.piT<=0){mp.piT=2;mpSend({t:'pi',ts:Math.round(performance.now())})}}
   if(mp.mode==='2v2'){if(mp.role==='host'&&started){mp.snapT-=dt;if(mp.snapT<=0){mp.snapT=.15;mpSend(makeSnap())}}updateOpp();return}
   if(mp.stT<=0){mp.stT=.5;mpSend({t:'st',l:state.lives,w:state.wave,g:state.gold,sk:state.stats[0].k,sg:state.stats[0].g})}
   if(mp.mode==='coop'&&mp.role==='host'){mp.snapT-=dt;if(mp.snapT<=0){mp.snapT=.15;mpSend(makeSnap())}}
   updateOpp();
 }
+// how this device talks to the room: direct (WebRTC) or through the relay server, plus round-trip time for guests
+function netBadge(){
+  if(!mp)return '';
+  if(mp.role==='host'){const ps=[...(mp.peers||new Map()).values()];if(!ps.length)return '';const d=ps.filter(p=>p.rtc&&p.rtc.open()).length;
+    return d===ps.length?'<span style="color:#8fe07a">⚡ Nối thẳng</span>':'<span style="color:#ffb35c">🌐 '+(ps.length-d)+' người qua máy chủ</span>'}
+  const dir=mp.conn&&mp.conn.direct&&mp.conn.direct(),ms=mp.rtt?' '+Math.round(mp.rtt)+'ms':'';
+  return dir?'<span style="color:#8fe07a">⚡ Nối thẳng'+ms+'</span>':'<span style="color:#ffb35c">🌐 Qua máy chủ'+ms+'</span>';
+}
 function updateOpp(){
   const o=mp.opp;let h;
-  if(mp.pve){h='🤝 '+mp.names.map((n,i)=>n&&i!==mp.idx?'<span style="color:'+PCOL[i]+'">'+esc(n)+'</span> 🪙 '+((state.goldP||[])[i]??0):'').filter(Boolean).join(' · ')}
+  if(mp.pve){h=netBadge()+' 🤝 '+mp.names.map((n,i)=>n&&i!==mp.idx?'<span style="color:'+PCOL[i]+'">'+esc(n)+'</span> 🪙 '+((state.goldP||[])[i]??0):'').filter(Boolean).join(' · ')}
   else if(mp.mode==='2v2'){const L=state.livesT||[20,20],t=myTeam();h=(t?'🔴':'🔵')+' Đội bạn: <b>❤️ '+L[t]+'</b> · '+(t?'🔵':'🔴')+' Đội kia: <b>❤️ '+L[1-t]+'</b>'}
   else if(mp.mode==='vs')h='🆚 '+esc(oppN())+': <b>❤️ '+(o.l??20)+'</b> · đợt <b>'+(o.w??0)+'</b>';
   else h='🤝 '+esc(oppN())+': <b>🪙 '+(mp.role==='host'?state.gold2:(o.g??0))+'</b>';
@@ -2228,7 +2237,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v108'; // build id (filled in at deploy time)
+const APP_VER='mctt-v109'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=3;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2429,6 +2438,7 @@ function dropPeer4(pid){
   mp.peers.delete(pid);if(p.rtc)p.rtc.close();mp.names[p.idx]=null;roster4();toast(p.name+' đã rời phòng',2500);
 }
 function hostCmd4(d,p,pid){
+  if(d.t==='pi'){const m={t:'po',ts:d.ts,to:pid,from:mp.client.myId};if(!(p.rtc&&p.rtc.open()&&p.rtc.send(m)))mqPub(mp.client,mp.gT,m,{});return}
   const err=m=>m&&mp.conn.send({t:'err',to:pid,m});
   if(d.t==='place'||d.t==='up'||d.t==='sell'){
     if(!started||state.over)return;
@@ -2482,6 +2492,7 @@ function guestRecv4(d){
     case 's':applySnap(d);break;
     case 'err':toast(d.m);break;
     case 'ev':ev4(d);break;
+    case 'po':mp.rtt=mp.rtt?mp.rtt*.6+(performance.now()-d.ts)*.4:performance.now()-d.ts;break;
   }
 }
 $('mkRoom').onclick=()=>lbMode==='2v2'?createRoom4(4):lbMode==='vs'?createRoom4(2):createRoom4(lbCap,true);
