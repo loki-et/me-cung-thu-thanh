@@ -2336,7 +2336,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v129'; // build id (filled in at deploy time)
+const APP_VER='mctt-v130'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2772,6 +2772,20 @@ function loop(ts){
   if(mp)mpTick(dt);
   const w0=performance.now();draw();heroUI();fltUI();perfWatch(performance.now()-w0,dt);requestAnimationFrame(loop);
 }
+// the host runs the match for everyone. Browsers stop animation frames in a background tab, so while the host's tab
+// is hidden a worker clock (not slowed down by the browser) keeps the game and the network going, without drawing
+let bgW=null,bgLast=0;
+function bgStep(){
+  if(!document.hidden||!mp||coopGuest())return;
+  const t=performance.now();let d=Math.min(.25,(t-bgLast)/1000||0);bgLast=t;now=t/1000;
+  while(d>0){const s=Math.min(.05,d);if(started&&!paused)update(s);if(mp)mpTick(s);d-=s}
+}
+function bgStart(){
+  bgLast=performance.now();if(bgW)return;
+  try{const u=URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),33)'],{type:'text/javascript'}));const w=new Worker(u);w.onmessage=bgStep;bgW={stop:()=>w.terminate()}}
+  catch(e){const i=setInterval(bgStep,33);bgW={stop:()=>clearInterval(i)}}
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&mp)bgStart();else if(bgW){bgW.stop();bgW=null;last=performance.now()}});
 // watch frame cost: go lighter when frames are slow, back to full detail once there is plenty of room again
 let pfW=0,pfI=1/60,pfBad=0,pfGood=0,pfWait=8;
 function perfWatch(work,dt){
