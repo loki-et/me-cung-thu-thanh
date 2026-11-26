@@ -109,7 +109,7 @@
   .stt td:first-child{text-align:left;color:var(--mut)}
   .stt tr+tr td{border-top:1px solid #ffffff14}
   .stt b{font-size:17px}
-  .mvp{color:var(--gold);font-size:11px;display:block}
+  .mvp{color:var(--gold);font-size:11px;display:block}.mvp.bad{color:#ff6b6b}
   .st1{font-size:15px;color:var(--mut)}.st1 b{color:var(--txt)}
   #overS{color:var(--mut);font-size:14px;max-width:280px}
   .ov button{min-width:200px}
@@ -752,7 +752,7 @@ function reset(){
   buildTerrain();
   towers=[];enemies=[];shots=[];queue=[];parts=[];texts=[];fx=[];selTower=null;tchoice=null;hover=null;spawnT=0;
   state={time:0,stats:[{k:0,g:0},{k:0,g:0}],gold2:START_GOLD+LEVEL_GOLD*(level-1),gold:START_GOLD+LEVEL_GOLD*(level-1),lives:20,wave:0,over:false,won:false,flash:0,nextT:FIRST_WAIT};
-  if(mp&&mp.mode==='2v2'){if(!mp.pve){state.gold=PVP_GOLD;state.livesT=[20,20]}state.goldP=[0,1,2,3].map(()=>state.gold);state.stats=[0,1,2,3].map(()=>({k:0,g:0}))}
+  if(mp&&mp.mode==='2v2'){if(!mp.pve){state.gold=PVP_GOLD;state.livesT=[20,20]}state.goldP=[0,1,2,3].map(()=>state.gold);state.stats=[0,1,2,3].map(()=>({l:0,k:0,g:0}))}
   $('over').style.display='none';
   setPause(false);makeHero();
   recompute();updateUI();
@@ -971,7 +971,7 @@ function mkEnemy(k,x,y,tx,ty,hpm,spm,n){
 }
 function spawn(q){
   const sd=SIDES?SIDES[q.side||0]:SPAWNS?{sp:SPAWNS[(q.g||0)%SPAWNS.length].sp,ex:EX}:{sp:SP,ex:EX},e=mkEnemy(q.k,sd.sp.x+.5,sd.sp.y+.5,sd.sp.x,sd.sp.y,q.hpm,q.spm,q.n);
-  e.side=q.side||0;e.ex=sd.ex;
+  e.side=q.side||0;e.ex=sd.ex;if(SPAWNS)e.gate=(q.g||0)%SPAWNS.length;
   // PvP troops walk as a loose crowd instead of a single file
   if(SIDES){e.ox=(Math.random()-.5)*.62;e.oy=(Math.random()-.5)*.62;e.x+=e.ox;e.y+=e.oy}
   enemies.push(e);
@@ -1072,7 +1072,7 @@ function update(dt){
       for(const o of enemies)if(o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<=T.healR){o.hp=Math.min(o.max,o.hp+o.max*T.heal);parts.push({x:o.x,y:o.y-.2,vx:0,vy:-.9,life:.6,max:.6,c:'#7dff8a',r:2.4})}
       fx.push({heal:1,x:e.x,y:e.y,t:.6,r:T.healR})}}
     if(e.k==='boss'){e.sumCd=(e.sumCd??5)-dt;if(e.sumCd<=0){e.sumCd=6;
-      for(let i=0;i<2;i++)born.push(Object.assign(mkEnemy('grunt',e.x+(Math.random()-.5)*.4,e.y+(Math.random()-.5)*.4,e.tx,e.ty,(e.hpm||1)*.6,e.spm,e.n),{side:e.side,ex:e.ex}));
+      for(let i=0;i<2;i++)born.push(Object.assign(mkEnemy('grunt',e.x+(Math.random()-.5)*.4,e.y+(Math.random()-.5)*.4,e.tx,e.ty,(e.hpm||1)*.6,e.spm,e.n),{side:e.side,ex:e.ex,gate:e.gate}));
       fx.push({x:e.x,y:e.y,r:1,t:.3,c:'#b06bff'});burst(e.x,e.y,'#c9a2ff',14,2.6)}}
     if(e.stun>0){e.stun-=dt;continue}
     let step=T.sp*e.spm*(e.slow>0?1-(e.slowAmt||.5):1)*dt;
@@ -1120,7 +1120,7 @@ function update(dt){
     state.taunt={txt:t,t:2.2,k:e.k};
   }
   if(state.taunt){state.taunt.t-=dt;if(state.taunt.t<=0)state.taunt=null}
-  for(const e of enemies)if(e.done){SFX.play('leak');if(SIDES){state.livesT[e.side||0]--;state.lives=state.livesT[myTeam()]}else state.lives--;e.hp=-1;e.leaked=true;state.flash=.45;burst(e.x,e.y,'#ff6b6b',12,2.5)}
+  for(const e of enemies)if(e.done){SFX.play('leak');if(SPAWNS&&e.gate!=null&&state.stats&&state.stats[e.gate]&&mp&&mp.names&&mp.names[e.gate])state.stats[e.gate].l=(state.stats[e.gate].l||0)+1;if(SIDES){state.livesT[e.side||0]--;state.lives=state.livesT[myTeam()]}else state.lives--;e.hp=-1;e.leaked=true;state.flash=.45;burst(e.x,e.y,'#ff6b6b',12,2.5)}
   for(const tw of towers){
     const L=st(tw);
     tw.cd-=dt;tw.rec=Math.max(0,tw.rec-dt*5);
@@ -1167,7 +1167,7 @@ function update(dt){
     addGold(e.lastBy||0,T.gold);{const sv=state.stats[mp&&mp.mode==='2v2'?(e.lastBy||0):(e.lastBy?1:0)];sv.k++;sv.g+=T.gold}
     burst(e.x,e.y,T.col,e.k==='boss'?30:10,e.k==='boss'?4:2.6);SFX.play(e.k==='boss'?'boom':'coin');
     texts.push({x:e.x,y:e.y-.3,t:.9,txt:'+'+T.gold,c:mp&&mp.mode==='coop'&&(e.lastBy||0)!==myId()?'#8fd3ff':null});
-    if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(Object.assign(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n),{side:e.side,ex:e.ex}))}burst(e.x,e.y,'#8fe05f',12,2.2)}
+    if(T.split){for(let i=0;i<T.split;i++){const a=i/T.split*6.283;born.push(Object.assign(mkEnemy('slimelet',e.x+Math.cos(a)*.18,e.y+Math.sin(a)*.18,e.tx,e.ty,e.hpm||1,e.spm,e.n),{side:e.side,ex:e.ex,gate:e.gate}))}burst(e.x,e.y,'#8fe05f',12,2.2)}
   }
   for(const b of born){if(SIDES&&b.ox==null){b.ox=(Math.random()-.5)*.62;b.oy=(Math.random()-.5)*.62}}
   for(const b of born)if(b.side==null){b.side=sideOf(b.x);b.ex=SIDES?SIDES[b.side].ex:EX}
@@ -1436,6 +1436,14 @@ function drawWater(){
   }
   g.globalAlpha=1;
 }
+function drawCornerTags(){
+  if(!SPAWNS||!mp||!mp.names)return;
+  g.font='bold 10px system-ui';g.textBaseline='middle';
+  SPAWNS.forEach((s,i)=>{const n=mp.names[i];if(!n)return;const t=(i===mp.idx?'Góc của bạn':n),w=g.measureText(t).width+12;
+    const right=s.sp.x>C/2,bottom=s.sp.y>R/2,x=right?C*S-w-3:3,y=bottom?R*S-S-22:S+6;
+    g.fillStyle='#000b';rr(g,x,y,w,16,8);g.fill();g.strokeStyle=PCOL[i];g.lineWidth=1.5;g.stroke();
+    g.fillStyle=PCOL[i];g.textAlign='left';g.fillText(t,x+6,y+8.5)});
+}
 function drawGates(){
   if(SIDES){for(const t of [0,1])drawBase(t)}
   else if(SPAWNS){const s0=SP;for(const gt of gates()){SP=gt.sp;drawGate1(gt)}SP=s0}
@@ -1509,7 +1517,7 @@ function draw(){
     for(const t of [0,1]){const lb=(t===myTeam()?'ĐỘI BẠN · ':'ĐỘI KIA · ')+(t?'ĐỎ':'XANH');
       g.fillStyle='#000a';const w=g.measureText(lb).width+14,lx=(t?DIVX:0)*S+4;rr(g,lx,R*S-22,w,18,9);g.fill();g.fillStyle=t?'#ff8a8a':'#8fd0ff';g.fillText(lb,lx+w/2,R*S-19)}}
   drawWater();
-  drawGates();
+  drawGates();drawCornerTags();
   const live=started&&!state.over&&!paused;
   const markBad=(x0,y0)=>{
     g.fillStyle='rgba(255,60,60,.35)';g.fillRect(x0,y0,S,S);
@@ -2201,7 +2209,7 @@ const mpHost=()=>mp&&mp.role==='host'&&(mp.mode==='coop'||mp.mode==='2v2')&&mp.n
 function noteShot(x){if(mpHost())mp.newSh.push([TK.indexOf(x.type),r2(x.x),r2(x.y),x.t.id,x.hero||0])}
 // snapshots stay small: towers only when they change, new shots/bolts as events, host time for smooth motion
 function makeSnap(){
-  const x2=mp.mode==='2v2'?{sx:state.stats.flatMap(o=>[o.k,o.g]),g:[state.gold,...state.goldP.slice(1)],lt:state.livesT,wt:state.wt??-2}:{sx:[state.stats[0].k,state.stats[0].g,state.stats[1].k,state.stats[1].g],g:[state.gold,state.gold2]};
+  const x2=mp.mode==='2v2'?{sx:state.stats.flatMap(o=>[o.k,o.g,o.l||0]),g:[state.gold,...state.goldP.slice(1)],lt:state.livesT,wt:state.wt??-2}:{sx:[state.stats[0].k,state.stats[0].g,state.stats[1].k,state.stats[1].g],g:[state.gold,state.gold2]};
   if(mp.mode==='2v2')x2.sl=(mp.sels||[]).map(o=>o?[o.x,o.y]:0);
   if(mp.mode==='2v2')x2.hs=heroes.map(h=>h?[HK.indexOf(h.k),r2(h.x),r2(h.y),r2(h.fa),h.lv,Math.round(h.xp),r2(h.cdE),r2(h.cdQ),r2(h.atk),h.jobs.flatMap(j=>[j.x,j.y,j.up?99:TK.indexOf(j.type)]),
     h.fx.map(f=>{const o={};for(const k in f)o[k]=typeof f[k]==='number'?r2(f[k]):f[k];return o}),h.rain?[r2(h.rain.x),r2(h.rain.y),r2(h.rain.t),h.rain.r||1.5]:0,h.bt>0?1:0,[hUp(h,'dmg'),hUp(h,'spd'),hUp(h,'cd')]]:0);
@@ -2228,7 +2236,7 @@ function applySnap(d){
       if(i!==mp.idx||!mp.myV)h.fa=fa;
       const js=[];for(let q=0;q<jb.length;q+=3)js.push(jb[q+2]===99?{x:jb[q],y:jb[q+1],up:true,type:(grid[jb[q+1]][jb[q]]||{}).type}:{x:jb[q],y:jb[q+1],type:TK[jb[q+2]]});h.jobs=js});hero=heroes[mp.idx]||null}
   if(mp.mode==='2v2'&&d.sl){const mine=mp.sels&&mp.sels[mp.idx];mp.sels=d.sl.map(a=>a?{x:a[0],y:a[1]}:null);mp.sels[mp.idx]=mine||null}
-  if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt?d.lt[myTeam()]:d.l;state.stats=[0,1,2,3].map(i=>({k:d.sx[i*2]||0,g:d.sx[i*2+1]||0}))}
+  if(mp.mode==='2v2'){state.gold=d.g[mp.idx];state.goldP=d.g;state.livesT=d.lt;state.lives=d.lt?d.lt[myTeam()]:d.l;state.stats=[0,1,2,3].map(i=>({k:d.sx[i*3]||0,g:d.sx[i*3+1]||0,l:d.sx[i*3+2]||0}))}
   else{state.gold=d.g[1];mp.opp.g=d.g[0];if(d.sx)state.stats=[{k:d.sx[0],g:d.sx[1]},{k:d.sx[2],g:d.sx[3]}];state.lives=d.l}
   if(d.w!==state.wave)state.wave=d.w;
   queue.length=d.q;state.nextT=d.nt;if(d.cv){const nw=d.cv.find(i=>i!==mp.idx&&!(mp.callV||[]).includes(i));if(nw!=null&&d.cv.length<(d.cn||9))toast((mp.names[nw]||'Đồng đội')+' muốn gọi đợt sớm',1800);mp.callV=d.cv;mp.callN=d.cn}state.flash=Math.max(state.flash,d.fl);
@@ -2323,9 +2331,9 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v125'; // build id (filled in at deploy time)
+const APP_VER='mctt-v126'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
-const NET_VER=3;
+const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
 const TEAM_HP=.45,TEAM_MORE=.45;
 const teamN=()=>Math.max(1,((mp&&mp.names)||[]).filter(Boolean).length);
@@ -2454,10 +2462,13 @@ function show2v2(wt){
 }
 function stats4HTML(){
   const st=state.stats||[],names=(mp&&mp.names)||[];
-  let best=-1,bk=-1;for(let i=0;i<4;i++)if(names[i]&&st[i]&&st[i].k>bk){bk=st[i].k;best=i}
-  let h='<table class="stt"><tr><th></th><th>⚔️ Quái hạ</th><th>💰 Vàng</th></tr>';
+  const four=!!SPAWNS,ids=[0,1,2,3].filter(i=>names[i]&&st[i]);
+  let best=-1;for(const i of ids)if(best<0||st[i].g>st[best].g||(st[i].g===st[best].g&&st[i].k>st[best].k))best=i;
+  let worst=-1;if(four&&ids.length>1)for(const i of ids)if((st[i].l||0)>0&&(worst<0||(st[i].l||0)>(st[worst].l||0)))worst=i;
+  if(worst>=0&&ids.some(i=>i!==worst&&(st[i].l||0)===(st[worst].l||0)))worst=-1; // a tie has no single culprit
+  let h='<table class="stt"><tr><th></th><th>⚔️ Quái hạ</th><th>💰 Vàng</th>'+(four?'<th>🚪 Lọt</th>':'')+'</tr>';
   for(const t of [0,1])for(const i of (mp&&mp.pve?(t?[]:[0,1,2,3]):[t,t+2])){if(!names[i])continue;const s=st[i]||{k:0,g:0};
-    h+='<tr><td style="color:'+PCOL[i]+';text-align:left">'+(mp&&mp.pve?'':t?'🔴 ':'🔵 ')+esc(names[i])+(mp&&i===mp.idx?' (bạn)':'')+(i===best?' <span class="mvp">👑</span>':'')+'</td><td><b>'+s.k+'</b></td><td><b>'+s.g+'</b></td></tr>'}
+    h+='<tr><td style="color:'+PCOL[i]+';text-align:left">'+(mp&&mp.pve?'':t?'🔴 ':'🔵 ')+esc(names[i])+(mp&&i===mp.idx?' (bạn)':'')+(i===best?' <span class="mvp">👑 MVP</span>':'')+(i===worst?' <span class="mvp bad">💀 Tội đồ</span>':'')+'</td><td><b>'+s.k+'</b></td><td><b>'+s.g+'</b></td>'+(four?'<td><b'+(i===worst?' style="color:#ff6b6b"':'')+'>'+(s.l||0)+'</b></td>':'')+'</tr>'}
   return h+'</table>';
 }
 // ---- room screen with 4 slots ----
