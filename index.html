@@ -397,7 +397,7 @@
         <li>Chọn loại tháp ở hàng dưới cùng, rồi chạm vào bản đồ để xây. Giữ ngón tay để xem tầm bắn, kéo để chỉnh chỗ, thả ra là xây.</li>
         <li>Bán tháp được 80% giá. Bán rồi xây chỗ khác để lái lính chạy vòng qua nhiều tháp nhất, nhưng mỗi lần dời sẽ lỗ một ít.</li>
         <li>Tháp vừa bắn vừa là tường. Được phép chặn kín đường, nhưng khi đó quái sẽ phát điên và đập sập nhà ở chỗ phải phá ít nhà nhất để mở lối. Nhà bị sập là mất luôn.</li>
-        <li>Mỗi màn có 30 đợt, đợt 10, 20 và 30 có trùm. Có 10 màn, mỗi màn một bản đồ cố định, càng về sau quái càng trâu. Qua màn trước mới mở được màn sau. Các đợt lính tự kéo đến theo giờ, xây nhanh tay nhé. Thanh "Đợt sau" ở trên cho biết quái sắp tới: chạm vào từng loại để xem điểm mạnh, điểm yếu rồi xây tháp khắc chế.</li>
+        <li>Mỗi màn có 30 đợt, đợt 10, 20 và 30 có trùm. Có 20 màn, mỗi màn một bản đồ cố định, càng về sau quái càng trâu. Qua màn trước mới mở được màn sau. Các đợt lính tự kéo đến theo giờ, xây nhanh tay nhé. Thanh "Đợt sau" ở trên cho biết quái sắp tới: chạm vào từng loại để xem điểm mạnh, điểm yếu rồi xây tháp khắc chế.</li>
       </ul>
       <div class="legend">
         <span>⛰️</span><span><b>Núi đá</b>: không xây được, không ai đi qua.</span>
@@ -452,7 +452,7 @@ const GRASS=0,ROCK=1,WATER=2;
 const WALL={wall:true},ROCKC={wall:true,rock:true};
 const isRes=(x,y)=>gates().some(s=>(s.res||[[s.sp.x+s.dir.x,s.sp.y+s.dir.y]]).some(([a,b])=>x===a&&y===b));
 const DIRS=[[0,1],[1,0],[-1,0],[0,-1]];
-const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=99,WAVES=30,LEVELS=10,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.2,LEVEL_GOLD=0,RAGE_ATK=2;
+const FIRST_WAIT=20,WAVE_GAP=14,HP_GROW=1.08,HP_MUL=.8,EASY_WAVES=5,SELL_RATE=.8,START_GOLD=99,WAVES=30,LEVELS=20,COOP_HP=1.45,PASSIVE_EVERY=1.5,COOP_LEVEL=1,VS_LEVEL=3,LEVEL_STEP=.2,LEVEL_GOLD=0,RAGE_ATK=2;
 const TYPES={
   arrow:{name:'Cung',color:'#7fe3d0',desc:'bắn nhanh, sát thương yếu, bị giáp chặn gần hết',lv:[
     {cost:30,range:3.4,dmg:8,cd:.35},
@@ -860,7 +860,7 @@ function doSell(tw,owner){
 }
 // gentle for the first EASY_WAVES waves, then HP grows by HP_GROW per wave
 const TAUNTS=['Đồ gà!','Gà quá trời gà!','Hehe, lọt rồi nha!','Thủ kiểu gì vậy?','Tháp để làm cảnh à?','Dễ như ăn kẹo','Bắn trượt hết rồi kìa!','Về nhà tập thêm đi!','Lêu lêu!','Cảm ơn đã mở đường!'];
-function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(mp&&mp.pve?(1+TEAM_HP*(teamN()-1))*HERO_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(level-1)*(.08+.92*Math.min(1,n/WAVES)))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
+function waveMul(n){const k=Math.max(0,n-EASY_WAVES);return {hpm:(mp&&mp.mode==='coop'?COOP_HP:1)*(mp&&mp.pve?(1+TEAM_HP*(teamN()-1))*HERO_HP:1)*(typeof heroOn==='function'&&heroOn()&&!mp?HERO_HP:1)*HP_MUL*(1+LEVEL_STEP*(Math.min(level-1,9)+.5*Math.max(0,level-10))*(.08+.92*Math.min(1,n/WAVES)))*(1+.08*n)*Math.pow(HP_GROW,k),spm:1+Math.min(.35,.015*k)}}
 function waveComp(n){
   const o=[['grunt',6+Math.round(1.3*n)]];
   if(n>=3)o.push(['runner',2+Math.round(.7*n)]);
@@ -1871,7 +1871,7 @@ $('vol').oninput=()=>{SFX.setVol($('vol').value/100);$('volT').textContent=$('vo
 $('vol').onchange=()=>SFX.play('arrow');
 function showSolo(){
   $('start').style.display='none';$('levels').style.display='none';$('menu').style.display='none';$('over').style.display='none';
-  $('soLvS').textContent='10 màn từ dễ tới khó · đã qua '+cleared()+'/'+LEVELS;
+  $('soLvS').textContent=LEVELS+' màn từ dễ tới khó · đã qua '+cleared()+'/'+LEVELS;
   $('soInfS').textContent='Map ngẫu nhiên, quái mạnh dần mãi · kỷ lục '+(+(lsGetE()||0))+' đợt';
   $('solo').style.display='flex';
 }
@@ -2336,7 +2336,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v128'; // build id (filled in at deploy time)
+const APP_VER='mctt-v129'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2851,7 +2851,10 @@ function cloudSave(now){
   if(!user||!fbDb)return;
   clearTimeout(cloudTimer);
   const go=()=>{const times={};for(const k in bestT)if(+bestT[k]>0)times[k]=Math.round(+bestT[k]);
-    return userDoc().set({name:myName,stars:stars.map(x=>+x||0),times,at:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{})};
+    const st=stars.map(x=>+x||0);
+    return userDoc().set({name:myName,stars:st,times,at:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{
+      const t10={};for(const k in times)if(+k<=10)t10[k]=times[k];
+      return userDoc().set({name:myName,stars:st.slice(0,11),times:t10,at:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{})})};
   if(now)return go();
   cloudTimer=setTimeout(go,1200);
 }
