@@ -68,7 +68,9 @@
   .wrap #ctrl>*{pointer-events:auto}
   #ctrl>*{transition:opacity .2s}
   #ctrl.dim>*{opacity:.22;pointer-events:none!important}
-  .kb #ctrl{position:fixed;right:22px;bottom:22px;padding:0;gap:14px;width:auto!important;max-width:none!important;margin:0!important;z-index:6}
+  /* computer: the skill buttons sit in their own row under the map, so they never cover a cell */
+  .kb #ctrl{position:static;justify-content:flex-end;padding:4px 12px 2px;gap:14px;z-index:6}
+  .kb #ctrl #joy{display:none}
   .skb{position:absolute;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
     background:conic-gradient(#0009 var(--p,0deg),#2c4a2acc 0);border:2px solid #fffbe0aa;box-shadow:0 3px 10px #0008;touch-action:none}
   #skill{right:6px;bottom:6px;width:64px;height:64px;border-color:#ffd65a}
@@ -108,6 +110,7 @@
   .stt th{color:var(--mut);font-weight:600;font-size:12px}
   .stt td:first-child{text-align:left;color:var(--mut)}
   .stt tr+tr td{border-top:1px solid #ffffff14}
+  .stt tr.me td{background:#ffffff14}.stt tr.me td:first-child{border-radius:8px 0 0 8px}.stt tr.me td:last-child{border-radius:0 8px 8px 0}
   .stt b{font-size:17px}
   .mvp{color:var(--gold);font-size:11px;display:block}.mvp.bad{color:#ff6b6b}
   .st1{font-size:15px;color:var(--mut)}.st1 b{color:var(--txt)}
@@ -2331,7 +2334,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v126'; // build id (filled in at deploy time)
+const APP_VER='mctt-v127'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2467,8 +2470,9 @@ function stats4HTML(){
   let worst=-1;if(four&&ids.length>1)for(const i of ids)if((st[i].l||0)>0&&(worst<0||(st[i].l||0)>(st[worst].l||0)))worst=i;
   if(worst>=0&&ids.some(i=>i!==worst&&(st[i].l||0)===(st[worst].l||0)))worst=-1; // a tie has no single culprit
   let h='<table class="stt"><tr><th></th><th>⚔️ Quái hạ</th><th>💰 Vàng</th>'+(four?'<th>🚪 Lọt</th>':'')+'</tr>';
-  for(const t of [0,1])for(const i of (mp&&mp.pve?(t?[]:[0,1,2,3]):[t,t+2])){if(!names[i])continue;const s=st[i]||{k:0,g:0};
-    h+='<tr><td style="color:'+PCOL[i]+';text-align:left">'+(mp&&mp.pve?'':t?'🔴 ':'🔵 ')+esc(names[i])+(mp&&i===mp.idx?' (bạn)':'')+(i===best?' <span class="mvp">👑 MVP</span>':'')+(i===worst?' <span class="mvp bad">💀 Tội đồ</span>':'')+'</td><td><b>'+s.k+'</b></td><td><b>'+s.g+'</b></td>'+(four?'<td><b'+(i===worst?' style="color:#ff6b6b"':'')+'>'+(s.l||0)+'</b></td>':'')+'</tr>'}
+  const rank=(a,b)=>(st[b].g-st[a].g)||(st[b].k-st[a].k)||(a-b); // MVP on top, then by gold earned
+  for(const t of [0,1])for(const i of (mp&&mp.pve?(t?[]:ids.slice().sort(rank)):[t,t+2])){if(!names[i])continue;const s=st[i]||{k:0,g:0};
+    h+='<tr'+(mp&&i===mp.idx?' class="me"':'')+'><td style="color:'+PCOL[i]+';text-align:left">'+(mp&&mp.pve?'':t?'🔴 ':'🔵 ')+esc(names[i])+(mp&&i===mp.idx?' (bạn)':'')+(i===best?' <span class="mvp">👑 MVP</span>':'')+(i===worst?' <span class="mvp bad">💀 Tội đồ</span>':'')+'</td><td><b>'+s.k+'</b></td><td><b>'+s.g+'</b></td>'+(four?'<td><b'+(i===worst?' style="color:#ff6b6b"':'')+'>'+(s.l||0)+'</b></td>':'')+'</tr>'}
   return h+'</table>';
 }
 // ---- room screen with 4 slots ----
@@ -3261,7 +3265,7 @@ function heroUI(){
   if(coopGuest()&&started)guestJoy(1/60);
   const bq=$('skill'),be=$('skillE');if(!bq)return;
   const show=heroOn()&&started;$('joy').style.display=show&&TOUCH?'block':'none';
-  if($('ctrl').style.display!==(show?'flex':'none')){$('ctrl').style.display=show?'flex':'none';}
+  if($('ctrl').style.display!==(show?'flex':'none')){$('ctrl').style.display=show?'flex':'none';if(!TOUCH)fit()} // on a computer the row takes space under the map
   if(!show){bq.style.display=be.style.display='none';return}
   const h=hero,H=HEROES[h.k];bq.style.display=be.style.display='flex';
   skBtn(be,H.e.i,H.e.n,h.cdE,H.e.cd);skBtn(bq,H.q.i,H.q.n,h.cdQ,H.q.cd);
