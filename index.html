@@ -58,7 +58,7 @@
   #callW{background:#5a3a0ccc!important;border-color:#ffd166aa!important}
   #callW.on{background:#2f6b2a!important;border-color:var(--acc)!important}
   .skc{display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}.skc>*{pointer-events:auto}
-  .kb .skc{flex-direction:row;gap:14px}
+
   #ctrl .skb,#ctrl #joy{position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important}
   #ctrl #joy{width:84px;height:84px}
   #app.wide #ctrl{width:100%;max-width:640px;margin:0 auto;box-sizing:border-box}
@@ -68,8 +68,10 @@
   .wrap #ctrl>*{pointer-events:auto}
   #ctrl>*{transition:opacity .2s}
   #ctrl.dim>*{opacity:.22;pointer-events:none!important}
-  /* computer: the skill buttons sit in their own row under the map, so they never cover a cell */
-  .kb #ctrl{position:static;justify-content:flex-end;padding:4px 12px 2px;gap:14px;z-index:6}
+  /* computer: the skill buttons stand in a column beside the map, so they never cover a cell */
+  .kb .wrap #ctrl{position:absolute;left:100%;right:auto;bottom:0;margin-left:14px;padding:0;flex-direction:column-reverse;align-items:center;gap:14px;width:auto!important;max-width:none!important;z-index:6}
+  .kb .wrap #ctrl .sp{display:none}
+  .kb .skc{flex-direction:column-reverse;gap:14px}
   .kb #ctrl #joy{display:none}
   .skb{position:absolute;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:0;gap:0;z-index:3;
     background:conic-gradient(#0009 var(--p,0deg),#2c4a2acc 0);border:2px solid #fffbe0aa;box-shadow:0 3px 10px #0008;touch-action:none}
@@ -2334,7 +2336,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v127'; // build id (filled in at deploy time)
+const APP_VER='mctt-v128'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2754,8 +2756,11 @@ addEventListener('keydown',e=>{
 });
 function fit(){
   const st=document.querySelector('.stage');
+  let kb=false;try{kb=!TOUCH}catch(e){}
   const aw=st.clientWidth-16,ah=st.clientHeight-6;
-  const w=Math.max(100,Math.min(aw,ah*C/R));
+  let w=Math.max(100,Math.min(aw,ah*C/R));
+  // a computer needs ~100px beside the map for the skill column; shrink the map only when the window has no room
+  if(kb&&(innerWidth-w)/2<104)w=Math.max(100,Math.min(w,innerWidth-2*104));
   cv.style.width=w+'px';cv.style.height=w*R/C+'px';
 }
 addEventListener('resize',()=>{fit();placePop()});
@@ -2924,7 +2929,7 @@ addEventListener('keydown',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k&&!/I
 addEventListener('keyup',e=>{const k=KMAP[(e.key||'').toLowerCase()];if(k)KEYS[k]=false});
 addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false});
 const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return 'ontouchstart' in window}})();
-if(TOUCH)document.querySelector('.wrap').appendChild($('ctrl'));
+document.querySelector('.wrap').appendChild($('ctrl')); // on the map for touch, beside it on a computer
 // picking a tower fades the hero buttons for a moment so the cells under them can be built on
 let dimT=0;function dimCtrl(ms){$('ctrl').classList.add('dim');clearTimeout(dimT);dimT=setTimeout(()=>$('ctrl').classList.remove('dim'),ms)}
 document.body.classList.toggle('kb',!TOUCH);
@@ -3265,7 +3270,7 @@ function heroUI(){
   if(coopGuest()&&started)guestJoy(1/60);
   const bq=$('skill'),be=$('skillE');if(!bq)return;
   const show=heroOn()&&started;$('joy').style.display=show&&TOUCH?'block':'none';
-  if($('ctrl').style.display!==(show?'flex':'none')){$('ctrl').style.display=show?'flex':'none';if(!TOUCH)fit()} // on a computer the row takes space under the map
+  if($('ctrl').style.display!==(show?'flex':'none')){$('ctrl').style.display=show?'flex':'none';}
   if(!show){bq.style.display=be.style.display='none';return}
   const h=hero,H=HEROES[h.k];bq.style.display=be.style.display='flex';
   skBtn(be,H.e.i,H.e.n,h.cdE,H.e.cd);skBtn(bq,H.q.i,H.q.n,h.cdQ,H.q.cd);
