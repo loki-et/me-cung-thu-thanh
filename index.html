@@ -2336,7 +2336,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v136'; // build id (filled in at deploy time)
+const APP_VER='mctt-v137'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2986,11 +2986,15 @@ const HERO_LV_CAP=.5,heroLvMul=lv=>(1+.12*(Math.min(lv,HERO_SOFTLV)-1))*(1+HERO_
 // growth from levels and "Sức mạnh" goes mostly to basic attacks for warrior/archer and mostly to E/Q for mage/assassin
 const HSCALE={warrior:{a:1.15,s:.6},archer:{a:1.15,s:.6},mage:{a:.6,s:1.15},assassin:{a:.6,s:1.15}};
 function heroMul(kind){const w=Math.max(1,state.wave),wc=Math.min(w,WAVES),h1=waveMul(1).hpm,hc=waveMul(wc).hpm;
-  const G=heroLvMul(hero&&hero.lv||1)*(1+.012*hUp(hero,'dmg')),sc=HSCALE[hero&&hero.k]||{a:1,s:1};
+  const G=heroLvMul(hero&&hero.lv||1)*hDmgUp(hero),sc=HSCALE[hero&&hero.k]||{a:1,s:1};
   return (.3+.7*(hc/h1)*Math.pow(waveMul(w).hpm/hc,.9))*HERO_BASE*Math.pow(G,kind==='sk'?sc.s:sc.a)}
 // gold upgrades: power (no cap, rising price), agility and cooldown (5 steps each)
 const HUPS={dmg:{i:'⚔️',n:'Sức mạnh',d:'+1.2% sát thương',c:60,f:1.06,max:999},spd:{i:'👟',n:'Nhanh nhẹn',d:'+1% tốc đánh, +0.6% tốc chạy',c:60,f:1.08,max:20},cd:{i:'⏱️',n:'Hồi chiêu',d:'E và Q hồi nhanh hơn 1%',c:60,f:1.08,max:20}};
 const hUp=(h,k)=>(h&&h.up&&h.up[k])||0;
+// "Sức mạnh": every buy adds 1.2% of base power; every 10th buy adds 5% more. All on base power, never compounding
+const DMG_STEP=.012,DMG_MILE=.05,hDmgUp=h=>{const n=hUp(h,'dmg');return 1+DMG_STEP*n+DMG_MILE*Math.floor(n/10)};
+function dmgTxt(h){const n=hUp(h,'dmg')+1,mile=n%10===0,pct=((DMG_STEP+(mile?DMG_MILE:0))*100).toFixed(1).replace('.',',');
+  return (HSCALE[h.k]&&HSCALE[h.k].s>1?'Tăng mạnh E, Q · ít đánh thường':'Tăng mạnh đánh thường · ít E, Q')+'<br>Lần này +'+pct+'%'+(mile?' (mốc 10 lần)':' · mỗi lần thứ 10 được +6,2%')+' · tổng +'+Math.round((hDmgUp(h)-1)*100)+'%'}
 const hUpCost=(h,k)=>Math.round(HUPS[k].c*Math.pow(HUPS[k].f,hUp(h,k)));
 const hAtkCd=h=>HEROES[h.k].cd/(1+.01*hUp(h,'spd')),hSp=h=>HEROES[h.k].sp*(1+.006*hUp(h,'spd')),hSkCd=(h,base)=>base*(1-.01*hUp(h,'cd'));
 function heroBuy(k,owner){
@@ -3281,14 +3285,14 @@ function guestJoy(dt){
 function shopHTML(){
   const h=myHero();if(!h)return '';
   return Object.keys(HUPS).map(k=>{const U=HUPS[k],lv=hUp(h,k),mx=lv>=U.max,c=hUpCost(h,k);
-    return '<div class="hrow" data-row="'+k+'"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<999?'/'+U.max:'')+'</b><small>'+(k==='dmg'?(HSCALE[h.k]&&HSCALE[h.k].s>1?'Tăng mạnh E, Q · tăng ít đánh thường':'Tăng mạnh đánh thường · tăng ít E, Q'):U.d)+'</small></div><button data-k="'+k+'" class="'+(!mx&&state.gold<c?'poor':'')+'"'+(mx?' disabled':'')+'>'+(mx?'Tối đa':'🪙 '+c)+'</button></div>'}).join('');
+    return '<div class="hrow" data-row="'+k+'"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<999?'/'+U.max:'')+'</b><small>'+(k==='dmg'?dmgTxt(h):U.d)+'</small></div><button data-k="'+k+'" class="'+(!mx&&state.gold<c?'poor':'')+'"'+(mx?' disabled':'')+'>'+(mx?'Tối đa':'🪙 '+c)+'</button></div>'}).join('');
 }
 // update the open shop in place (rebuilding the buttons every time gold changes made clicks flicker and get lost)
 function shopRefresh(){
   const h=myHero();if(!h)return;const L=$('hshL');
   if(!L.children.length){L.innerHTML=shopHTML();return}
   for(const k of Object.keys(HUPS)){const U=HUPS[k],lv=hUp(h,k),mx=lv>=U.max,c=hUpCost(h,k),row=L.querySelector('[data-row="'+k+'"]');if(!row)continue;
-    setText(row.querySelector('.hd b'),U.n+' '+lv+(U.max<999?'/'+U.max:''));
+    setText(row.querySelector('.hd b'),U.n+' '+lv+(U.max<999?'/'+U.max:''));if(k==='dmg')setText(row.querySelector('.hd small'),dmgTxt(h),true);
     const b=row.querySelector('button');setText(b,mx?'Tối đa':'🪙 '+c);b.disabled=mx;b.classList.toggle('poor',!mx&&state.gold<c)}
 }
 function openShop(v){const sh=$('hshop');const on=v??sh.style.display!=='block';sh.style.display=on&&heroOn()&&started?'block':'none';if(sh.style.display==='block'){$('hshL').innerHTML='';shopRefresh()}}
