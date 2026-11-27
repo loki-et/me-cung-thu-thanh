@@ -2336,7 +2336,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v131'; // build id (filled in at deploy time)
+const APP_VER='mctt-v132'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2982,10 +2982,13 @@ const HERO_BASE=.6,HERO_MAXLV=9999,HERO_SOFTLV=10,HERO_HP=1.35,xpNeed=lv=>40+35*
 const heroLvMul=lv=>(1+.12*(Math.min(lv,HERO_SOFTLV)-1))*(1+.03*Math.max(0,lv-HERO_SOFTLV));
 // after wave 30 (endless) the hero's damage follows monster HP a bit slower (power .9), so hero levels keep the hero
 // about as strong per monster as at wave 30 instead of outgrowing the monsters; bigger waves then wear the player down
-function heroMul(){const w=Math.max(1,state.wave),wc=Math.min(w,WAVES),h1=waveMul(1).hpm,hc=waveMul(wc).hpm;
-  return (.3+.7*(hc/h1)*Math.pow(waveMul(w).hpm/hc,.9))*HERO_BASE*heroLvMul(hero&&hero.lv||1)*(1+.012*hUp(hero,'dmg'))}
+// growth from levels and "Sức mạnh" goes mostly to basic attacks for warrior/archer and mostly to E/Q for mage/assassin
+const HSCALE={warrior:{a:1.15,s:.6},archer:{a:1.15,s:.6},mage:{a:.6,s:1.15},assassin:{a:.6,s:1.15}};
+function heroMul(kind){const w=Math.max(1,state.wave),wc=Math.min(w,WAVES),h1=waveMul(1).hpm,hc=waveMul(wc).hpm;
+  const G=heroLvMul(hero&&hero.lv||1)*(1+.012*hUp(hero,'dmg')),sc=HSCALE[hero&&hero.k]||{a:1,s:1};
+  return (.3+.7*(hc/h1)*Math.pow(waveMul(w).hpm/hc,.9))*HERO_BASE*Math.pow(G,kind==='sk'?sc.s:sc.a)}
 // gold upgrades: power (no cap, rising price), agility and cooldown (5 steps each)
-const HUPS={dmg:{i:'⚔️',n:'Sức mạnh',d:'+1.2% sát thương mọi đòn',c:60,f:1.06,max:999},spd:{i:'👟',n:'Nhanh nhẹn',d:'+1% tốc đánh, +0.6% tốc chạy',c:60,f:1.08,max:20},cd:{i:'⏱️',n:'Hồi chiêu',d:'E và Q hồi nhanh hơn 1%',c:60,f:1.08,max:20}};
+const HUPS={dmg:{i:'⚔️',n:'Sức mạnh',d:'+1.2% sát thương',c:60,f:1.06,max:999},spd:{i:'👟',n:'Nhanh nhẹn',d:'+1% tốc đánh, +0.6% tốc chạy',c:60,f:1.08,max:20},cd:{i:'⏱️',n:'Hồi chiêu',d:'E và Q hồi nhanh hơn 1%',c:60,f:1.08,max:20}};
 const hUp=(h,k)=>(h&&h.up&&h.up[k])||0;
 const hUpCost=(h,k)=>Math.round(HUPS[k].c*Math.pow(HUPS[k].f,hUp(h,k)));
 const hAtkCd=h=>HEROES[h.k].cd/(1+.01*hUp(h,'spd')),hSp=h=>HEROES[h.k].sp*(1+.006*hUp(h,'spd')),hSkCd=(h,base)=>base*(1-.01*hUp(h,'cd'));
@@ -3060,7 +3063,7 @@ function heroQ(){if(coopGuest()){mpSend({t:'Q'});return}HD=heroMark();try{heroQ_
 function heroErr(h,m){if(h===myHero())toast(m);else if(mp&&mp.role==='host'&&mp.peers){for(const [pid,p] of mp.peers)if(p.idx===h.owner)mp.conn.send({t:'err',to:pid,m})}}
 function heroE_(){
   if(!heroOn()||!started||state.over||paused)return;
-  const h=hero,H=HEROES[h.k],m=heroMul();
+  const h=hero,H=HEROES[h.k],m=heroMul('sk');
   if(h.cdE>0)return;
   dmgBy=hero.owner||0;
   if(h.k==='warrior'){
@@ -3090,7 +3093,7 @@ function heroE_(){
 // Q: ultimate (long cooldown)
 function heroQ_(){
   if(!heroOn()||!started||state.over||paused)return;
-  const h=hero,H=HEROES[h.k],m=heroMul();
+  const h=hero,H=HEROES[h.k],m=heroMul('sk');
   if(h.cdQ>0)return;
   dmgBy=hero.owner||0;
   if(h.k==='warrior'){
@@ -3115,7 +3118,7 @@ function heroQ_(){
 function heroStep(dt){HD=heroMark();try{heroStep_(dt)}finally{HD=false}}
 function heroStep_(dt){
   const h=hero;if(!h)return;
-  const H=HEROES[h.k],m=heroMul();
+  const H=HEROES[h.k],m=heroMul('atk'),ms=heroMul('sk');
   h.cd-=dt;h.cdE=Math.max(0,h.cdE-dt);h.cdQ=Math.max(0,h.cdQ-dt);h.atk=Math.max(0,h.atk-dt);
   for(const f of h.fx)f.t-=dt;h.fx=h.fx.filter(f=>f.t>0);
   // drop build orders that can no longer happen (cell taken meanwhile)
@@ -3140,7 +3143,7 @@ function heroStep_(dt){
     else{h.x+=dx/dl*step;h.y+=dy/dl*step;h.fa=Math.atan2(dy,dx);h.walk+=dt*10;h.bt=0}
   }
   if(h.rain){const r=h.rain;r.t-=dt;r.tick-=dt;
-    if(r.tick<=0){r.tick=.25;dmgBy=hero.owner||0;for(const e of around(r.x,r.y,r.r||1.5))hurt(e,12*m);SFX.play('arrow')}
+    if(r.tick<=0){r.tick=.25;dmgBy=hero.owner||0;for(const e of around(r.x,r.y,r.r||1.5))hurt(e,12*ms);SFX.play('arrow')}
     if(r.t<=0)h.rain=null}
   const t=heroTarget(H,h.x,h.y);
   if(t&&h.cd<=0){
@@ -3268,7 +3271,7 @@ function guestJoy(dt){
 function shopHTML(){
   const h=myHero();if(!h)return '';
   return Object.keys(HUPS).map(k=>{const U=HUPS[k],lv=hUp(h,k),mx=lv>=U.max,c=hUpCost(h,k);
-    return '<div class="hrow" data-row="'+k+'"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<999?'/'+U.max:'')+'</b><small>'+U.d+'</small></div><button data-k="'+k+'" class="'+(!mx&&state.gold<c?'poor':'')+'"'+(mx?' disabled':'')+'>'+(mx?'Tối đa':'🪙 '+c)+'</button></div>'}).join('');
+    return '<div class="hrow" data-row="'+k+'"><span class="hi">'+U.i+'</span><div class="hd"><b>'+U.n+' '+lv+(U.max<999?'/'+U.max:'')+'</b><small>'+(k==='dmg'?(HSCALE[h.k]&&HSCALE[h.k].s>1?'Tăng mạnh E, Q · tăng ít đánh thường':'Tăng mạnh đánh thường · tăng ít E, Q'):U.d)+'</small></div><button data-k="'+k+'" class="'+(!mx&&state.gold<c?'poor':'')+'"'+(mx?' disabled':'')+'>'+(mx?'Tối đa':'🪙 '+c)+'</button></div>'}).join('');
 }
 // update the open shop in place (rebuilding the buttons every time gold changes made clicks flicker and get lost)
 function shopRefresh(){
