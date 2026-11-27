@@ -1047,7 +1047,7 @@ function zap(tw,first,L){
     if(!nb)break;hit.push(nb);cur=nb;
   }
   let d=L.dmg;
-  for(const e of hit){pts.push([e.x,e.y]);hurt(e,d,false,true);burst(e.x,e.y,'#e9dcff',4,1.6);d*=.85}
+  for(const e of hit){pts.push([e.x,e.y]);hurt(e,d,false,true);burst(e.x,e.y,'#e9dcff',4,1.6);d=L.fall?L.dmg*L.fall:d*.85}
   fx.push({bolt:pts,t:.2,hero:L.hero});
   if(mpHost())mp.newEv.push([pts.flat().map(r2),L.hero||0]);
 }
@@ -2336,7 +2336,7 @@ const sideN=sd=>mp&&mp.names?[sd,sd+2].filter(i=>mp.names[i]).length:1;
 function sideMul(sd){return (sideN(sd)>=2?1.1:1)*HERO_HP}
 const SIDE_MORE=1.6;
 const PVP_GOLD=99;
-const APP_VER='mctt-v134'; // build id (filled in at deploy time)
+const APP_VER='mctt-v135'; // build id (filled in at deploy time)
 // online protocol version: bump ONLY when the messages between players change, so small updates can still play together
 const NET_VER=4;
 // team play: each extra player adds 45% monster HP and 45% more monsters per wave
@@ -2925,16 +2925,16 @@ $('rkBack').onclick=()=>{$('rank').style.display='none'};
 if(document.readyState==='complete')initFB();else addEventListener('load',initFB);
 /* ---------- hero (single player): walks straight over everything, builds towers, fights, never dies ---------- */
 const HEROES={
-  warrior:{name:'Chiến binh',ico:'🛡️',col:'#e0a040',sp:4,range:1.05,dmg:14,cd:.55,desc:'Cận chiến, chém từng quái',
-    e:{n:'Đập đất',i:'💥',cd:6,d:'đập khiên xuống đất phía trước, gây sát thương và làm choáng 0.8 giây quái trong 1.6 ô'},
-    q:{n:'Chém xoáy',i:'🌀',cd:20,d:'chém mọi quái trong 2 ô quanh mình, làm choáng 1.5 giây'}},
+  warrior:{name:'Chiến binh',ico:'🛡️',col:'#e0a040',sp:4,range:1.05,dmg:14,cd:.55,desc:'Cận chiến, chém lan thêm 2 quái sát bên (40% sát thương)',
+    e:{n:'Đập đất',i:'💥',cd:6,d:'đập khiên xuống đất phía trước, gây sát thương và làm choáng 0.8 giây quái trong 1.6 ô (tối đa 5 quái)'},
+    q:{n:'Chém xoáy',i:'🌀',cd:20,d:'chém quái trong 2 ô quanh mình, làm choáng 1.5 giây (tối đa 5 quái)'}},
   archer:{name:'Cung thủ',ico:'🏹',col:'#5fc46a',sp:4,range:3.4,dmg:9,cd:.4,desc:'Bắn xa, nhanh',
-    e:{n:'Tên xuyên',i:'➶',cd:6,d:'bắn một mũi tên xuyên thẳng qua mọi quái trên đường bay'},
+    e:{n:'Tên xuyên',i:'➶',cd:6,d:'bắn một mũi tên xuyên thẳng qua quái trên đường bay (tối đa 5 quái)'},
     q:{n:'Tam tiễn',i:'🎯',cd:22,d:'trong 5 giây, mỗi lần bắn ra 3 mũi tên vào 3 quái khác nhau trong tầm'}},
-  mage:{name:'Pháp sư',ico:'🔮',col:'#9a7bff',sp:4,range:2.8,dmg:18,cd:1,desc:'Bắn phép sét từ xa, từng quái một',
-    e:{n:'Cầu lửa',i:'☄️',cd:7,d:'ném cầu lửa nổ lan vào chỗ quái đông gần mình, đốt cháy 3 giây'},
-    q:{n:'Băng giá',i:'❄️',cd:24,d:'đóng băng 3 giây vùng quái đông nhất trong 5 ô quanh mình'}},
-  assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,desc:'Đâm cực đau, xuyên giáp, chạy nhanh',
+  mage:{name:'Pháp sư',ico:'🔮',col:'#9a7bff',sp:4,range:2.8,dmg:18,cd:1,desc:'Phép sét nhảy thêm 2 quái (40% sát thương)',
+    e:{n:'Cầu lửa',i:'☄️',cd:7,d:'ném cầu lửa nổ lan vào chỗ quái đông gần mình, đốt cháy 3 giây (tối đa 5 quái)'},
+    q:{n:'Băng giá',i:'❄️',cd:24,d:'đóng băng 3 giây vùng quái đông nhất trong 5 ô quanh mình (tối đa 5 quái)'}},
+  assassin:{name:'Sát thủ',ico:'🗡️',col:'#d05470',sp:5,range:1.05,dmg:30,cd:.75,crit:.3,desc:'Đâm cực đau, xuyên giáp, chạy nhanh. Chí mạng thì trúng thêm 1 quái sát bên (50%)',
     e:{n:'Phi tiêu',i:'✴️',cd:5,d:'phóng 3 phi tiêu vào 3 quái gần nhất trong 4 ô, xuyên giáp'},
     q:{n:'Đoạt mệnh',i:'💀',cd:20,d:'phóng một con dao lớn vào con quái gần nhất trong 5 ô, gây chí mạng cực mạnh'}}
 };
@@ -3047,7 +3047,11 @@ function heroTarget(H,px,py){
 }
 // the point with the most monsters around it (for area skills)
 // the most crowded spot within `reach` cells of the hero (skills never fly off across the map)
-const SK_REACH=5;
+const SK_REACH=5,SK_MAX=5;
+// area skills hit at most SK_MAX monsters, the ones closest to the centre of the area
+const capN=(list,x,y,n)=>list.sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y)).slice(0,n||SK_MAX);
+// splash of a basic attack: up to n other monsters within r of the target
+const near=(t,r,n)=>capN(around(t.x,t.y,r).filter(e=>e!==t),t.x,t.y,n);
 function crowdSpot(r){
   let best=null,bn=0,bd=0;
   for(const e of enemies){if(!foe(e))continue;const d=Math.hypot(e.x-hero.x,e.y-hero.y);if(d>SK_REACH)continue;const n=around(e.x,e.y,r).length;if(n>bn||(n===bn&&d<bd)){bn=n;best=e;bd=d}}
@@ -3070,18 +3074,18 @@ function heroE_(){
     // ground slam in front of the hero (no dash)
     const t=nearest(h.x,h.y,2.6);if(t)h.fa=Math.atan2(t.y-h.y,t.x-h.x);
     const p=ahead(h,.9);
-    for(const e of around(p.x,p.y,1.6)){hurt(e,45*m);stunE(e,.8)}
+    for(const e of capN(around(p.x,p.y,1.6),p.x,p.y)){hurt(e,45*m);stunE(e,.8)}
     h.fx.push({spin:1,x:p.x,y:p.y,t:.45,r:1.6});fx.push({x:p.x,y:p.y,r:1.6,t:.3,c:'#ffd27a'});burst(p.x,p.y,'#c9a26a',18,3.2);SFX.play('cannon');
   }else if(h.k==='archer'){
     const t=nearest(h.x,h.y,6)||ahead(h,3);
     const a=Math.atan2(t.y-h.y,t.x-h.x);h.fa=a;
-    for(const e of enemies){if(!foe(e))continue;const ux=e.x-h.x,uy=e.y-h.y,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
-      if(along>0&&along<7&&off<.45)hurt(e,45*m)}
+    capN(enemies.filter(e=>{if(!foe(e))return false;const ux=e.x-h.x,uy=e.y-h.y,along=ux*Math.cos(a)+uy*Math.sin(a),off=Math.abs(-ux*Math.sin(a)+uy*Math.cos(a));
+      return along>0&&along<7&&off<.45}),h.x,h.y).forEach(e=>hurt(e,45*m));
     h.fx.push({beam:1,x0:h.x,y0:h.y-.1,x1:h.x+Math.cos(a)*7,y1:h.y-.1+Math.sin(a)*7,t:.35});SFX.play('arrow');
   }else if(h.k==='mage'){
     let best=null,bn=0;for(const e of enemies){if(!foe(e)||Math.hypot(e.x-h.x,e.y-h.y)>4)continue;const n=around(e.x,e.y,1.2).length;if(n>bn){bn=n;best=e}}
     if(!best)best=ahead(h,2.5);
-    for(const e of around(best.x,best.y,1.2)){hurt(e,40*m);e.burnBy=0;e.burnDps=Math.max(e.burnDps||0,10*m);e.burn=Math.max(e.burn||0,3)}
+    for(const e of capN(around(best.x,best.y,1.2),best.x,best.y)){hurt(e,40*m);e.burnBy=0;e.burnDps=Math.max(e.burnDps||0,10*m);e.burn=Math.max(e.burn||0,3)}
     fx.push({x:best.x,y:best.y,r:1.2,t:.3,c:'#ff8a3d'});burst(best.x,best.y,'#ffb347',22,3.4);h.fx.push({ball:1,x0:h.x,y0:h.y-.4,x1:best.x,y1:best.y,t:.25});SFX.play('cannon');
   }else{
     const ts=enemies.filter(e=>foe(e)&&Math.hypot(e.x-h.x,e.y-h.y)<=4).sort((a,b)=>Math.hypot(a.x-h.x,a.y-h.y)-Math.hypot(b.x-h.x,b.y-h.y)).slice(0,3);
@@ -3097,14 +3101,14 @@ function heroQ_(){
   if(h.cdQ>0)return;
   dmgBy=hero.owner||0;
   if(h.k==='warrior'){
-    const hit=around(h.x,h.y,2.1);
+    const hit=capN(around(h.x,h.y,2.1),h.x,h.y);
     for(const e of hit){hurt(e,90*m);stunE(e,1.5)}
     h.fx.push({spin:1,x:h.x,y:h.y,t:.45,r:2.1});burst(h.x,h.y,'#ffd27a',24,3.8);SFX.play('boom');
   }else if(h.k==='archer'){
     h.tri=5;h.fx.push({tri:1,t:5});texts.push({x:h.x,y:h.y-.9,t:1,txt:'Tam tiễn!',c:'#9be885'});burst(h.x,h.y,'#9be885',16,2.6);SFX.play('arrow');
   }else if(h.k==='mage'){
     const p=crowdSpot(2)||ahead(h,2.5);
-    for(const e of around(p.x,p.y,2)){hurt(e,40*m);stunE(e,3)}
+    for(const e of capN(around(p.x,p.y,2),p.x,p.y)){hurt(e,40*m);stunE(e,3)}
     fx.push({x:p.x,y:p.y,r:2,t:.3,c:'#bfe9ff'});burst(p.x,p.y,'#e6f7ff',28,3.2);h.fx.push({ice:1,x:p.x,y:p.y,t:3,r:2});SFX.play('frost');
   }else{
     // throw a big dagger (no dash)
@@ -3152,13 +3156,14 @@ function heroStep_(dt){
       // Tam tiễn (Q): 3 arrows at 3 different monsters in range, the main target first
       const ts=[t];if(h.tri>0)for(const e of enemies.filter(e=>e!==t&&foe(e)&&Math.hypot(e.x-h.x,e.y-h.y)<=H.range).sort((a,b)=>prog(a)-prog(b))){if(ts.length>=3)break;ts.push(e)}
       for(const tt of ts){shots.push({x:h.x,y:h.y-.1,t:tt,L:{dmg:H.dmg*m},type:'arrow',ang:Math.atan2(tt.y-h.y,tt.x-h.x),owner:h.owner||0,hm:heroMark(),hero:hrgb(h.k)});noteShot(shots[shots.length-1])}SFX.play('arrow')}
-    else if(h.k==='mage'){zap({x:h.x-.5,y:h.y-.65},t,{dmg:H.dmg*m,chain:1,hero:hrgb(h.k)});SFX.play('thunder')}
+    else if(h.k==='mage'){zap({x:h.x-.5,y:h.y-.65},t,{dmg:H.dmg*m,chain:3,fall:.4,hero:hrgb(h.k)});SFX.play('thunder')}
     else if(h.k==='warrior'){
-      const grp=[t];
-      for(const e of grp)hurt(e,H.dmg*m);
+      hurt(t,H.dmg*m);
+      for(const e of near(t,.9,2))hurt(e,H.dmg*m*.4);
       h.fx.push({slash:1,x:h.x+Math.cos(h.fa)*.35,y:h.y+Math.sin(h.fa)*.35,a:h.fa,t:.2,c:HPAL.warrior[1]});SFX.play('click');
     }else{
       const crit=Math.random()<H.crit;hurt(t,H.dmg*m*(crit?2:1),true);
+      if(crit)for(const e of near(t,.9,1)){hurt(e,H.dmg*m,true);h.fx.push({slash:1,x:e.x,y:e.y,a:h.fa+1.2,t:.2,c:'#ff2d55'})}
       h.fx.push({slash:1,x:t.x,y:t.y,a:h.fa+1.2,t:.2,c:crit?'#ff2d55':HPAL.assassin[1],big:crit});
       if(crit)texts.push({x:t.x,y:t.y-.4,t:.6,txt:'Chí mạng!',c:'#ff6b81'});SFX.play('click');
     }
